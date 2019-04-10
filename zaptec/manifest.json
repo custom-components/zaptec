@@ -1,0 +1,8 @@
+{
+  "domain": "zaptec",
+  "name": "zaptec",
+  "documentation": "https://www.example.com",
+  "dependencies": [],
+  "codeowners": ["hellowlol"],
+  "requirements": []
+}
