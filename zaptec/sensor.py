@@ -7,32 +7,32 @@ import aiohttp
 
 import voluptuous as vol
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.components.sensor import PLATFORM_SCHEMA
 import homeassistant.helpers.config_validation as cv
-from homeassistant.util import Throttle
+from homeassistant.const import CONF_PASSWORD, CONF_USERNAME
 from homeassistant.helpers.entity import Entity
 
 from . import DOMAIN
 
-observations_remaps = {}
-
 _LOGGER = logging.getLogger(__name__)
 
-# This should probable a config option,
-# Just grab what we need for now..
-to_remap = [-2, 201, 202, 270, 501, 507, 513, 553, 708, 710, 804, 809, 911]
+OBSERVATIONS_REMAPS = {}
+WANTED_ATTRIBUTES = []
+CHARGE_MODE_MAP = {'1': ['disconnected', 'mdi:power-plug-off'],
+                   '2': ['waiting', 'mdi:power-sleep'],
+                   '3': ['charging', 'mdi:power-plug'],
+                   '4': ['charge_done', 'mdi:battery-charging-100']}
 
+TOKEN_URL = 'https://api.zaptec.com/oauth/token'
+API_URL = 'https://api.zaptec.com/api/'
+CONST_URL = 'https://api.zaptec.com/api/constants'
 
-charge_mode_map = {'1': 'disconnected',
-                   '2': 'waiting',
-                   '3': 'charging',
-                   '4': 'charge_done'}
+PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
+    vol.Required(CONF_USERNAME): cv.string,
+    vol.Required(CONF_PASSWORD): cv.string,
+    vol.Optional('wanted_attributes', default=[710]): cv.ensure_list
+})
 
-token_url = 'https://api.zaptec.com/oauth/token'
-api_url = 'https://api.zaptec.com/api/'
-const_url = 'https://api.zaptec.com/api/constants'
-
-
-# Add some platform config validation.
 
 def to_under(word):
     """helper to convert TunOnThisButton to turn_on_this_button."""
@@ -51,21 +51,28 @@ def to_under(word):
 
 async def _update_remaps():
     wanted = ['Observations']
-    async with aiohttp.request('GET', const_url) as resp:
+    async with aiohttp.request('GET', CONST_URL) as resp:
         if resp.status == 200:
             data = await resp.json()
             for k, v in data.items():
                 if k in wanted:
-                    observations_remaps.update(v)
+                    OBSERVATIONS_REMAPS.update(v)
                     # Add names.
-                    observations_remaps.update({value: key for key, value in v.items()})
+                    OBSERVATIONS_REMAPS.update({value: key for key, value in v.items()})
 
 
 async def async_setup_platform(hass, config, async_add_entities,
                                discovery_info=None):
+    global WANTED_ATTRIBUTES
+    # Should we pass the wanted attrs to sensors directly?
     username = config.get('username', '')
     password = config.get('password', '')
-    #wanted_attrs = config.get('attrs')
+    WANTED_ATTRIBUTES = config.get('wanted_attributes')
+    # Make sure 710 is there since it's state we track.
+    if 710 not in WANTED_ATTRIBUTES:
+        _LOGGER.debug('Attribute 710 was missing from wanted_attributes'
+                      'this was automatically added')
+        WANTED_ATTRIBUTES.append(710)
 
     if not username or not password:
         _LOGGER.debug('Missing username and password')
@@ -94,7 +101,7 @@ class Account(Entity):
              'password': self._password,
              'grant_type': 'password'}
         async with aiohttp.request('POST',
-                                   token_url,
+                                   TOKEN_URL,
                                    data=p
                                    ) as resp:
 
@@ -110,30 +117,24 @@ class Account(Entity):
     async def _request(self, url):
         header = {'Authorization': 'Bearer %s' % self._access_token,
                   'Accept': 'application/json'}
+        full_url = API_URL + url
         try:
             with async_timeout.timeout(10):
-                _LOGGER.debug('full url is %s' % api_url + url)
-
-                async with self._client.get(api_url + url, headers=header) as resp:
+                async with self._client.get(full_url, headers=header) as resp:
                     if resp.status == 401:
                         await self._refresh_token()
                         return await self._request(url)
                     else:
                         return await resp.json()
         except (asyncio.TimeoutError, aiohttp.ClientError) as err:
-            _LOGGER.error("Could not get info from %s: %s", api_url, err)
+            _LOGGER.error("Could not get info from %s: %s", full_url, err)
 
     async def chargers(self):
         charg = await self._request('chargers')
-        sensors = []
 
-        for chrg in charg['Data']:
-            c = Charger(chrg, self)
-            sensors.append(c)
-
-        for s in sensors:
-            await s.async_update()
-        return sensors
+        return [Charger(chrg, self)
+                for chrg in charg.get('Data', [])
+                if chrg]
 
 
 class Charger(Entity):
@@ -160,7 +161,7 @@ class Charger(Entity):
 
     @property
     def state(self):
-        return charge_mode_map[self._attrs['charger_operation_mode']]
+        return CHARGE_MODE_MAP[self._attrs['charger_operation_mode']][0]
 
     @property
     def device_state_attributes(self):
@@ -183,35 +184,17 @@ class Charger(Entity):
 
     async def async_update(self):
         """Update the attributes"""
-        if not observations_remaps:
+        if not OBSERVATIONS_REMAPS:
             await _update_remaps()
         data = await self.account._request('chargers/%s/state' % self._id)
         for row in data:
-            # Make sure we only get the attributes we
-            # are interested in.
-            if row['StateId'] in to_remap:
+            # Make sure we only get
+            # the attributes we are interested in.
+            # use the const_url to find all the possible
+            # attributes under observers
+            if row['StateId'] in WANTED_ATTRIBUTES:
                 try:
-                    name = to_under(observations_remaps[row['StateId']])
+                    name = to_under(OBSERVATIONS_REMAPS[row['StateId']])
                     self._attrs[name] = row.get('ValueAsString', 0)
                 except KeyError:
-                    _LOGGER('%s is not int %r' % (row, observations_remaps))
-
-
-"""
-async def test(username, password):
-    await _update_remaps()
-    x = Account(username, password)
-    t = await x.chargers()
-    print(t)
-
-if __name__ == '__main__':
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(test())
-"""
-
-"""
-sensor:
-  - platform: zaptec
-    username: your_username
-    password: your_password
-"""
+                    _LOGGER.debug('%s is not int %r' % (row, OBSERVATIONS_REMAPS))
