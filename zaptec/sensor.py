@@ -166,6 +166,10 @@ class Charger(Entity):
     @property
     def device_state_attributes(self):
         return self._attrs
+    
+    async def _send_command(self, id_):
+        """ Supported command Ids are: 102 (restart charger), 502 (stop charging), 200 (upgrade firmware), 10001 (deauthorize and stop charging).""" 
+        await self.account._request('chargers/%s/SendCommand/%s' % (self._id, id_))
 
     async def async_update(self):
         """Update the attributes"""
