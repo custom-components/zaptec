@@ -18,7 +18,12 @@ _LOGGER = logging.getLogger(__name__)
 
 # This should probable a config option,
 # Just grab what we need for now..
-to_remap = [-2, 201, 202, 270, 501, 507, 513, 553, 708, 710, 809]
+to_remap = [-2, 201, 202, 270, 501, 507, 513, 553, 708, 710, 804, 809, 911]
+
+charge_mode_map = {1: 'disconnected',
+                   2: 'waiting',
+                   3: 'charging',
+                   4: 'charge_done'}
 
 token_url = 'https://api.zaptec.com/oauth/token'
 api_url = 'https://api.zaptec.com/api/'
@@ -145,19 +150,19 @@ class Charger(Entity):
         # Should this be the id/mid in addition.
         # What if a user has more then one charger?
         # TODO
-        return 'zaptec'
+        return 'zaptec_%s' % self._mid
 
     @property
     def icon(self):
-        return 'mdi:power-plug'
+        return 'mdi:ev-station'
 
     @property
     def state(self):
         # State seems to logged in some graph
         # Why check if the charger is online, wouldn't
         # the mode be more interesting? charging, waiting etc.
-        return bool(self._attrs['is_online'])
-
+        return charge_mode_map[self.attrs['charger_operation_mode']]
+       
     @property
     def device_state_attributes(self):
         return self._attrs
