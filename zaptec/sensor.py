@@ -1,3 +1,4 @@
+import asyncio
 from datetime import timedelta
 
 import logging
@@ -20,10 +21,11 @@ _LOGGER = logging.getLogger(__name__)
 # Just grab what we need for now..
 to_remap = [-2, 201, 202, 270, 501, 507, 513, 553, 708, 710, 804, 809, 911]
 
-charge_mode_map = {1: 'disconnected',
-                   2: 'waiting',
-                   3: 'charging',
-                   4: 'charge_done'}
+
+charge_mode_map = {'1': 'disconnected',
+                   '2': 'waiting',
+                   '3': 'charging',
+                   '4': 'charge_done'}
 
 token_url = 'https://api.zaptec.com/oauth/token'
 api_url = 'https://api.zaptec.com/api/'
@@ -63,6 +65,7 @@ async def async_setup_platform(hass, config, async_add_entities,
                                discovery_info=None):
     username = config.get('username', '')
     password = config.get('password', '')
+    #wanted_attrs = config.get('attrs')
 
     if not username or not password:
         _LOGGER.debug('Missing username and password')
@@ -72,7 +75,7 @@ async def async_setup_platform(hass, config, async_add_entities,
 
     devs = await acc.chargers()
 
-    async_add_entities(devs)
+    async_add_entities(devs, True)
     return True
 
 
@@ -107,16 +110,18 @@ class Account(Entity):
     async def _request(self, url):
         header = {'Authorization': 'Bearer %s' % self._access_token,
                   'Accept': 'application/json'}
+        try:
+            with async_timeout.timeout(10):
+                _LOGGER.debug('full url is %s' % api_url + url)
 
-        with async_timeout.timeout(10):
-            _LOGGER.debug('full url is %s' % api_url + url)
-
-            async with self._client.get(api_url + url, headers=header) as resp:
-                if resp.status == 401:
-                    await self._refresh_token()
-                    return await self._request(url)
-                else:
-                    return await resp.json()
+                async with self._client.get(api_url + url, headers=header) as resp:
+                    if resp.status == 401:
+                        await self._refresh_token()
+                        return await self._request(url)
+                    else:
+                        return await resp.json()
+        except (asyncio.TimeoutError, aiohttp.ClientError) as err:
+            _LOGGER.error("Could not get info from %s: %s", api_url, err)
 
     async def chargers(self):
         charg = await self._request('chargers')
@@ -147,9 +152,6 @@ class Charger(Entity):
 
     @property
     def name(self):
-        # Should this be the id/mid in addition.
-        # What if a user has more then one charger?
-        # TODO
         return 'zaptec_%s' % self._mid
 
     @property
@@ -158,17 +160,25 @@ class Charger(Entity):
 
     @property
     def state(self):
-        # State seems to logged in some graph
-        # Why check if the charger is online, wouldn't
-        # the mode be more interesting? charging, waiting etc.
-        return charge_mode_map[self.attrs['charger_operation_mode']]
-       
+        return charge_mode_map[self._attrs['charger_operation_mode']]
+
     @property
     def device_state_attributes(self):
         return self._attrs
-    
+
+    async def stop_charging(self):
+        return await self._send_command(502)
+
+    async def restart_charger(self):
+        return await self._send_command(102)
+
+    async def upgrade_firmware(self):
+        return await self._send_command(200)
+
+    async def deauthorize_stop(self):
+        return await self._send_command(1001)
+
     async def _send_command(self, id_):
-        """ Supported command Ids are: 102 (restart charger), 502 (stop charging), 200 (upgrade firmware), 10001 (deauthorize and stop charging).""" 
         await self.account._request('chargers/%s/SendCommand/%s' % (self._id, id_))
 
     async def async_update(self):
@@ -197,4 +207,11 @@ async def test(username, password):
 if __name__ == '__main__':
     loop = asyncio.get_event_loop()
     loop.run_until_complete(test())
+"""
+
+"""
+sensor:
+  - platform: zaptec
+    username: your_username
+    password: your_password
 """
