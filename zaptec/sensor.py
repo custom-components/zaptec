@@ -18,10 +18,11 @@ _LOGGER = logging.getLogger(__name__)
 
 OBSERVATIONS_REMAPS = {}
 WANTED_ATTRIBUTES = []
-CHARGE_MODE_MAP = {'1': ['disconnected', 'mdi:power-plug-off'],
+CHARGE_MODE_MAP = {'0': ['unknown', '']
+                   '1': ['disconnected', 'mdi:power-plug-off'],
                    '2': ['waiting', 'mdi:power-sleep'],
                    '3': ['charging', 'mdi:power-plug'],
-                   '4': ['charge_done', 'mdi:battery-charging-100']}
+                   '5': ['charge_done', 'mdi:battery-charging-100']}
 
 TOKEN_URL = 'https://api.zaptec.com/oauth/token'
 API_URL = 'https://api.zaptec.com/api/'
