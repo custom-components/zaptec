@@ -159,6 +159,10 @@ class Charger(Entity):
     @property
     def icon(self):
         return 'mdi:ev-station'
+    
+    @property
+    def entity_picture(self):
+        return CHARGE_MODE_MAP[self._attrs['charger_operation_mode']][1]
 
     @property
     def state(self):
