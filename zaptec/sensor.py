@@ -80,10 +80,9 @@ async def async_setup_platform(hass, config, async_add_entities,
         return False
 
     acc = Account(username, password, async_get_clientsession(hass))
-
     devs = await acc.chargers()
-
     async_add_entities(devs, True)
+
     return True
 
 
