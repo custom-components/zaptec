@@ -18,7 +18,7 @@ _LOGGER = logging.getLogger(__name__)
 
 OBSERVATIONS_REMAPS = {}
 WANTED_ATTRIBUTES = []
-CHARGE_MODE_MAP = {'0': ['unknown', ''],
+CHARGE_MODE_MAP = {'0': ['unknown', 'mdi:help-rhombus-outline'],
                    '1': ['disconnected', 'mdi:power-plug-off'],
                    '2': ['waiting', 'mdi:power-sleep'],
                    '3': ['charging', 'mdi:power-plug'],
@@ -79,14 +79,20 @@ async def async_setup_platform(hass, config, async_add_entities,
         _LOGGER.debug('Missing username and password')
         return False
 
+    sensors = []
     acc = Account(username, password, async_get_clientsession(hass))
     devs = await acc.chargers()
-    async_add_entities(devs, True)
+    hass.data[DOMAIN] = acc
+
+    for dev in devs:
+        sensors.append(ChargerSensor(dev))
+
+    async_add_entities(sensors, True)
 
     return True
 
 
-class Account(Entity):
+class Account:
     def __init__(self, username, password, client):
         self._username = username
         self._password = password
@@ -137,7 +143,7 @@ class Account(Entity):
                 if chrg]
 
 
-class Charger(Entity):
+class Charger:
     def __init__(self, data, account):
         self._id = data.get('Id')
         self._mid = data.get('MID')
@@ -150,26 +156,6 @@ class Charger(Entity):
         self._pin = data.get('Pin')
         self.account = account
         self._attrs = {}
-
-    @property
-    def name(self):
-        return 'zaptec_%s' % self._mid
-
-    @property
-    def icon(self):
-        return 'mdi:ev-station'
-
-    @property
-    def entity_picture(self):
-        return CHARGE_MODE_MAP[self._attrs['charger_operation_mode']][1]
-
-    @property
-    def state(self):
-        return CHARGE_MODE_MAP[self._attrs['charger_operation_mode']][0]
-
-    @property
-    def device_state_attributes(self):
-        return self._attrs
 
     # Add the commands i found but i assume some
     # of them need some kind if input.
@@ -283,11 +269,37 @@ class Charger(Entity):
     async def _send_command(self, id_):
         await self.account._request('chargers/%s/SendCommand/%s' % (self._id, id_))
 
+
+class ChargerSensor(Entity):
+    def __init__(self, api):
+        self._api = api
+        self._attrs = api._attrs.copy()
+
+    @property
+    def name(self):
+        return 'zaptec_%s' % self._api._mid
+
+    @property
+    def icon(self):
+        return 'mdi:ev-station'
+
+    @property
+    def entity_picture(self):
+        return CHARGE_MODE_MAP[self._attrs['charger_operation_mode']][1]
+
+    @property
+    def state(self):
+        return CHARGE_MODE_MAP[self._attrs['charger_operation_mode']][0]
+
+    @property
+    def device_state_attributes(self):
+        return self._attrs
+
     async def async_update(self):
         """Update the attributes"""
         if not OBSERVATIONS_REMAPS:
             await _update_remaps()
-        data = await self.account._request('chargers/%s/state' % self._id)
+        data = await self._api.account._request('chargers/%s/state' % self._api._id)
         for row in data:
             # Make sure we only get
             # the attributes we are interested in.
