@@ -184,9 +184,12 @@ class Charger:
     async def combined_max(self):
         return await self._send_command(10999)
 
+    async def state(self):
+        return await self.account._request('chargers/%s/state' % self._id)
+
     async def _send_command(self, id_):
         cmd = 'chargers/%s/SendCommand/%s' % (self._id, id_)
-        _LOGGER.debug('Should have done %s disabled.', cmd)
+        _LOGGER.info('Should have done %s disabled.', cmd)
         import asyncio
         await asyncio.sleep(0)
         #await self.account._request('chargers/%s/SendCommand/%s' % (self._id, id_))

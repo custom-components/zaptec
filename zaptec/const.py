@@ -1,3 +1,18 @@
+NAME = 'zaptec'
+VERSION = '0.0.1'
+ISSUEURL = 'https://github.com/Hellowlol/zaptec/issues'
+
+STARTUP = """
+-------------------------------------------------------------------
+{name}
+Version: {version}
+This is a custom component
+If you have any issues with this you need to open an issue here:
+{issueurl}
+-------------------------------------------------------------------
+""".format(name=NAME, version=VERSION, issueurl=ISSUEURL)
+
+
 OBSERVATIONS_REMAPS = {}
 WANTED_ATTRIBUTES = []
 CHARGE_MODE_MAP = {'0': ['unknown', 'mdi:help-rhombus-outline'],
@@ -9,3 +24,9 @@ CHARGE_MODE_MAP = {'0': ['unknown', 'mdi:help-rhombus-outline'],
 TOKEN_URL = 'https://api.zaptec.com/oauth/token'
 API_URL = 'https://api.zaptec.com/api/'
 CONST_URL = 'https://api.zaptec.com/api/constants'
+
+
+CONF_SENSOR = "sensor"
+CONF_SWITCH = "switch"
+CONF_ENABLED = "enabled"
+CONF_NAME = "name"

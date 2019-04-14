@@ -1,19 +1,15 @@
 import logging
 import aiohttp
 
-import voluptuous as vol
 from homeassistant.components.sensor import PLATFORM_SCHEMA
-import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.entity import Entity
 
-from . import DOMAIN
+from . import DOMAIN, SENSOR_SCHEMA_ATTRS
 from .const import *
 
 _LOGGER = logging.getLogger(__name__)
 
-PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
-    vol.Optional('wanted_attributes', default=[710]): cv.ensure_list
-})
+PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(SENSOR_SCHEMA_ATTRS)
 
 
 def to_under(word):
