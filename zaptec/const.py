@@ -1,0 +1,11 @@
+OBSERVATIONS_REMAPS = {}
+WANTED_ATTRIBUTES = []
+CHARGE_MODE_MAP = {'0': ['unknown', 'mdi:help-rhombus-outline'],
+                   '1': ['disconnected', 'mdi:power-plug-off'],
+                   '2': ['waiting', 'mdi:power-sleep'],
+                   '3': ['charging', 'mdi:power-plug'],
+                   '5': ['charge_done', 'mdi:battery-charging-100']}
+
+TOKEN_URL = 'https://api.zaptec.com/oauth/token'
+API_URL = 'https://api.zaptec.com/api/'
+CONST_URL = 'https://api.zaptec.com/api/constants'
