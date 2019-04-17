@@ -3,12 +3,12 @@
 # Usage
 Create a directory called custom_components in your ha config dir, copy/clone the zaptec folder inside this
 
-Config example
+Config examples
 ```
-sensor:
-  - platform: zaptec
-    username: your_username
-    password: your_password
+zaptec:
+  username: your_username
+  password: your_password
+  sensor:
     wanted_attributes:
       - -2
       - 201
@@ -23,4 +23,5 @@ sensor:
       - 804
       - 809
       - 911
+    switch:
 ```
