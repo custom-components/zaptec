@@ -5,6 +5,7 @@ import voluptuous as vol
 from homeassistant.helpers import discovery
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 import homeassistant.helpers.config_validation as cv
+from homeassistant.helpers.typing import ConfigType, HomeAssistantType
 from homeassistant.const import (
     CONF_PASSWORD,
     CONF_USERNAME
@@ -49,7 +50,9 @@ CONFIG_SCHEMA = vol.Schema({
 }, extra=vol.ALLOW_EXTRA)
 
 
-async def async_setup(hass, config):
+async def async_setup(hass: HomeAssistantType,
+                      config: ConfigType,) -> bool:
+
     _LOGGER.info(STARTUP)
     username = config[DOMAIN][CONF_USERNAME]
     password = config[DOMAIN][CONF_PASSWORD]
@@ -67,10 +70,9 @@ async def async_setup(hass, config):
     # This part has not been tested as i have only used
     # the sensor.yaml method for now.
     for platform in ['sensor', 'switch']:
-        _LOGGER.info('Checking %s', platform)
+        _LOGGER.debug('Checking %s', platform)
         # Get platform specific configuration
         platform_config = config[DOMAIN].get(platform, {})
-        _LOGGER.info(platform_config)
 
         # If platform is not enabled, skip.
         if not platform_config:

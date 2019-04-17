@@ -2,6 +2,8 @@
 import logging
 
 from homeassistant.components.switch import SwitchDevice
+from homeassistant.helpers.typing import ConfigType, HomeAssistantType
+
 from .const import CHARGE_MODE_MAP
 from . import DOMAIN, SWITCH_SCHEMA_ATTRS
 
@@ -12,13 +14,16 @@ _LOGGER = logging.getLogger(__name__)
 
 
 async def async_setup_platform(
-    hass, config, async_add_entities, discovery_info=None
-):  # pylint: disable=unused-argument
+    hass: HomeAssistantType,
+    config: ConfigType,
+    async_add_entities,
+    discovery_info=None
+) -> bool:  # pylint: disable=unused-argument
     """Setup switch platform."""
     api = hass.data.get(DOMAIN, {}).get('api')
     if api is None:
         _LOGGER.debug("Didn't setup switch the api wasnt ready")
-        return
+        return False
 
     switches = []
     chargers = await api.chargers()
@@ -27,12 +32,13 @@ async def async_setup_platform(
         switches.append(Switch(c))
 
     async_add_entities(switches, False)
+    return True
 
 
 class Switch(SwitchDevice):
     """switch class."""
 
-    def __init__(self, api):
+    def __init__(self, api) -> None:
         self._api = api
         self._attr = {}
         self._status = False
@@ -40,7 +46,7 @@ class Switch(SwitchDevice):
         self._name = 'zaptec_%s_switch' % api._id
         self._mode = ''
 
-    async def async_update(self):
+    async def async_update(self) -> None:
         """Update the switch."""
         data = await self._api.state()
         for row in data:
@@ -58,21 +64,21 @@ class Switch(SwitchDevice):
         return await self._api.stop_charging()
 
     @property
-    def name(self):
+    def name(self) -> str:
         """Return the name of the switch."""
         return self._name
 
     @property
-    def icon(self):
+    def icon(self) -> str:
         """Return the icon of this switch."""
         return ''  # <-- what should this be?
 
     @property
-    def is_on(self):
+    def is_on(self) -> bool:
         """Return true if the switch is on."""
         return True if self._mode == 'charging' else False
 
     @property
-    def device_state_attributes(self):
+    def device_state_attributes(self) -> dict:
         """Return the state attributes."""
         return self._attr

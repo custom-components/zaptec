@@ -3,6 +3,7 @@ import aiohttp
 
 from homeassistant.components.sensor import PLATFORM_SCHEMA
 from homeassistant.helpers.entity import Entity
+from homeassistant.helpers.typing import ConfigType, HomeAssistantType
 
 from . import DOMAIN, SENSOR_SCHEMA_ATTRS
 from .const import *
@@ -12,7 +13,7 @@ _LOGGER = logging.getLogger(__name__)
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(SENSOR_SCHEMA_ATTRS)
 
 
-def to_under(word):
+def to_under(word) -> str:
     """helper to convert TurnOnThisButton to turn_on_this_button."""
     result = ''
     for i, char in enumerate(word):
@@ -27,7 +28,7 @@ def to_under(word):
     return result
 
 
-async def _update_remaps():
+async def _update_remaps() -> None:
     wanted = ['Observations']
     async with aiohttp.request('GET', CONST_URL) as resp:
         if resp.status == 200:
@@ -38,9 +39,10 @@ async def _update_remaps():
                     # Add names.
                     OBSERVATIONS_REMAPS.update({value: key for key, value in v.items()})
 
-
-async def async_setup_platform(hass, config, async_add_entities,
-                               discovery_info=None):
+async def async_setup_platform(hass: HomeAssistantType,
+                               config: ConfigType,
+                               async_add_entities,
+                               discovery_info=None) -> None:
     if not config:
         # This means there is no info from the sensor yaml or configuration yaml.
         # We support config under the component this is added as discovery info.
@@ -73,31 +75,31 @@ async def async_setup_platform(hass, config, async_add_entities,
 
 
 class ChargerSensor(Entity):
-    def __init__(self, api):
+    def __init__(self, api) -> None:
         self._api = api
         self._attrs = api._attrs.copy()
 
     @property
-    def name(self):
+    def name(self) -> str:
         return 'zaptec_%s' % self._api._mid
 
     @property
-    def icon(self):
+    def icon(self) -> str:
         return 'mdi:ev-station'
 
     @property
-    def entity_picture(self):
+    def entity_picture(self) -> str:
         return CHARGE_MODE_MAP[self._attrs['charger_operation_mode']][1]
 
     @property
-    def state(self):
+    def state(self) -> str:
         return CHARGE_MODE_MAP[self._attrs['charger_operation_mode']][0]
 
     @property
-    def device_state_attributes(self):
+    def device_state_attributes(self) -> dict:
         return self._attrs
 
-    async def async_update(self):
+    async def async_update(self) -> None:
         """Update the attributes"""
         if not OBSERVATIONS_REMAPS:
             await _update_remaps()
