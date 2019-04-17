@@ -41,9 +41,19 @@ async def _update_remaps():
 
 async def async_setup_platform(hass, config, async_add_entities,
                                discovery_info=None):
+    if not config:
+        # This means there is no info from the sensor yaml or configuration yaml.
+        # We support config under the component this is added as discovery info.
+        if discovery_info:
+            config = discovery_info.copy()
+
+    if not config:
+        _LOGGER.debug('Missing config, stopped setting platform')
+        return
+
     global WANTED_ATTRIBUTES
     # Should we pass the wanted attrs to sensors directly?
-    WANTED_ATTRIBUTES = config.get('wanted_attributes')
+    WANTED_ATTRIBUTES = config.get('wanted_attributes', [])
     # Make sure 710 is there since it's state we track.
     if 710 not in WANTED_ATTRIBUTES:
         _LOGGER.debug('Attribute 710 was missing from wanted_attributes'

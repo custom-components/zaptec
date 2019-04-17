@@ -75,10 +75,6 @@ class Charger:
         self.account = account
         self._attrs = {}
 
-    # Add the commands i found but i assume some
-    # of them need some kind if input.
-    # untested..
-
     async def restart_charger(self):
         return await self._send_command(102)
 
@@ -189,7 +185,4 @@ class Charger:
 
     async def _send_command(self, id_):
         cmd = 'chargers/%s/SendCommand/%s' % (self._id, id_)
-        _LOGGER.info('Should have done %s disabled.', cmd)
-        import asyncio
-        await asyncio.sleep(0)
-        #await self.account._request('chargers/%s/SendCommand/%s' % (self._id, id_))
+        return await self.account._request(cmd)

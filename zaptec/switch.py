@@ -10,22 +10,23 @@ _LOGGER = logging.getLogger(__name__)
 # Are there some other shit we are supposed to use instead?
 #PLATFORM_SCHEMA.extend(SWITCH_SCHEMA_ATTRS)
 
-#https://github.com/custom-components/blueprint/blob/master/custom_components/blueprint/switch.py
 
 async def async_setup_platform(
     hass, config, async_add_entities, discovery_info=None
 ):  # pylint: disable=unused-argument
     """Setup switch platform."""
-    api = hass.data[DOMAIN]['api']
+    api = hass.data.get(DOMAIN, {}).get('api')
+    if api is None:
+        _LOGGER.debug("Didn't setup switch the api wasnt ready")
+        return
 
-    sensors = []
+    switches = []
     chargers = await api.chargers()
-    _LOGGER.info('Adding zaptecswitch')
 
     for c in chargers:
-        sensors.append(Switch(c))
+        switches.append(Switch(c))
 
-    async_add_entities(sensors, False)
+    async_add_entities(switches, False)
 
 
 class Switch(SwitchDevice):
@@ -41,14 +42,10 @@ class Switch(SwitchDevice):
 
     async def async_update(self):
         """Update the switch."""
-        _LOGGER.info('called async update')
-
         data = await self._api.state()
         for row in data:
             if row['StateId'] == 710:
                 self._mode = CHARGE_MODE_MAP[row['ValueAsString']][0]
-
-        _LOGGER.info('mode is %s', self._mode)
 
     async def async_turn_on(self, **kwargs):  # pylint: disable=unused-argument
         """Turn on the switch."""
@@ -68,7 +65,7 @@ class Switch(SwitchDevice):
     @property
     def icon(self):
         """Return the icon of this switch."""
-        return ''
+        return ''  # <-- what should this be?
 
     @property
     def is_on(self):

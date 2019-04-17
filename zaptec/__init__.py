@@ -25,7 +25,6 @@ DOMAIN = 'zaptec'
 
 SENSOR_SCHEMA_ATTRS = {
     vol.Optional('wanted_attributes', default=[710]): cv.ensure_list,
-    vol.Optional(CONF_ENABLED, default=True): cv.boolean,
 }
 
 SENSOR_SCHEMA = vol.Schema(SENSOR_SCHEMA_ATTRS)
@@ -33,7 +32,6 @@ SENSOR_SCHEMA = vol.Schema(SENSOR_SCHEMA_ATTRS)
 # The atts is added solo so we can use both
 # ways to setup the sensors/switch.
 SWITCH_SCHEMA_ATTRS = {
-        vol.Optional(CONF_ENABLED, default=True): cv.boolean,
         vol.Optional(CONF_NAME, default='zomg_kek'): cv.string,
 }
 
@@ -53,11 +51,6 @@ CONFIG_SCHEMA = vol.Schema({
 
 async def async_setup(hass, config):
     _LOGGER.info(STARTUP)
-
-    #if DOMAIN not in config:
-    #    return
-
-    # Change from has own const..
     username = config[DOMAIN][CONF_USERNAME]
     password = config[DOMAIN][CONF_PASSWORD]
 
@@ -65,13 +58,11 @@ async def async_setup(hass, config):
         _LOGGER.debug('Missing username and password')
         # Add persistent notification too?
         return
-    _LOGGER.info(dict(config[DOMAIN]))
+
     # Add the account to a so it can be shared.
+    # between the sensor and the switch.
     hass.data[DOMAIN] = {}
     hass.data[DOMAIN]['api'] = api.Account(username, password, async_get_clientsession(hass))
-    #hass.data[DOMAIN]['chargers'] = []
-    #hass.data[DOMAIN]['chargers'] = await api.chargers()
-
 
     # This part has not been tested as i have only used
     # the sensor.yaml method for now.
@@ -79,20 +70,15 @@ async def async_setup(hass, config):
         _LOGGER.info('Checking %s', platform)
         # Get platform specific configuration
         platform_config = config[DOMAIN].get(platform, {})
+        _LOGGER.info(platform_config)
 
         # If platform is not enabled, skip.
         if not platform_config:
-            _LOGGER.info('%s has no config, skipping it.', platform)
+            _LOGGER.debug('%s has no config, skipping it.', platform)
             continue
 
         for entry in platform_config:
             entry_config = entry
-            _LOGGER.critical(entry_config)
-
-            # If entry is not enabled, skip.
-            if not entry_config[CONF_ENABLED]:
-                _LOGGER.info('%s isnt enabled', platform)
-                continue
 
             hass.async_create_task(
                 discovery.async_load_platform(
