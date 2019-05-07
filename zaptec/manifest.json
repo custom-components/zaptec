@@ -1,7 +1,7 @@
 {
   "domain": "zaptec",
   "name": "zaptec",
-  "documentation": "https://www.example.com",
+  "documentation": "https://github.com/Hellowlol/zaptec",
   "dependencies": [],
   "codeowners": ["hellowlol"],
   "requirements": []
