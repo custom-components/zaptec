@@ -23,5 +23,5 @@ zaptec:
       - 804
       - 809
       - 911
-    switch:
+  switch:
 ```
