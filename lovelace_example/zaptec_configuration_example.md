@@ -175,7 +175,7 @@ Then add the following to your lovelace configuration to make a simple card in H
 
 And it will look like this:
 
-![Simple](lovelace_example/car_charger_simple.PNG)
+![Simple](/lovelace_example/car_charger_simple.PNG)
 
 This is an example of a more sophisticated card using the picture-elements card, the circle-sensor custom card and some other custom elements.
 For this configuration the images are located in the /www/images directory.
@@ -390,4 +390,4 @@ For this configuration the images are located in the /www/images directory.
 
 And it will look like this:
 
-![Advanced](lovelace_example/car_charger_advanced.PNG)
+![Advanced](/lovelace_example/car_charger_advanced.PNG)
