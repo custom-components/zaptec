@@ -1,0 +1,531 @@
+### ZAPTEC DOCUMENTATION
+
+### /api/constants
+
+{
+  "Languages": [
+    {
+      "Key": "nl",
+      "Name": "Dutch"
+    },
+    {
+      "Key": "en",
+      "Name": "English"
+    },
+    {
+      "Key": "fr",
+      "Name": "French (Switzerland)"
+    },
+    {
+      "Key": "ch",
+      "Name": "German (Switzerland)"
+    },
+    {
+      "Key": "it",
+      "Name": "Italian (Switzerland)"
+    },
+    {
+      "Key": "no",
+      "Name": "Norwegian"
+    }
+  ],
+  "Countries": {
+    "c66b0918-9e65-4dd4-9b6c-47f989538e6d": {
+      "Id": "c66b0918-9e65-4dd4-9b6c-47f989538e6d",
+      "Code": "FR",
+      "Name": "France",
+      "TimeZoneName": "(UTC+01:00) Brussels, Copenhagen, Madrid, Paris"
+    },
+    "fb894235-7a19-4fe0-b6a1-8b9c9ceb9e4e": {
+      "Id": "fb894235-7a19-4fe0-b6a1-8b9c9ceb9e4e",
+      "Code": "DE",
+      "Name": "Germany",
+      "TimeZoneName": "(UTC+01:00) Amsterdam, Berlin, Bern, Rome, Stockholm, Vienna"
+    },
+    "a0e21e29-474f-466a-9a2f-3a17458465d8": {
+      "Id": "a0e21e29-474f-466a-9a2f-3a17458465d8",
+      "Code": "ISL",
+      "Name": "Iceland",
+      "TimeZoneName": "(UTC+00:00) Monrovia, Reykjavik"
+    },
+    "2365ed9c-8a79-44b5-9bf8-f7a2cf42fb44": {
+      "Id": "2365ed9c-8a79-44b5-9bf8-f7a2cf42fb44",
+      "Code": "IT",
+      "Name": "Italy",
+      "TimeZoneName": "(UTC+01:00) Amsterdam, Berlin, Bern, Rome, Stockholm, Vienna"
+    },
+    "bda681ab-adcb-4f67-bac5-5cbf28d42cc7": {
+      "Id": "bda681ab-adcb-4f67-bac5-5cbf28d42cc7",
+      "Code": "NL",
+      "Name": "Netherlands",
+      "TimeZoneName": "(UTC+01:00) Amsterdam, Berlin, Bern, Rome, Stockholm, Vienna"
+    },
+    "83bffdb1-0a92-4574-bb7b-bd0d17387c17": {
+      "Id": "83bffdb1-0a92-4574-bb7b-bd0d17387c17",
+      "Code": "NOR",
+      "Name": "Norway",
+      "TimeZoneName": "(UTC+01:00) Amsterdam, Berlin, Bern, Rome, Stockholm, Vienna"
+    },
+    "53215e81-d4a1-48ab-bfa3-001934b71734": {
+      "Id": "53215e81-d4a1-48ab-bfa3-001934b71734",
+      "Code": "PT",
+      "Name": "Portugal",
+      "TimeZoneName": "(UTC+00:00) Dublin, Edinburgh, Lisbon, London"
+    },
+    "7ededdc0-d2d3-4daf-8d93-37f998de07b1": {
+      "Id": "7ededdc0-d2d3-4daf-8d93-37f998de07b1",
+      "Code": "SWE",
+      "Name": "Sweden",
+      "TimeZoneName": "(UTC+01:00) Amsterdam, Berlin, Bern, Rome, Stockholm, Vienna"
+    },
+    "3705d443-31df-4633-8bf4-b8379c82a5cb": {
+      "Id": "3705d443-31df-4633-8bf4-b8379c82a5cb",
+      "Code": "CHE",
+      "Name": "Switzerland",
+      "TimeZoneName": "(UTC+01:00) Amsterdam, Berlin, Bern, Rome, Stockholm, Vienna"
+    },
+    "f743b0d4-1f38-43e8-a95d-cf18fe1c3ede": {
+      "Id": "f743b0d4-1f38-43e8-a95d-cf18fe1c3ede",
+      "Code": "GBR",
+      "Name": "United Kingdom",
+      "TimeZoneName": "(UTC+00:00) Dublin, Edinburgh, Lisbon, London"
+    }
+  },
+  "InstallationCategories": [
+    {
+      "Id": "5c624162-e595-4167-a8bb-8b33a1487b62",
+      "Category": "Community_Installation_Category"
+    },
+    {
+      "Id": "c43d09c7-b734-4319-af16-9e8fac37d7ec",
+      "Category": "Company_Installation_Category"
+    },
+    {
+      "Id": "d72d6374-7f73-4df5-8056-60635b177421",
+      "Category": "Private_Installation_Category"
+    },
+    {
+      "Id": "08814e5f-bd84-45cd-9e0e-d225c8d675e1",
+      "Category": "Public_Installation_Category"
+    }
+  ],
+  "InstallationTypes": {
+    "Pro": {
+      "Id": 0,
+      "Name": "Pro",
+      "DefaultFeatures": 32791,
+      "DefaultRoute": "default"
+    },
+    "Smart": {
+      "Id": 1,
+      "Name": "Smart",
+      "MaxCircuits": 1,
+      "MaxCircuitCurrent": 32.0,
+      "MaxChargers": 2,
+      "DefaultFeatures": 32770,
+      "DefaultRoute": "default"
+    }
+  },
+  "UserRoles": {
+    "None": 0,
+    "User": 1,
+    "Owner": 2,
+    "Maintainer": 4,
+    "Administrator": 8,
+    "Any": 15,
+    "Onboarding": 16,
+    "DeviceAdministrator": 32,
+    "PartnerAdministrator": 64
+  },
+  "NetworkTypes": {
+    "Unknown": 0,
+    "IT_1_Phase": 1,
+    "IT_3_Phase": 2,
+    "TN_1_Phase": 3,
+    "TN_3_Phase": 4
+  },
+  "ChargerOperationModes": {
+    "Unknown": 0,
+    "Disconnected": 1,
+    "Connected_Requesting": 2,
+    "Connected_Charging": 3,
+    "Connected_Finished": 5
+  },
+  "Phases": {
+    "None": 0,
+    "Phase_1": 1,
+    "Phase_2": 2,
+    "Phase_3": 4,
+    "All": 7
+  },
+  "WildcardGuid": "ffffffff-ffff-ffff-ffff-ffffffffffff",
+  "RegionalInfo": {
+    "GBR": {
+      "RegionName": "GBR",
+      "Name": "GB",
+      "NativeName": "United Kingdom",
+      "CurrencySymbol": "£",
+      "CurrencyName": "British Pound",
+      "CurrencyNativeName": "Pound Sterling",
+      "ISOCurrencySymbol": "GBP"
+    },
+    "NOR": {
+      "RegionName": "NOR",
+      "Name": "NO",
+      "NativeName": "Norge",
+      "CurrencySymbol": "kr",
+      "CurrencyName": "Norwegian Krone",
+      "CurrencyNativeName": "norske kroner",
+      "ISOCurrencySymbol": "NOK"
+    },
+    "CHE": {
+      "RegionName": "CHE",
+      "Name": "CH",
+      "NativeName": "Schweiz",
+      "CurrencySymbol": "CHF",
+      "CurrencyName": "Swiss Franc",
+      "CurrencyNativeName": "Schweizer Franken",
+      "ISOCurrencySymbol": "CHF"
+    }
+  },
+  "MessageCodes": {
+    "Success": 0,
+    "Error": 1,
+    "Information": 2,
+    "Warning": 3,
+    "KnownErrors": 500,
+    "UnknownObject": 501
+  },
+  "ErrorCodes": {
+    "Unknown": 500,
+    "MissingRequiredData": 503,
+    "UnknownSetting": 504,
+    "OperationFailedForUnknownReasons": 505,
+    "NotApplicableForUser": 506,
+    "UnknownUser": 507,
+    "RfidTokenInUse": 508,
+    "SignUpTooManyRequests": 509,
+    "EmailInUse": 510,
+    "CellPhoneInUse": 511,
+    "UnknownObject": 512,
+    "InvalidPassword": 513,
+    "IncorrectPassword": 514,
+    "UserActivationLinkExpired": 515,
+    "LinkRequestExpired": 516,
+    "ChargerDeviceIdExists": 517,
+    "UnknownDeviceId": 518,
+    "UnknownCommand": 519,
+    "ErrorCommunicatingWithDevice": 520,
+    "StringIsNotAWellFormedVersion": 521,
+    "FirmwareVersionExists": 522,
+    "FirmwareFileExists": 523,
+    "CreateConflict": 524,
+    "DeviceFirmwareNotConfigured": 525,
+    "FeatureNotEnabled": 526,
+    "NotSupported": 527,
+    "DeviceCommandRejected": 528,
+    "InvalidFormat": 529,
+    "MailSendFailed": 530,
+    "ConcurrencyError": 531,
+    "ConfigurationError": 532,
+    "Forbidden": 533,
+    "InstallationTypeViolation": 534,
+    "PaymentFailed": 535
+  },
+  "Settings": {
+    "AuthenticationRequired": 120,
+    "PaymentActive": 130,
+    "PaymentCurrency": 131,
+    "PaymentSessionUnitPrice": 132,
+    "PaymentEnergyUnitPrice": 133,
+    "PaymentTimeUnitPrice": 134,
+    "CommunicationMode": 150,
+    "PermanentCableLock": 151,
+    "CurrentInMaximum": 510,
+    "CurrentInMinimum": 511,
+    "MaxPhases": 520,
+    "DefaultOfflinePhase": 522,
+    "DefaultOfflineCurrent": 523,
+    "ChargeCurrentInstallationMaxLimit": 707,
+    "IsEnabled": 711,
+    "Standalone": 712,
+    "NetworkType": 715,
+    "InstallationId": 800,
+    "RoutingId": 801,
+    "ChargePointName": 802,
+    "DiagnosticsMode": 805
+  },
+  "Commands": {
+    "Unknown": 0,
+    "RestartCharger": 102,
+    "RestartMcu": 103,
+    "UpdateSettings": 104,
+    "RestartNtp": 105,
+    "ExitAppWithCode": 106,
+    "UpgradeFirmware": 200,
+    "UpgradeFirmwareForced": 201,
+    "ResetComErrors": 260,
+    "ResetNotifications": 261,
+    "ResetComWarnings": 262,
+    "LocalSettings": 300,
+    "SetPlcNpw": 320,
+    "SetPlcCCoMode": 321,
+    "SetPlcNmk": 322,
+    "SetRemotePlcNmk": 323,
+    "SetRemotePlcNpw": 324,
+    "StartCharging": 501,
+    "StopCharging": 502,
+    "ReportChargingState": 503,
+    "SetSessionId": 504,
+    "SetUserUuid": 505,
+    "ShowGranted": 601,
+    "ShowDenied": 602,
+    "IndicateAppConnect": 603,
+    "ConfirmChargeCardAdded": 750,
+    "SetAuthenticationList": 751,
+    "Debug": 800,
+    "GetPlcTopology": 801,
+    "ResetPlc": 802,
+    "RemoteCommand": 803,
+    "RunGridTest": 804,
+    "RunPostProductionTest": 901,
+    "CombinedMin": 10000,
+    "DeauthorizeAndStop": 10001,
+    "CombinedMax": 10999
+  },
+  "Observations": {
+    "Unknown": 0,
+    "AuthenticationRequired": 120,
+    "PaymentActive": 130,
+    "PaymentCurrency": 131,
+    "PaymentSessionUnitPrice": 132,
+    "PaymentEnergyUnitPrice": 133,
+    "PaymentTimeUnitPrice": 134,
+    "CommunicationMode": 150,
+    "PermanentCableLock": 151,
+    "ProductCode": 152,
+    "HmiBrightness": 153,
+    "TemperatureInternal5": 201,
+    "TemperatureInternal6": 202,
+    "TemperatureInternalLimit": 203,
+    "TemperatureInternalMaxLimit": 241,
+    "Humidity": 270,
+    "VoltagePhase1": 501,
+    "VoltagePhase2": 502,
+    "VoltagePhase3": 503,
+    "CurrentPhase1": 507,
+    "CurrentPhase2": 508,
+    "CurrentPhase3": 509,
+    "ChargerMaxCurrent": 510,
+    "ChargerMinCurrent": 511,
+    "ActivePhases": 512,
+    "TotalChargePower": 513,
+    "RcdCurrent": 515,
+    "Internal12vCurrent": 517,
+    "PowerFactor": 518,
+    "SetPhases": 519,
+    "MaxPhases": 520,
+    "ChargerOfflinePhase": 522,
+    "ChargerOfflineCurrent": 523,
+    "RcdCalibration": 540,
+    "RcdCalibrationNoise": 541,
+    "TotalChargePowerSession": 553,
+    "SessionEnergyCountExportActive": 560,
+    "SessionEnergyCountExportReactive": 561,
+    "SessionEnergyCountImportActive": 562,
+    "SessionEnergyCountImportReactive": 563,
+    "SoftStartTime": 570,
+    "ChargeDuration": 701,
+    "ChargeMode": 702,
+    "ChargePilotLevelInstant": 703,
+    "ChargePilotLevelAverage": 704,
+    "ChargeCurrentInstallationMaxLimit": 707,
+    "ChargeCurrentSet": 708,
+    "ChargerOperationMode": 710,
+    "IsEnabled": 711,
+    "IsStandAlone": 712,
+    "ChargerCurrentUserUuidDeprecated": 713,
+    "CableType": 714,
+    "NetworkType": 715,
+    "DetectedCar": 716,
+    "SessionIdentifier": 721,
+    "ChargerCurrentUserUuid": 722,
+    "CompletedSession": 723,
+    "NewChargeCard": 750,
+    "AuthenticationListVersion": 751,
+    "InstallationId": 800,
+    "RoutingId": 801,
+    "Notifications": 803,
+    "Warnings": 804,
+    "DiagnosticsMode": 805,
+    "DiagnosticsString": 808,
+    "CommunicationSignalStrength": 809,
+    "CloudConnectionStatus": 810,
+    "McuResetSource": 811,
+    "McuRxErrors": 812,
+    "McuToVariscitePacketErrors": 813,
+    "VarisciteToMcuPacketErrors": 814,
+    "UptimeVariscite": 820,
+    "UptimeMCU": 821,
+    "CarSessionLog": 850,
+    "CommunicationModeConfigurationInconsistency": 851,
+    "ProductionTestResults": 900,
+    "PostProductionTestResults": 901,
+    "SmartMainboardSoftwareApplicationVersion": 908,
+    "SmartComputerSoftwareApplicationVersion": 911,
+    "SmartComputerSoftwareBootloaderVersion": 912,
+    "SmartComputerHardwareVersion": 913,
+    "IsOcppConnected": -3,
+    "IsOnline": -2,
+    "Pulse": -1
+  },
+  "ObjectTypes": {
+    "Unknown": 0,
+    "Installation": 1,
+    "Circuit": 2,
+    "Charger": 3,
+    "User": 4,
+    "UserGroup": 5,
+    "InactiveUser": 6,
+    "InvitedUser": 7
+  },
+  "Version": "4.7.0.de958f76",
+  "SmartWarnings": {
+    "WARNING_OK": 0,
+    "WARNING_HUMIDITY": 1,
+    "WARNING_TEMPERATURE": 2,
+    "WARNING_TEMPERATURE_ERROR": 4,
+    "WARNING_EMETER_NO_RESPONSE": 8,
+    "WARNING_NO_FLASH_FILE": 16,
+    "WARNING_CHARGE_OVERCURRENT": 32,
+    "WARNING_PILOT_STATE": 64,
+    "WARNING_PILOT_IS_ON": 128,
+    "WARNING_PILOT_LOW_LEVEL": 256,
+    "WARNING_FPGA_COM_TIMEOUT": 512,
+    "WARNING_REBOOT": 1024,
+    "WARNING_DISABLED": 2048,
+    "WARNING_RCD_AC": 4096,
+    "WARNING_RCD_DC": 8192,
+    "WARNING_RCD_PEAK": 16384,
+    "WARNING_RCD_TEST_AC": 65536,
+    "WARNING_RCD_TEST_DC": 131072,
+    "WARNING_RCD_FAILURE": 262144,
+    "WARNING_RCD": 487424,
+    "WARNING_SET_CURRENT_LOW": 524288,
+    "WARNING_FPGA_VERSION": 1048576,
+    "WARNING_FPGA_UNEXPECTED_RELAY": 2097152,
+    "WARNING_FPGA_CHARGING_RESET": 4194304,
+    "WARNING_PILOT_NO_PROXIMITY": 8388608,
+    "WARNING_EMETER_ALARM": 16777216,
+    "WARNING_EMETER_LINK": 33554432,
+    "WARNING_NO_VOLTAGE_L1": 67108864,
+    "WARNING_NO_VOLTAGE_L2_L3": 134217728,
+    "WARNING_VARISCITE": 2147483648,
+    "WARNING_VARISCITE_ILLEGAL_PHASE": 17179869184
+  },
+  "VarisciteWarnings": {
+    "WARNING_VARISCITE_ILLEGAL_PHASE": 4
+  },
+  "PhaseIdMap": [
+    {
+      "Id": 1,
+      "Phases": 1,
+      "NetworkFamily": "TN"
+    },
+    {
+      "Id": 2,
+      "Phases": 2,
+      "NetworkFamily": "TN"
+    },
+    {
+      "Id": 3,
+      "Phases": 4,
+      "NetworkFamily": "TN"
+    },
+    {
+      "Id": 4,
+      "Phases": 7,
+      "NetworkFamily": "TN"
+    },
+    {
+      "Id": 5,
+      "Phases": 4,
+      "NetworkFamily": "IT"
+    },
+    {
+      "Id": 6,
+      "Phases": 2,
+      "NetworkFamily": "IT"
+    },
+    {
+      "Id": 8,
+      "Phases": 1,
+      "NetworkFamily": "IT"
+    }
+  ],
+  "DeviceLogTypes": {
+    "OcppIn": 0,
+    "OcppOut": 1,
+    "OcppError": 2,
+    "OcppConnected": 3,
+    "OcppConnectionFailed": 4,
+    "OcppClientClose": 5,
+    "IotCommandExecuted": 6,
+    "IotCommandFailed": 7,
+    "IotCloudSettingUpdated": 8,
+    "SessionCommit": 9,
+    "OfflineSessionCommit": 10,
+    "AuthorizationRequest": 11,
+    "AuthorizationSuccess": 12,
+    "AuthorizationError": 13,
+    "AuthorizationFailed": 14
+  },
+  "Features": {
+    "None": 0,
+    "Api_MessageSubscription": 1,
+    "Authentication_Internal": 2,
+    "PowerManagement_Apm": 4,
+    "PowerManagement_EcoMode": 8,
+    "PowerManagement_Schedule": 16,
+    "Experimental": 32768,
+    "Home_Basic": 32770,
+    "Pro_Basic": 32791,
+    "Home_Premium": 32798
+  },
+  "InstallationTypeConstraints": {
+    "Valid": 0,
+    "MaxCircuits": 1,
+    "MaxCircuitCurrent": 2,
+    "MaxChargers": 4,
+    "UnsupportedFeature": 8,
+    "IncompatibleCharger": 16
+  },
+  "SessionCommitMetadata": {
+    "None": 0,
+    "Online": 1,
+    "Offline": 2,
+    "ReliableClock": 4,
+    "StoppedByRFID": 8,
+    "CommitMismatch": 16
+  },
+  "InstallationUpdateStatusCodes": {
+    "Ok": 0,
+    "EcoScheduleUpdated": 1
+  },
+  "EntityTypes": {
+    "Unknown": 0,
+    "Installation": 1
+  },
+  "Commands_HomeApm01": {
+    "Unknown": 0,
+    "Restart": 102,
+    "UpgradeFirmware": 200,
+    "ReportState": 503
+  },
+  "DeviceTypes": {
+    "Unknown": 0,
+    "Smart": 1,
+    "Portable": 2,
+    "HomeApm": 3
+  }
+}
