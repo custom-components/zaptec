@@ -24,6 +24,7 @@ Here are a couple of configuration examples for a single phase installation.
 Add the following to your sensors.yaml file to make some sensors from the attributes.
 
 # TEMPLATE SENSORS (change "zch000000" to your charger's id)
+````
 - platform: template
   sensors:
     zaptec_home_allocated:
@@ -142,9 +143,10 @@ Add the following to your sensors.yaml file to make some sensors from the attrib
         {% else %}
           Failure
         {% endif %}
+````
     
 Then add the following to your lovelace configuration to make a simple card in Home Assistant.
-	
+````	
   - title: Car charger entity card
     icon: mdi:ev-station
     background: white
@@ -167,6 +169,7 @@ Then add the following to your lovelace configuration to make a simple card in H
               - sensor.zaptec_home_energy
               - sensor.zaptec_home_warnings
               - sensor.zaptec_home_firmware
+````
 
 And it will look like this:
 
@@ -174,7 +177,7 @@ And it will look like this:
 
 This is an example of a more sophisticated card using the picture-elements card, the circle-sensor custom card and some other custom elements.
 For this configuration the images are located in the /www/images directory.
-
+```
   - title: Car charger picture elements
     icon: mdi:ev-station
     cards:
@@ -381,6 +384,7 @@ For this configuration the images are located in the /www/images directory.
                   font-size: 28px
                   color: '#ffffff'
                   transform: 'translate(-50%,-50%)'
+````
 
 And it will look like this:
 
