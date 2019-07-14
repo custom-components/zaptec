@@ -1,7 +1,7 @@
-# zaptec charger custom component for home assistant
+## zaptec charger custom component for home assistant
 
-# Usage
-Create a directory called custom_components in your ha config dir, copy/clone the zaptec folder inside this
+### Usage
+Use hacs to install the package, add the config example for more usage see the `lovelace_example`
 
 Config examples
 ```
