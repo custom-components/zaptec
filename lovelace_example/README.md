@@ -1,4 +1,4 @@
-Most common wanted_attributes:
+The most common wanted_attributes are:
 
 ````
 -2: is online, 0=offline, 1=online
