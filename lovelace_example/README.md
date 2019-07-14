@@ -20,10 +20,10 @@ Most common wanted_attributes:
 911: smart computer software application version (a.k.a. firmware)
 ````
 
-For a complete list of attributes see ````zaptec_home_api_data.txt````.
+For a complete list of attributes see `zaptec_home_api_data.txt`.
 
 Here are a couple of configuration examples for a single phase installation.
-Add the following to your sensors.yaml file to make some sensors from the attributes.
+Add the following to your `sensors.yaml` file to make some sensors from the attributes.
 
 #### TEMPLATE SENSORS (change "zch000000" to your charger's id)
 ````
