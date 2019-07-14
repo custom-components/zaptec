@@ -1,5 +1,6 @@
 Most common wanted_attributes:
 
+````
 -2: is online, 0=offline, 1=online
 201: internal temperature 5, °C
 202: internal temperature 6, °C
@@ -17,13 +18,14 @@ Most common wanted_attributes:
 804: warnings, see "zaptec_home_api_data.txt"
 809: communication signal strength, dBm
 911: smart computer software application version (a.k.a. firmware)
+````
 
-For a complete list of attributes see "zaptec_home_api_data.txt".
+For a complete list of attributes see ````zaptec_home_api_data.txt````.
 
 Here are a couple of configuration examples for a single phase installation.
 Add the following to your sensors.yaml file to make some sensors from the attributes.
 
-# TEMPLATE SENSORS (change "zch000000" to your charger's id)
+#### TEMPLATE SENSORS (change "zch000000" to your charger's id)
 ````
 - platform: template
   sensors:
@@ -173,7 +175,7 @@ Then add the following to your lovelace configuration to make a simple card in H
 
 And it will look like this:
 
-"car_charger_simple.png"
+![Simple](lovelace_example/car_charger_simple.PNG)
 
 This is an example of a more sophisticated card using the picture-elements card, the circle-sensor custom card and some other custom elements.
 For this configuration the images are located in the /www/images directory.
@@ -388,4 +390,4 @@ For this configuration the images are located in the /www/images directory.
 
 And it will look like this:
 
-"car_charger_advanced.png"
+![Advanced](lovelace_example/car_charger_advanced.PNG)
