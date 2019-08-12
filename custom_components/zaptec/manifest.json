@@ -1,7 +1,7 @@
 {
   "domain": "zaptec",
   "name": "zaptec",
-  "documentation": "https://github.com/Hellowlol/zaptec",
+  "documentation": "https://github.com/custom-components/zaptec",
   "dependencies": [],
   "codeowners": ["hellowlol"],
   "requirements": []
