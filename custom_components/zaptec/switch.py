@@ -1,11 +1,11 @@
 """Switch platform for blueprint."""
 import logging
 
-from homeassistant.components.switch import SwitchDevice
+from homeassistant.components.switch import SwitchEntity
 from homeassistant.helpers.typing import ConfigType, HomeAssistantType
 
-from .const import CHARGE_MODE_MAP
 from . import DOMAIN, SWITCH_SCHEMA_ATTRS
+from .const import CHARGE_MODE_MAP
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -35,7 +35,7 @@ async def async_setup_platform(
     return True
 
 
-class Switch(SwitchDevice):
+class Switch(SwitchEntity):
     """switch class."""
 
     def __init__(self, api) -> None:
