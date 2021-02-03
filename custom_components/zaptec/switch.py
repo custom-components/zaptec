@@ -4,23 +4,20 @@ import logging
 from homeassistant.components.switch import SwitchEntity
 from homeassistant.helpers.typing import ConfigType, HomeAssistantType
 
-from . import DOMAIN, SWITCH_SCHEMA_ATTRS
-from .const import CHARGE_MODE_MAP
+from . import SWITCH_SCHEMA_ATTRS
+from .const import CHARGE_MODE_MAP, DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
 # Are there some other shit we are supposed to use instead?
-#PLATFORM_SCHEMA.extend(SWITCH_SCHEMA_ATTRS)
+# PLATFORM_SCHEMA.extend(SWITCH_SCHEMA_ATTRS)
 
 
 async def async_setup_platform(
-    hass: HomeAssistantType,
-    config: ConfigType,
-    async_add_entities,
-    discovery_info=None
+    hass: HomeAssistantType, config: ConfigType, async_add_entities, discovery_info=None
 ) -> bool:  # pylint: disable=unused-argument
     """Setup switch platform."""
-    api = hass.data.get(DOMAIN, {}).get('api')
+    api = hass.data.get(DOMAIN, {}).get("api")
     if api is None:
         _LOGGER.debug("Didn't setup switch the api wasnt ready")
         return False
@@ -43,15 +40,15 @@ class Switch(SwitchEntity):
         self._attr = {}
         self._status = False
         # wft is this supposed to be?
-        self._name = 'zaptec_%s_switch' % api._id
-        self._mode = ''
+        self._name = "zaptec_%s_switch" % api._id
+        self._mode = ""
 
     async def async_update(self) -> None:
         """Update the switch."""
         data = await self._api.state()
         for row in data:
-            if row['StateId'] == 710:
-                self._mode = CHARGE_MODE_MAP[row['ValueAsString']][0]
+            if row["StateId"] == 710:
+                self._mode = CHARGE_MODE_MAP[row["ValueAsString"]][0]
 
     async def async_turn_on(self, **kwargs):  # pylint: disable=unused-argument
         """Turn on the switch."""
@@ -71,12 +68,12 @@ class Switch(SwitchEntity):
     @property
     def icon(self) -> str:
         """Return the icon of this switch."""
-        return ''  # <-- what should this be?
+        return ""  # <-- what should this be?
 
     @property
     def is_on(self) -> bool:
         """Return true if the switch is on."""
-        return True if self._mode == 'charging' else False
+        return True if self._mode == "charging" else False
 
     @property
     def device_state_attributes(self) -> dict:

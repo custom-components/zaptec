@@ -1,0 +1,27 @@
+start_charging:
+  description: "Starts charger. Also authorizes if configured to use authorization."
+  fields:
+    charger_id:
+      description: "The charger id"
+      example: "yyyyyyyy-9999-99xx-xxx-yyyyyyyyyyyy"
+
+stop_charging:
+  description: "Starts charger. Also authorizes if configured to use authorization."
+  fields:
+    charger_id:
+      description: "The charger id"
+      example: "yyyyyyyy-9999-99xx-xxx-yyyyyyyyyyyy"
+
+stop_pause_charging:
+  description: "New stop/pause"
+  fields:
+    charger_id:
+      description: "The charger id"
+      example: "yyyyyyyy-9999-99xx-xxx-yyyyyyyyyyyy"
+
+resume_charging:
+  description: "New resume command."
+  fields:
+    charger_id:
+      description: "The charger id"
+      example: "yyyyyyyy-9999-99xx-xxx-yyyyyyyyyyyy"

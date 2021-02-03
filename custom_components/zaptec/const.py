@@ -12,7 +12,7 @@ If you have any issues with this you need to open an issue here:
 -------------------------------------------------------------------
 """.format(name=NAME, version=VERSION, issueurl=ISSUEURL)
 
-
+DOMAIN = 'zaptec'
 OBSERVATIONS_REMAPS = {}
 WANTED_ATTRIBUTES = []
 CHARGE_MODE_MAP = {'0': ['unknown', 'mdi:help-rhombus-outline'],

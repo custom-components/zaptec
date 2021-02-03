@@ -1,11 +1,11 @@
 import logging
-import aiohttp
 
+import aiohttp
 from homeassistant.components.sensor import PLATFORM_SCHEMA
 from homeassistant.helpers.entity import Entity
 from homeassistant.helpers.typing import ConfigType, HomeAssistantType
 
-from . import DOMAIN, SENSOR_SCHEMA_ATTRS
+from . import SENSOR_SCHEMA_ATTRS
 from .const import *
 
 _LOGGER = logging.getLogger(__name__)

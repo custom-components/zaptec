@@ -1,9 +1,8 @@
-
 import asyncio
 import logging
+
 import aiohttp
 import async_timeout
-
 
 from .const import API_URL, TOKEN_URL
 
@@ -21,29 +20,31 @@ class Account:
     async def _refresh_token(self):
         # So for some reason they used grant_type password..
         # what the point with oauth then? Anyway this is valid for 24 hour
-        p = {'username': self._username,
-             'password': self._password,
-             'grant_type': 'password'}
-        async with aiohttp.request('POST',
-                                   TOKEN_URL,
-                                   data=p
-                                   ) as resp:
+        p = {
+            "username": self._username,
+            "password": self._password,
+            "grant_type": "password",
+        }
+        async with aiohttp.request("POST", TOKEN_URL, data=p) as resp:
 
             if resp.status == 200:
                 data = await resp.json()
                 # The data includes the time the access token expires
                 # atm we just ignore it and refresh token when needed.
                 self._token_info.update(data)
-                self._access_token = data.get('access_token')
+                self._access_token = data.get("access_token")
             else:
-                _LOGGER.debug('Failed to refresh token, check your credentials.')
+                _LOGGER.debug("Failed to refresh token, check your credentials.")
 
     async def _request(self, url):
-        header = {'Authorization': 'Bearer %s' % self._access_token,
-                  'Accept': 'application/json'}
+        header = {
+            "Authorization": "Bearer %s" % self._access_token,
+            "Accept": "application/json",
+        }
         full_url = API_URL + url
+        _LOGGER.debug("calling %s", full_url)
         try:
-            with async_timeout.timeout(10):
+            with async_timeout.timeout(30):
                 async with self._client.get(full_url, headers=header) as resp:
                     if resp.status == 401:
                         await self._refresh_token()
@@ -54,27 +55,26 @@ class Account:
             _LOGGER.error("Could not get info from %s: %s", full_url, err)
 
     async def chargers(self):
-        charg = await self._request('chargers')
+        charg = await self._request("chargers")
 
-        return [Charger(chrg, self)
-                for chrg in charg.get('Data', [])
-                if chrg]
+        return [Charger(chrg, self) for chrg in charg.get("Data", []) if chrg]
 
 
 class Charger:
     def __init__(self, data, account):
-        self._id = data.get('Id')
-        self._mid = data.get('MID')
-        self._device_id = data.get('DeviceId')
-        self._name = data.get('SerialNo')
-        self._created_on_date = data.get('CreatedOnDate')
-        self._circuit_id = data.get('CircuitId')
-        self._active = data.get('Active')
-        self._current_user_roles = data.get('CurrentUserRoles')
-        self._pin = data.get('Pin')
+        self._id = data.get("Id")
+        self._mid = data.get("MID")
+        self._device_id = data.get("DeviceId")
+        self._name = data.get("SerialNo")
+        self._created_on_date = data.get("CreatedOnDate")
+        self._circuit_id = data.get("CircuitId")
+        self._active = data.get("Active")
+        self._current_user_roles = data.get("CurrentUserRoles")
+        self._pin = data.get("Pin")
         self.account = account
         self._attrs = {}
 
+    # All methods need to be checked again.
     async def restart_charger(self):
         return await self._send_command(102)
 
@@ -138,6 +138,14 @@ class Charger:
     async def set_user_uuid(self):
         return await self._send_command(505)
 
+    #  require firmware > 3.2
+    async def stop_pause(self):
+        return await self._send_command(506)
+
+    #  require firmware > 3.2
+    async def resume_charging(self):
+        return await self._send_command(507)
+
     async def show_granted(self):
         return await self._send_command(601)
 
@@ -181,8 +189,9 @@ class Charger:
         return await self._send_command(10999)
 
     async def state(self):
-        return await self.account._request('chargers/%s/state' % self._id)
+        return await self.account._request("chargers/%s/state" % self._id)
 
     async def _send_command(self, id_):
-        cmd = 'chargers/%s/SendCommand/%s' % (self._id, id_)
+        cmd = "chargers/%s/SendCommand/%s" % (self._id, id_)
+
         return await self.account._request(cmd)

@@ -1,25 +1,16 @@
 """Support for zaptec."""
 import logging
 
+import homeassistant.helpers.config_validation as cv
 import voluptuous as vol
+from homeassistant.const import CONF_PASSWORD, CONF_USERNAME
 from homeassistant.helpers import discovery
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
-import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.typing import ConfigType, HomeAssistantType
-from homeassistant.const import (
-    CONF_PASSWORD,
-    CONF_USERNAME
-)
 
 from . import api
-from .const import (
-    STARTUP,
-    CONF_ENABLED,
-    CONF_NAME,
-    CONF_SENSOR,
-    CONF_SWITCH
-)
-
+from .const import CONF_ENABLED, CONF_NAME, CONF_SENSOR, CONF_SWITCH, STARTUP
+from .services import async_setup_services
 
 _LOGGER = logging.getLogger(__name__)
 DOMAIN = 'zaptec'
@@ -87,5 +78,7 @@ async def async_setup(hass: HomeAssistantType,
                     hass, platform, DOMAIN, entry_config, config
                 )
             )
+
+    await async_setup_services(hass)
 
     return True
