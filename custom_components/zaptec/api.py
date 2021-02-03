@@ -1,4 +1,5 @@
 import asyncio
+import json
 import logging
 
 import aiohttp
@@ -36,7 +37,7 @@ class Account:
             else:
                 _LOGGER.debug("Failed to refresh token, check your credentials.")
 
-    async def _request(self, url):
+    async def _request(self, url, method="get"):
         header = {
             "Authorization": "Bearer %s" % self._access_token,
             "Accept": "application/json",
@@ -45,18 +46,26 @@ class Account:
         _LOGGER.debug("calling %s", full_url)
         try:
             with async_timeout.timeout(30):
-                async with self._client.get(full_url, headers=header) as resp:
+                call = getattr(self._client, method)
+                async with call(full_url, headers=header) as resp:
                     if resp.status == 401:
                         await self._refresh_token()
                         return await self._request(url)
+                    elif resp.status == 204:
+                        # Seems to return this on commands.. like method post
+                        content = await resp.read()
+                        _LOGGER.debug("content %s", content)
+                        return content
                     else:
-                        return await resp.json()
+                        json_result = await resp.json()
+                        _LOGGER.debug(json.dumps(json_result, indent=4))
+                        return json_result
+
         except (asyncio.TimeoutError, aiohttp.ClientError) as err:
             _LOGGER.error("Could not get info from %s: %s", full_url, err)
 
     async def chargers(self):
         charg = await self._request("chargers")
-
         return [Charger(chrg, self) for chrg in charg.get("Data", []) if chrg]
 
 
@@ -193,5 +202,4 @@ class Charger:
 
     async def _send_command(self, id_):
         cmd = "chargers/%s/SendCommand/%s" % (self._id, id_)
-
-        return await self.account._request(cmd)
+        return await self.account._request(cmd, method="post")

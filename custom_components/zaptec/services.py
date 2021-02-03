@@ -24,26 +24,26 @@ async def async_setup_services(hass):
         _LOGGER.debug("called new stop pause")
         charger_id = service_call.data["charger_id"]
         cmd = f"chargers/{charger_id}/SendCommand/506"
-        return await acc._request(cmd)
+        return await acc._request(cmd, method="post")
 
     async def service_handle_resume_charging(service_call):
         _LOGGER.debug("called new start and or resume")
         charger_id = service_call.data["charger_id"]
         cmd = f"chargers/{charger_id}/SendCommand/507"
-        return await acc._request(cmd)
+        return await acc._request(cmd, method="post")
 
     # Add old one to see if they even work.
     async def service_handle_start_charging(service_call):
         _LOGGER.debug("called old start")
         charger_id = service_call.data["charger_id"]
         cmd = f"chargers/{charger_id}/SendCommand/501"
-        return await acc._request(cmd)
+        return await acc._request(cmd, method="post")
 
     async def service_handle_stop_charging(service_call):
         _LOGGER.debug("called old stop")
         charger_id = service_call.data["charger_id"]
         cmd = f"chargers/{charger_id}/SendCommand/502"
-        return await acc._request(cmd)
+        return await acc._request(cmd, method="post")
 
     hass.services.async_register(
         DOMAIN, "stop_pause_charging", service_handle_stop_pause, schema=has_id_schema
