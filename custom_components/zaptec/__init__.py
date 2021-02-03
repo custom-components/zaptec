@@ -9,11 +9,12 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.typing import ConfigType, HomeAssistantType
 
 from . import api
-from .const import CONF_ENABLED, CONF_NAME, CONF_SENSOR, CONF_SWITCH, STARTUP
+from .const import (CONF_ENABLED, CONF_NAME, CONF_SENSOR, CONF_SWITCH, DOMAIN,
+                    STARTUP)
 from .services import async_setup_services
 
 _LOGGER = logging.getLogger(__name__)
-DOMAIN = 'zaptec'
+
 
 SENSOR_SCHEMA_ATTRS = {
     vol.Optional('wanted_attributes', default=[710]): cv.ensure_list,
@@ -56,7 +57,9 @@ async def async_setup(hass: HomeAssistantType,
     # Add the account to a so it can be shared.
     # between the sensor and the switch.
     hass.data[DOMAIN] = {}
-    hass.data[DOMAIN]['api'] = api.Account(username, password, async_get_clientsession(hass))
+    acc = api.Account(username, password, async_get_clientsession(hass))
+    hass.data[DOMAIN]['api'] = acc
+    hass.data[DOMAIN]['chargers'] = await acc.chargers()
 
     # This part has not been tested as i have only used
     # the sensor.yaml method for now.
