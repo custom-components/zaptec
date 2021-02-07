@@ -30,3 +30,6 @@ CONF_SENSOR = "sensor"
 CONF_SWITCH = "switch"
 CONF_ENABLED = "enabled"
 CONF_NAME = "name"
+
+EVENT_NEW_DATA = "event_new_data_zaptec"
+EVENT_NEW_DATA_HOURLY = "event_new_data_hourly_zaptec"

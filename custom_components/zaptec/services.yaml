@@ -25,3 +25,17 @@ resume_charging:
     charger_id:
       description: "The charger id"
       example: "yyyyyyyy-9999-99xx-xxx-yyyyyyyyyyyy"
+
+update_firmware:
+  description: "New resume command."
+  fields:
+    charger_id:
+      description: "Update the firmware."
+      example: "yyyyyyyy-9999-99xx-xxx-yyyyyyyyyyyy"
+
+restart_charger:
+  description: "Restart charger."
+  fields:
+    charger_id:
+      description: "The charger id"
+      example: "yyyyyyyy-9999-99xx-xxx-yyyyyyyyyyyy"

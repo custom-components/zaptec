@@ -1,16 +1,20 @@
 """Support for zaptec."""
 import logging
+from datetime import timedelta
 
 import homeassistant.helpers.config_validation as cv
 import voluptuous as vol
 from homeassistant.const import CONF_PASSWORD, CONF_USERNAME
 from homeassistant.helpers import discovery
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.dispatcher import (async_dispatcher_connect,
+                                              async_dispatcher_send)
+from homeassistant.helpers.event import async_track_time_interval
 from homeassistant.helpers.typing import ConfigType, HomeAssistantType
 
 from . import api
 from .const import (CONF_ENABLED, CONF_NAME, CONF_SENSOR, CONF_SWITCH, DOMAIN,
-                    STARTUP)
+                    EVENT_NEW_DATA, EVENT_NEW_DATA_HOURLY, STARTUP)
 from .services import async_setup_services
 
 _LOGGER = logging.getLogger(__name__)
@@ -56,14 +60,31 @@ async def async_setup(hass: HomeAssistantType,
 
     # Add the account to a so it can be shared.
     # between the sensor and the switch.
-    hass.data[DOMAIN] = {}
-    acc = api.Account(username, password, async_get_clientsession(hass))
-    hass.data[DOMAIN]['api'] = acc
-    hass.data[DOMAIN]['chargers'] = await acc.chargers()
 
-    # This part has not been tested as i have only used
-    # the sensor.yaml method for now.
-    for platform in ['sensor', 'switch']:
+    if DOMAIN not in hass.data:
+        hass.data[DOMAIN] = {}
+        acc = api.Account(username, password, async_get_clientsession(hass))
+        hass.data[DOMAIN]['api'] = acc
+    else:
+        acc = hass.data[DOMAIN]["api"]
+
+    if acc.is_built is False:
+        await acc.build()
+
+
+    async def push_update_to_charger(t):
+        _LOGGER.debug("hourly_update %s", t)
+        # this does not exist.
+        for ins in acc.installs:
+            for circuits in ins.circuits:
+                for charger in circuits.chargers:
+                    await charger.state()
+        async_dispatcher_send(hass, EVENT_NEW_DATA)
+
+    async_track_time_interval(hass, push_update_to_charger, timedelta(seconds=60))
+
+    for platform in ['sensor']:
+    #for platform in ['sensor', 'switch']:
         _LOGGER.debug('Checking %s', platform)
         # Get platform specific configuration
         platform_config = config[DOMAIN].get(platform, {})
