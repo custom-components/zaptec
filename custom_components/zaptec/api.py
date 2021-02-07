@@ -16,6 +16,16 @@ _LOGGER = logging.getLogger(__name__)
 # that looks like json.
 jsonish = re.compile(b"(?!.({.+})){.+}")
 
+
+"""
+stuff are missing from the api docs compared to what the portal uses.
+circuits/{self.id}/live
+circuits/{self.id}/
+https://api.zaptec.com/api/dashboard/activechargersforowner?limit=250
+/dashbord
+signalr is used by the website.
+"""
+
 # to Support running this as a script.
 if __name__ == "__main__":
     # remove me later
@@ -38,6 +48,7 @@ else:
     from .misc import to_under
 
 
+# should be a static method of account
 async def _update_remaps() -> None:
     wanted = ["Observations"]
     obs = {}
@@ -72,12 +83,18 @@ class ZapBase:
 
         for stuff in new_data:
             if "StateId" in stuff:
-                obs_key = self._account.obs.get(stuff["StateId"], "FFS")
+                obs_key = self._account.obs.get(stuff["StateId"])
+                if obs_key is None:
+                    _LOGGER.info(
+                        "Couldnt find a remap string for %s report it %s",
+                        stuff["StateId"],
+                        stuff,
+                    )
+                    continue
                 stuff = {obs_key: stuff.get("ValueAsString")}
             else:
                 stuff = stuff
 
-            # _LOGGER.debug("clean stuff %s", stuff)
             for key, value in stuff.items():
                 new_key = to_under(key)
                 self._attrs[new_key] = value
@@ -92,17 +109,7 @@ class ZapBase:
 class Circuit(ZapBase):
     def __init__(self, data, account):
         super().__init__(data, account)
-        # self._account = account
-        # self._data = data
-        # self.id = data.get("Id")
-        # self.name = data.get("Name")
-        # self.max_current = data.get("max_current")
-        # self.is_active = data.get("IsActive")
-        # self.active = data.get("Active")
-        # self.installation_id = data.get("InstallationId")
-        # self.installation_name = data.get("InstallationName")
         self._chargers = []
-        # self._attrs = {}
 
         self.set_attributes()
 
@@ -116,6 +123,11 @@ class Circuit(ZapBase):
             chargers.append(c)
         self.chargers = chargers
         return chargers
+
+    async def state(self):
+        # This seems to be undocumentet.
+        data = await self._account._request("circuits/{self.id}/")
+        self.set_attributes(data)
 
 
 class Installation(ZapBase):
@@ -139,7 +151,7 @@ class Installation(ZapBase):
             self.circuits.append(c)
 
     async def state(self):
-        data = self._account.installation(self.id)
+        data = await self._account.installation(self.id)
         self.set_attributes(data)
 
     async def limit_amps(self, **kwargs):
@@ -196,6 +208,13 @@ class Installation(ZapBase):
 
     async def _stream(self, cb=None):
         conf = await self.live_stream_connection_details()
+        # Check if we can use it.
+        if any(True for i in ["Password", "Username", "Host"] if conf.get(i) == ""):
+            _LOGGER.warning(
+                "Cant enable live update using the servicebus, enable it in the zaptec portal"
+            )
+            return
+
         constr = f'Endpoint=sb://{conf["Host"]}/;SharedAccessKeyName={conf["Username"]};SharedAccessKey={conf["Password"]}'
         servicebus_client = ServiceBusClient.from_connection_string(conn_str=constr)
         _LOGGER.debug("Connecting to servicebus using %s", constr)
@@ -348,8 +367,8 @@ class Account:
         except (asyncio.TimeoutError, aiohttp.ClientError) as err:
             _LOGGER.error("Could not get info from %s: %s", full_url, err)
 
-    async def hierarchy(self, site_id):
-        return await self._request(f"installation/{site_id}/hierarchy")
+    async def hierarchy(self, installation_id):
+        return await self._request(f"installation/{installation_id}/hierarchy")
 
     async def installations(self):
         data = await self._request("installation")
@@ -361,6 +380,10 @@ class Account:
 
     async def charger(self, charger_id):
         data = await self._request(f"chargers/{charger_id}")
+        return data
+
+    async def charger_firmware(self, installation_id):
+        data = await self._request(f"chargerFirmware/installation/{installation_id}")
         return data
 
     async def chargers(self):
@@ -507,14 +530,30 @@ class Charger(ZapBase):
         return await self._send_command(10999)
 
     async def state(self):
-        data = await self._account._request("chargers/%s/state" % self.id)
+        data = await self._account._request(f"chargers/{self.id}/state")
+        # sett_attributes need to be set before any other call.
         self.set_attributes(data)
+        # Firmware version is called. SmartMainboardSoftwareApplicationVersion, stateid 908
+        # I couldn't find a way to see if it was up to date..
+        # maybe remove this later if it dont interest ppl.
+
+        firmware_info = await self._account.charger_firmware(self.installation_id)
+        for fm in firmware_info:
+            if fm["ChargerId"] == self.id:
+                fixed = {
+                    "current_firmware_version": fm["CurrentVersion"],
+                    "available_firmware_version": fm["AvailableVersion"],
+                    "firmware_update_to_date": fm["IsUpToDate"],
+                }
+                self.set_attributes(fixed)
 
     async def live(self):
         # This don't seems to be documented but the portal uses it
+        # TODO check what it returns and parse it to attributes
         return await self._account._request("chargers/%s/live" % self.id)
 
     async def settings(self):
+        # TODO check what it returns and parse it to attributes
         return await self._account._request("chargers/%s/settings" % self.id)
 
     async def _send_command(self, id_):
@@ -541,6 +580,9 @@ if __name__ == "__main__":
             # print(data)
 
         for ins in acc.installs:
-            await ins._stream(cb=cb)
+            for circuit in ins.circuits:
+                data = await circuit.state()
+                print(data)
+            # await ins._stream(cb=cb)
 
     asyncio.run(gogo())

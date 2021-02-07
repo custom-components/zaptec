@@ -81,7 +81,7 @@ async def async_setup(hass: HomeAssistantType,
                     await charger.state()
         async_dispatcher_send(hass, EVENT_NEW_DATA)
 
-    async_track_time_interval(hass, push_update_to_charger, timedelta(seconds=120))
+    async_track_time_interval(hass, push_update_to_charger, timedelta(seconds=60))
 
     for platform in ['sensor']:
     #for platform in ['sensor', 'switch']:
