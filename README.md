@@ -32,6 +32,6 @@ Setup the integration using the integrations page.
 [license]: https://github.com/custom-components/zaptec/blob/main/LICENSE
 [license-shield]: https://img.shields.io/github/license/custom-components/zaptec.svg?style=for-the-badge
 [maintenance-shield]: https://img.shields.io/badge/maintainer-Hellowlol-blue.svg?style=for-the-badge
-[releases-shield]: https://img.shields.io/github/release/custom-components/integration_blueprint.svg?style=for-the-badge
+[releases-shield]: https://img.shields.io/github/release/custom-components/zaptec.svg?style=for-the-badge
 [releases]: https://github.com/custom-components/zaptec/releases
 [user_profile]: https://github.com/hellowlol
