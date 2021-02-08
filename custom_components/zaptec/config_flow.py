@@ -11,6 +11,7 @@ from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
+
 class ZaptecFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
     """Config flow for Blueprint."""
 
@@ -35,7 +36,6 @@ class ZaptecFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
             vol.Required("username", default=""): str,
             vol.Required("password", default=""): str,
             vol.Optional("scan_interval", default=30): vol.Coerce(int),
-
         }
 
         placeholders = {
@@ -47,15 +47,18 @@ class ZaptecFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             valid_login = False
             try:
-                valid_login = await Account.check_login(user_input["username"], user_input["password"])
+                valid_login = await Account.check_login(
+                    user_input["username"], user_input["password"]
+                )
             except aiohttp.ClientConnectorError:
                 errors["base"] = "connection_failure"
             except AuthorizationFailedException:
                 errors["base"] = "auth_failure"
 
             if valid_login:
-                return self.async_create_entry(title=DOMAIN.capitalize(), data=user_input)
-
+                return self.async_create_entry(
+                    title=DOMAIN.capitalize(), data=user_input
+                )
 
         return self.async_show_form(
             step_id="user",

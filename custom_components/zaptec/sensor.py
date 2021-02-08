@@ -13,10 +13,6 @@ from .const import *
 from .misc import to_under
 
 _LOGGER = logging.getLogger(__name__)
-
-#PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(SENSOR_SCHEMA_ATTRS)
-
-
 SCAN_INTERVAL = timedelta(seconds=60)
 
 
@@ -32,12 +28,7 @@ async def _update_remaps() -> None:
                     OBSERVATIONS_REMAPS.update({value: key for key, value in v.items()})
 
 
-
 async def _dry_setup(hass, config, async_add_entities, discovery_info=None):
-#async def async_setup_platform(
-#    hass: HomeAssistantType, config: ConfigType, async_add_entities, discovery_info=None
-#) -> None:
-
     sensors = []
     acc = hass.data[DOMAIN]["api"]
 
@@ -67,11 +58,11 @@ async def _dry_setup(hass, config, async_add_entities, discovery_info=None):
 
     return True
 
+
 async def async_setup_platform(
     hass: HomeAssistantType, config: ConfigType, async_add_entities, discovery_info=None
 ) -> None:
     return True
-    #return await _dry_setup(hass, config, async_add_entities, discovery_info)
 
 
 async def async_setup_entry(hass, config_entry, async_add_devices):
@@ -200,7 +191,6 @@ class ChargerSensor(Entity, ZapMixin):
             "name": self.name,
             "manufacturer": DOMAIN,
         }
-
 
     @property
     def device_state_attributes(self) -> dict:
