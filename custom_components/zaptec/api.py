@@ -54,7 +54,6 @@ class AuthorizationFailedException(Exception):
     pass
 
 
-
 # should be a static method of account
 async def _update_remaps() -> None:
     wanted = ["Observations"]
@@ -357,7 +356,6 @@ class Account:
             raise
 
         return False
-
 
     async def _refresh_token(self):
         # So for some reason they used grant_type password..
