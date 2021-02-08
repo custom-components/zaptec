@@ -3,11 +3,13 @@ import json
 import logging
 import random
 import re
+from concurrent.futures import CancelledError
 
 import aiohttp
 import async_timeout
 import chardet
 from azure.servicebus.aio import ServiceBusClient
+from azure.servicebus.exceptions import ServiceBusError
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -48,6 +50,11 @@ else:
     from .misc import to_under
 
 
+class AuthorizationFailedException(Exception):
+    pass
+
+
+
 # should be a static method of account
 async def _update_remaps() -> None:
     wanted = ["Observations"]
@@ -81,10 +88,16 @@ class ZapBase:
         else:
             new_data = data
 
+        # known stateid that does not exist in remap
+        # have emailed zaptec.
+        missing_from_docs = [806]
+
         for stuff in new_data:
             if "StateId" in stuff:
                 obs_key = self._account.obs.get(stuff["StateId"])
                 if obs_key is None:
+                    if stuff["StateId"] in missing_from_docs:
+                        continue
                     _LOGGER.info(
                         "Couldnt find a remap string for %s report it %s",
                         stuff["StateId"],
@@ -284,8 +297,16 @@ class Installation(ZapBase):
 
     async def cancel_stream(self):
         if self._stream_task is not None:
-            self._stream_task.cancel()
-            await self._stream_task
+            try:
+                self._stream_task.cancel()
+                await self._stream_task
+                _LOGGER.debug("Canceled stream")
+            except (ServiceBusError, CancelledError):
+                pass
+                # this will still raise a exception, I think its a 3.7 issue.
+                # recheck this when the i have updated to 3.9
+
+            self._stream_task = None
 
 
 class Account:
@@ -305,7 +326,6 @@ class Account:
 
     def update(self, data):
         """update for the stream. Note build has to called first."""
-        _LOGGER.debug("called account update")
         if not isinstance(data, list):
             data = [data]
 
@@ -318,6 +338,26 @@ class Account:
                     klass.set_attributes(d)
 
         self.is_built = True
+
+    @staticmethod
+    async def check_login(username, password):
+        p = {
+            "username": username,
+            "password": password,
+            "grant_type": "password",
+        }
+        try:
+            async with aiohttp.request("POST", TOKEN_URL, data=p) as resp:
+                if resp.status == 200:
+                    data = await resp.json()
+                    return True
+                else:
+                    raise AuthorizationFailedException
+        except aiohttp.ClientConnectorError:
+            raise
+
+        return False
+
 
     async def _refresh_token(self):
         # So for some reason they used grant_type password..

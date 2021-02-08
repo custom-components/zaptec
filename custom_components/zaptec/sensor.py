@@ -9,13 +9,12 @@ from homeassistant.helpers.dispatcher import (async_dispatcher_connect,
 from homeassistant.helpers.entity import Entity
 from homeassistant.helpers.typing import ConfigType, HomeAssistantType
 
-from . import SENSOR_SCHEMA_ATTRS
 from .const import *
 from .misc import to_under
 
 _LOGGER = logging.getLogger(__name__)
 
-PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(SENSOR_SCHEMA_ATTRS)
+#PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(SENSOR_SCHEMA_ATTRS)
 
 
 SCAN_INTERVAL = timedelta(seconds=60)
@@ -33,29 +32,11 @@ async def _update_remaps() -> None:
                     OBSERVATIONS_REMAPS.update({value: key for key, value in v.items()})
 
 
-async def async_setup_platform(
-    hass: HomeAssistantType, config: ConfigType, async_add_entities, discovery_info=None
-) -> None:
-    if not config:
-        # This means there is no info from the sensor yaml or configuration yaml.
-        # We support config under the component this is added as discovery info.
-        if discovery_info:
-            config = discovery_info.copy()
 
-    if not config:
-        _LOGGER.debug("Missing config, stopped setting platform")
-        return
-
-    global WANTED_ATTRIBUTES
-    # Should we pass the wanted attrs to sensors directly?
-    WANTED_ATTRIBUTES = config.get("wanted_attributes", [])
-    # Make sure 710 is there since it's state we track.
-    if 710 not in WANTED_ATTRIBUTES:
-        _LOGGER.debug(
-            "Attribute 710 was missing from wanted_attributes"
-            "this was automatically added"
-        )
-        WANTED_ATTRIBUTES.append(710)
+async def _dry_setup(hass, config, async_add_entities, discovery_info=None):
+#async def async_setup_platform(
+#    hass: HomeAssistantType, config: ConfigType, async_add_entities, discovery_info=None
+#) -> None:
 
     sensors = []
     acc = hass.data[DOMAIN]["api"]
@@ -82,11 +63,19 @@ async def async_setup_platform(
                 sensors.append(chs)
         sensors.append(InstallationSensor(ins))
 
-    _LOGGER.debug(sensors)
-
     async_add_entities(sensors, False)
 
     return True
+
+async def async_setup_platform(
+    hass: HomeAssistantType, config: ConfigType, async_add_entities, discovery_info=None
+) -> None:
+    return True
+    #return await _dry_setup(hass, config, async_add_entities, discovery_info)
+
+
+async def async_setup_entry(hass, config_entry, async_add_devices):
+    return await _dry_setup(hass, config_entry.data, async_add_devices)
 
 
 class ZapMixin:
@@ -110,6 +99,18 @@ class CircuteSensor(Entity):
         return self._attrs
 
     @property
+    def unique_id(self):
+        return f"zaptec_{self._attrs['id']}".lower()
+
+    @property
+    def device_info(self):
+        return {
+            "identifiers": {(DOMAIN, self.unique_id)},
+            "name": self.name,
+            "manufacturer": DOMAIN,
+        }
+
+    @property
     def state(self):
         return self._attrs["active"]
 
@@ -131,6 +132,18 @@ class InstallationSensor(Entity):
     @property
     def device_state_attributes(self) -> dict:
         return self._attrs
+
+    @property
+    def unique_id(self):
+        return f"zaptec_{self._attrs['id']}".lower()
+
+    @property
+    def device_info(self):
+        return {
+            "identifiers": {(DOMAIN, self.unique_id)},
+            "name": self.name,
+            "manufacturer": DOMAIN,
+        }
 
     @property
     def state(self):
@@ -158,7 +171,7 @@ class ChargerSensor(Entity, ZapMixin):
 
     @property
     def name(self) -> str:
-        return "zaptec_%s" % self._api.mid
+        return f"zaptec_charger_{self._api.mid}".lower()
 
     @property
     def icon(self) -> str:
@@ -175,6 +188,19 @@ class ChargerSensor(Entity, ZapMixin):
         except KeyError:
             # This seems to happen when it starts up.
             return "unknown"
+
+    @property
+    def unique_id(self):
+        return f"zaptec_{self._attrs['id']}".lower()
+
+    @property
+    def device_info(self):
+        return {
+            "identifiers": {(DOMAIN, self.unique_id)},
+            "name": self.name,
+            "manufacturer": DOMAIN,
+        }
+
 
     @property
     def device_state_attributes(self) -> dict:

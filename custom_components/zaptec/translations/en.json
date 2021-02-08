@@ -1,0 +1,23 @@
+{
+    "config":{
+        "error":{
+            "auth_failure":"Unable to connect to Zaptec. Check your username and password.",
+            "connection_failure":"Unable to connect to Zaptec. Test again later.",
+            "refused_failure":"Connection refused to Zaptec. Test again later."
+        },
+        "step":{
+            "user":{
+                "title":"Zaptec",
+                "description":"If you need help with this integration: https://github.com/custom-components/zapec",
+                "data":{
+                    "username":"Username",
+                    "password":"Password",
+                    "scan_interval":"Scan interval"
+                }
+            }
+        },
+        "abort":{
+            "single_instance_allowed":"Only a single instance is allowed."
+        }
+    }
+}
