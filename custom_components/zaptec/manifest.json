@@ -5,5 +5,6 @@
   "dependencies": [],
   "config_flow": true,
   "codeowners": ["hellowlol"],
-  "requirements": ["azure-servicebus==7.0.1"]
+  "requirements": ["azure-servicebus==7.0.1"],
+  "version": "0.0.3"
 }
