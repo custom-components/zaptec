@@ -138,7 +138,7 @@ class Circuit(ZapBase):
 
     async def state(self):
         # This seems to be undocumentet.
-        data = await self._account._request("circuits/{self.id}/")
+        data = await self._account._request(f"circuits/{self.id}/")
         self.set_attributes(data)
 
 
