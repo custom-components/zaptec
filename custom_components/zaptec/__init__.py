@@ -50,6 +50,11 @@ async def _dry_setup(hass, config):
                 for circuits in ins.circuits:
                     for charger in circuits.chargers:
                         await charger.state()
+
+            for charger in acc.stand_alone_chargers:
+                await charger.state()
+
+
             async_dispatcher_send(hass, EVENT_NEW_DATA)
 
         async_track_time_interval(hass, push_update_to_charger, timedelta(seconds=60))
@@ -87,6 +92,7 @@ async def async_unload_entry(hass: HomeAssistantType, entry: ConfigEntry):
 
     if unload_ok:
         acc = hass.data[DOMAIN]["api"]
+        # no need to unload stand-alone chargers
         await asyncio.gather(*[i.cancel_stream() for i in acc.installs])
         hass.data.pop(DOMAIN)
 

@@ -315,6 +315,7 @@ class Account:
         self._token_info = {}
         self._access_token = None
         self.installs = []
+        self.stand_alone_chargers = []
         # Map using the id t lookup
         self.map = {}
         self.obs = {}
@@ -444,8 +445,11 @@ class Account:
 
         self.installs = cls_installs
 
-        return cls_installs
-
+        so_chargers = await self.chargers()
+        for charger in so_chargers:
+            if charger.id not in self.map:
+                self.map[charger.id] = charger
+        self.stand_alone_chargers = so_chargers
 
 class Charger(ZapBase):
     def __init__(self, data, account):
@@ -574,15 +578,16 @@ class Charger(ZapBase):
         # I couldn't find a way to see if it was up to date..
         # maybe remove this later if it dont interest ppl.
 
-        firmware_info = await self._account.charger_firmware(self.installation_id)
-        for fm in firmware_info:
-            if fm["ChargerId"] == self.id:
-                fixed = {
-                    "current_firmware_version": fm["CurrentVersion"],
-                    "available_firmware_version": fm["AvailableVersion"],
-                    "firmware_update_to_date": fm["IsUpToDate"],
-                }
-                self.set_attributes(fixed)
+        if self.installation_id in self._account.map:
+            firmware_info = await self._account.charger_firmware(self.installation_id)
+            for fm in firmware_info:
+                if fm["ChargerId"] == self.id:
+                    fixed = {
+                        "current_firmware_version": fm["CurrentVersion"],
+                        "available_firmware_version": fm["AvailableVersion"],
+                        "firmware_update_to_date": fm["IsUpToDate"],
+                    }
+                    self.set_attributes(fixed)
 
     async def live(self):
         # This don't seems to be documented but the portal uses it
@@ -621,5 +626,9 @@ if __name__ == "__main__":
                 data = await circuit.state()
                 print(data)
             # await ins._stream(cb=cb)
+
+        for charger in acc.stand_alone_chargers:
+            data = await charger.state()
+            print(data)
 
     asyncio.run(gogo())

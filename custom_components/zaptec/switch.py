@@ -17,13 +17,13 @@ async def async_setup_platform(
     hass: HomeAssistantType, config: ConfigType, async_add_entities, discovery_info=None
 ) -> bool:  # pylint: disable=unused-argument
     """Setup switch platform."""
-    api = hass.data.get(DOMAIN, {}).get("api")
-    if api is None:
+    acc = hass.data[DOMAIN]["api"]
+    if acc is None:
         _LOGGER.debug("Didn't setup switch the api wasnt ready")
         return False
 
     switches = []
-    chargers = await api.chargers()
+    chargers = acc.all_chargers
 
     for c in chargers:
         switches.append(Switch(c))
@@ -76,6 +76,6 @@ class Switch(SwitchEntity):
         return True if self._mode == "charging" else False
 
     @property
-    def device_state_attributes(self) -> dict:
+    def extra_state_attributes(self) -> dict:
         """Return the state attributes."""
         return self._attr

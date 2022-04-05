@@ -54,6 +54,14 @@ async def _dry_setup(hass, config, async_add_entities, discovery_info=None):
                 sensors.append(chs)
         sensors.append(InstallationSensor(ins))
 
+    for charger in acc.stand_alone_chargers:
+        # _LOGGER.debug("Building charger %s", charger)
+        # Force an update before its added.
+        await charger.state()
+        chs = ChargerSensor(charger, hass)
+        sensors.append(chs)
+
+
     async_add_entities(sensors, False)
 
     return True
@@ -86,7 +94,7 @@ class CircuteSensor(Entity):
         return "zaptec_circute_%s" % self._api._attrs["id"]
 
     @property
-    def device_state_attributes(self) -> dict:
+    def extra_state_attributes(self) -> dict:
         return self._attrs
 
     @property
@@ -121,7 +129,7 @@ class InstallationSensor(Entity):
         return "zaptec_installation_%s" % self._attrs["id"]
 
     @property
-    def device_state_attributes(self) -> dict:
+    def extra_state_attributes(self) -> dict:
         return self._attrs
 
     @property
@@ -193,7 +201,7 @@ class ChargerSensor(Entity, ZapMixin):
         }
 
     @property
-    def device_state_attributes(self) -> dict:
+    def extra_state_attributes(self) -> dict:
         return self._attrs
 
     async def async_added_to_hass(self):
