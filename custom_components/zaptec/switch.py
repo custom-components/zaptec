@@ -17,7 +17,7 @@ async def async_setup_platform(
     hass: HomeAssistantType, config: ConfigType, async_add_entities, discovery_info=None
 ) -> bool:  # pylint: disable=unused-argument
     """Setup switch platform."""
-    acc = hass.data[DOMAIN]["api"]
+    acc = hass.data.get(DOMAIN, {}).get("api")
     if acc is None:
         _LOGGER.debug("Didn't setup switch the api wasnt ready")
         return False
