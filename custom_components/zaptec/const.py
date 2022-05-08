@@ -1,6 +1,6 @@
-NAME = 'zaptec'
-VERSION = '0.0.4'
-ISSUEURL = 'https://github.com/custom-components/zaptec/issues'
+NAME = "zaptec"
+VERSION = "0.0.5"
+ISSUEURL = "https://github.com/custom-components/zaptec/issues"
 
 STARTUP = """
 -------------------------------------------------------------------
@@ -10,20 +10,24 @@ This is a custom component
 If you have any issues with this you need to open an issue here:
 {issueurl}
 -------------------------------------------------------------------
-""".format(name=NAME, version=VERSION, issueurl=ISSUEURL)
+""".format(
+    name=NAME, version=VERSION, issueurl=ISSUEURL
+)
 
-DOMAIN = 'zaptec'
+DOMAIN = "zaptec"
 OBSERVATIONS_REMAPS = {}
 WANTED_ATTRIBUTES = []
-CHARGE_MODE_MAP = {'0': ['unknown', 'mdi:help-rhombus-outline'],
-                   '1': ['disconnected', 'mdi:power-plug-off'],
-                   '2': ['waiting', 'mdi:power-sleep'],
-                   '3': ['charging', 'mdi:power-plug'],
-                   '5': ['charge_done', 'mdi:battery-charging-100']}
+CHARGE_MODE_MAP = {
+    "0": ["unknown", "mdi:help-rhombus-outline"],
+    "1": ["disconnected", "mdi:power-plug-off"],
+    "2": ["waiting", "mdi:power-sleep"],
+    "3": ["charging", "mdi:power-plug"],
+    "5": ["charge_done", "mdi:battery-charging-100"],
+}
 
-TOKEN_URL = 'https://api.zaptec.com/oauth/token'
-API_URL = 'https://api.zaptec.com/api/'
-CONST_URL = 'https://api.zaptec.com/api/constants'
+TOKEN_URL = "https://api.zaptec.com/oauth/token"
+API_URL = "https://api.zaptec.com/api/"
+CONST_URL = "https://api.zaptec.com/api/constants"
 
 
 CONF_SENSOR = "sensor"
