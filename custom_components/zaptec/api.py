@@ -603,6 +603,19 @@ class Charger(ZapBase):
         return await self._account._request(cmd, method="post")
 
 
+    #how to receive available phases?
+    #how to pass available_current as body?
+    async def update_installation_1(self, id_):
+        cmd = "installation/%s/update" % (self.id, id_)
+        return await self._account._request(cmd, method="post")
+
+    #how to receive available phases?
+    #how to pass available_current_phase1/2/3 as body?
+    async def update_installation_3(self, id_):
+        cmd = "installation/%s/update" % (self.id, id_)
+        return await self._account._request(cmd, method="post")
+        
+
 if __name__ == "__main__":
     # Just to execute the script manually.
     import asyncio
