@@ -168,21 +168,21 @@ class Installation(ZapBase):
     async def limit_amps(self, **kwargs):
         """Set a limit now how many amps the installation can use
 
-        Use AvailableCurrent for 3phase
+        Use availableCurrent for 3phase
         use just select the phase you want to use.
 
 
         """
-        total = "AvailableCurrent"
+        total = "availableCurrent"
         phases = [
-            "AvailableCurrentPhase1",
-            "AvailableCurrentPhase2",
-            "AvailableCurrentPhase3",
+            "availableCurrentPhase1",
+            "availableCurrentPhase2",
+            "availableCurrentPhase3",
         ]
 
         keys = list(kwargs.keys())
         if any(k for k in keys for i in phases) and total in keys:
-            kwargs.pop("AvailableCurrent")
+            kwargs.pop("availableCurrent")
 
             # Make sure that
 
@@ -602,19 +602,6 @@ class Charger(ZapBase):
         cmd = "chargers/%s/SendCommand/%s" % (self.id, id_)
         return await self._account._request(cmd, method="post")
 
-
-    #how to receive available phases?
-    #how to pass available_current as body?
-    async def update_installation_1(self, id_):
-        cmd = "installation/%s/update" % (self.id, id_)
-        return await self._account._request(cmd, method="post")
-
-    #how to receive available phases?
-    #how to pass available_current_phase1/2/3 as body?
-    async def update_installation_3(self, id_):
-        cmd = "installation/%s/update" % (self.id, id_)
-        return await self._account._request(cmd, method="post")
-        
 
 if __name__ == "__main__":
     # Just to execute the script manually.

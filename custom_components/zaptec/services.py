@@ -61,8 +61,7 @@ async def async_setup_services(hass):
         _LOGGER.debug("update current single phase")
         installation_id = service_call.data["installation_id"]
         available_current = service_call.data["available_current"]
-        #how to send available_current
-        return await acc.map[installation_id].update_installation_1()
+        return await acc.map[installation_id].limit_amps(availableCurrent=available_current)
 
     async def service_handle_update_installation_3(service_call):
         _LOGGER.debug("update current single phase")
@@ -70,8 +69,7 @@ async def async_setup_services(hass):
         available_current_phase1 = service_call.data["available_current_phase1"]
         available_current_phase2 = service_call.data["available_current_phase2"]
         available_current_phase3 = service_call.data["available_current_phase3"]
-        #how to send available_current_phase1/2/3?
-        return await acc.map[installation_id].update_installation_3()
+        return await acc.map[installation_id].limit_amps(availableCurrentPhase1=available_current_phase1, availableCurrentPhase2=available_current_phase2, availableCurrentPhase3=available_current_phase3)
 
     hass.services.async_register(
         DOMAIN, "stop_pause_charging", service_handle_stop_pause, schema=has_id_schema
