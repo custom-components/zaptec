@@ -8,7 +8,7 @@
         "step":{
             "user":{
                 "title":"Zaptec",
-                "description":"If you need help with this integration: https://github.com/custom-components/zapec",
+                "description":"If you need help with this integration: https://github.com/custom-components/zaptec",
                 "data":{
                     "username":"Username",
                     "password":"Password",
