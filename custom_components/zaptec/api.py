@@ -4,6 +4,7 @@ import logging
 import random
 import re
 from concurrent.futures import CancelledError
+from functools import partial
 
 import aiohttp
 import async_timeout
@@ -173,6 +174,8 @@ class Installation(ZapBase):
 
 
         """
+        _LOGGER.debug('kwargs is ' + kwargs)
+        _LOGGER.info('kwargs is ' + kwargs)
         total = "availableCurrent"
         phases = [
             "availableCurrentPhase1",
@@ -181,11 +184,14 @@ class Installation(ZapBase):
         ]
 
         keys = list(kwargs.keys())
+        _LOGGER.debug('keys is ' + keys)
+        _LOGGER.info('keys is ' + keys)
         if any(k for k in keys for i in phases) and total in keys:
             kwargs.pop("availableCurrent")
 
             # Make sure that
-
+        _LOGGER.debug('kwargs is ' + kwargs)
+        _LOGGER.info('kwargs is ' + kwargs)
         return await self._account._request(
             f"installation/{self.id}/update", method="post", data=kwargs
         )

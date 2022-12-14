@@ -3,49 +3,49 @@ start_charging:
   fields:
     charger_id:
       description: "The charger id"
-      example: "yyyyyyyy-9999-99xx-xxx-yyyyyyyyyyyy"
+      example: "yyyyyyyy-9999-99xx-xxxx-yyyyyyyyyyyy"
 
 stop_charging:
   description: "Starts charger. Also authorizes if configured to use authorization."
   fields:
     charger_id:
       description: "The charger id"
-      example: "yyyyyyyy-9999-99xx-xxx-yyyyyyyyyyyy"
+      example: "yyyyyyyy-9999-99xx-xxxx-yyyyyyyyyyyy"
 
 stop_pause_charging:
   description: "New stop/pause"
   fields:
     charger_id:
       description: "The charger id"
-      example: "yyyyyyyy-9999-99xx-xxx-yyyyyyyyyyyy"
+      example: "yyyyyyyy-9999-99xx-xxxx-yyyyyyyyyyyy"
 
 resume_charging:
   description: "New resume command."
   fields:
     charger_id:
       description: "The charger id"
-      example: "yyyyyyyy-9999-99xx-xxx-yyyyyyyyyyyy"
+      example: "yyyyyyyy-9999-99xx-xxxx-yyyyyyyyyyyy"
 
 update_firmware:
   description: "New resume command."
   fields:
     charger_id:
       description: "Update the firmware."
-      example: "yyyyyyyy-9999-99xx-xxx-yyyyyyyyyyyy"
+      example: "yyyyyyyy-9999-99xx-xxxx-yyyyyyyyyyyy"
 
 restart_charger:
   description: "Restart charger."
   fields:
     charger_id:
       description: "The charger id"
-      example: "yyyyyyyy-9999-99xx-xxx-yyyyyyyyyyyy"
+      example: "yyyyyyyy-9999-99xx-xxxx-yyyyyyyyyyyy"
 
 update_installation_1:
   description: "Update installation properties for single phase."
   fields:
     installation_id:
       description: "The installation id"
-      example: "yyyyyyyy-9999-99xx-xxx-yyyyyyyyyyyy"
+      example: "yyyyyyyy-9999-99xx-xxxx-yyyyyyyyyyyy"
     available_current:
       description: "The available current for single phase"
       example: "16"
@@ -55,7 +55,7 @@ update_installation_3:
   fields:
     installation_id:
       description: "The installation id"
-      example: "yyyyyyyy-9999-99xx-xxx-yyyyyyyyyyyy"
+      example: "yyyyyyyy-9999-99xx-xxxx-yyyyyyyyyyyy"
     available_current_phase1:
       description: "The available current for phase 1"
       example: "16"
