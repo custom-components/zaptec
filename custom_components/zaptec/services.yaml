@@ -40,17 +40,7 @@ restart_charger:
       description: "The charger id"
       example: "yyyyyyyy-9999-99xx-xxxx-yyyyyyyyyyyy"
 
-update_installation_1:
-  description: "Update installation properties for single phase."
-  fields:
-    installation_id:
-      description: "The installation id"
-      example: "yyyyyyyy-9999-99xx-xxxx-yyyyyyyyyyyy"
-    available_current:
-      description: "The available current for single phase"
-      example: "16"
-
-update_installation_3:
+limit_amps:
   description: "Update installation properties for 3 phases."
   fields:
     installation_id:
