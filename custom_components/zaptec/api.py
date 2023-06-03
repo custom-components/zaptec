@@ -8,11 +8,9 @@ from functools import partial
 
 import aiohttp
 import async_timeout
-from azure.servicebus.aio import ServiceBusClient
-from azure.servicebus.exceptions import ServiceBusError
+
 
 _LOGGER = logging.getLogger(__name__)
-
 
 # negative lookahead regex for something
 # that looks like json.
@@ -212,11 +210,27 @@ class Installation(ZapBase):
 
     async def stream(self, cb=None):
         """Kickoff the steam in the background."""
+        try:
+            from azure.servicebus.aio import ServiceBusClient
+            from azure.servicebus.exceptions import ServiceBusError
+        except ImportError:
+            _LOGGER.debug("Azure Service bus is not available. Resolving to polling")
+            # https://github.com/custom-components/zaptec/issues
+            return
+        
         await self.cancel_stream()
         self._stream_task = asyncio.create_task(self._stream(cb=cb))
         # self._stream_task = asyncio.create_task(self.fake_stream(cb=cb))
 
     async def _stream(self, cb=None):
+        try:
+            from azure.servicebus.aio import ServiceBusClient
+            from azure.servicebus.exceptions import ServiceBusError
+        except ImportError:
+            _LOGGER.debug("Azure Service bus is not available. Resolving to polling")
+            # https://github.com/custom-components/zaptec/issues
+            return
+        
         conf = await self.live_stream_connection_details()
         # Check if we can use it.
         if any(True for i in ["Password", "Username", "Host"] if conf.get(i) == ""):
@@ -293,6 +307,11 @@ class Installation(ZapBase):
                     await receiver.complete_message(msg)
 
     async def cancel_stream(self):
+        try:
+            from azure.servicebus.exceptions import ServiceBusError
+        except ImportError:
+            return
+            
         if self._stream_task is not None:
             try:
                 self._stream_task.cancel()
