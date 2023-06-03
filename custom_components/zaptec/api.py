@@ -381,6 +381,8 @@ class Account:
             "Accept": "application/json",
         }
         full_url = API_URL + url
+        if method == "post":
+            header["Accept"] = "Application/patch-json+json"
         # _LOGGER.debug("calling %s", full_url)
         try:
             with async_timeout.timeout(30):
