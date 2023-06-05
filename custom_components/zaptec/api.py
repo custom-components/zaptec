@@ -381,14 +381,11 @@ class Account:
             "Accept": "application/json",
         }
         full_url = API_URL + url
-        if method == "post":
-            header["Accept"] = "Application/patch-json+json"
-        # _LOGGER.debug("calling %s", full_url)
         try:
             with async_timeout.timeout(30):
                 call = getattr(self._client, method)
                 if data is not None and method == "post":
-                    call = partial(call, data=data)
+                    call = partial(call, json=data)
                 async with call(full_url, headers=header) as resp:
                     if resp.status == 401:
                         await self._refresh_token()
@@ -399,7 +396,7 @@ class Account:
                         # _LOGGER.debug("content %s", content)
                         return content
                     else:
-                        json_result = await resp.json()
+                        json_result = await resp.json(content_type=None)
                         # _LOGGER.debug(json.dumps(json_result, indent=4))
                         return json_result
 
