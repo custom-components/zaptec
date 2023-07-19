@@ -55,3 +55,6 @@ limit_amps:
     available_current_phase3:
       description: "The available current for phase 3"
       example: "16"
+    available_current:
+      description: "The available currents"
+      example: "16"

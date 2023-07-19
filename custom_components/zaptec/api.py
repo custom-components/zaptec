@@ -56,7 +56,7 @@ class AuthorizationFailedException(Exception):
 async def _update_remaps() -> None:
     wanted = ["Observations"]
     obs = {}
-    async with aiohttp.request("GET", CONST_URL) as resp:
+    async with aiohttp.request("GET", CONST_URL as resp:
         if resp.status == 200:
             data = await resp.json()
             for k, v in data.items():
@@ -631,7 +631,7 @@ if __name__ == "__main__":
     async def gogo():
         username = os.environ.get("zaptec_username")
         password = os.environ.get("zaptec_password")
-        acc = Account(username, password)
+        acc = Account(username, password, client=aiohttp.ClientSession(connector=aiohttp.TCPConnector(verify_ssl=False)))
         # Builds the interface.
         await acc.build()
 
