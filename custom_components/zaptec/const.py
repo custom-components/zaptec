@@ -24,6 +24,7 @@ CHARGE_MODE_MAP = {
     "3": ["charging", "mdi:power-plug"],
     "5": ["charge_done", "mdi:battery-charging-100"],
 }
+CHARGE_MODE_MAP.update({int(k): v for k, v in CHARGE_MODE_MAP.items()})
 
 TOKEN_URL = "https://api.zaptec.com/oauth/token"
 API_URL = "https://api.zaptec.com/api/"
@@ -37,4 +38,5 @@ CONF_NAME = "name"
 
 EVENT_NEW_DATA = "event_new_data_zaptec"
 EVENT_NEW_DATA_HOURLY = "event_new_data_hourly_zaptec"
-PLATFORMS = ["sensor"]
+# PLATFORMS = ["sensor"]
+PLATFORMS = ["sensor", "switch"]

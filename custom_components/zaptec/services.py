@@ -1,5 +1,4 @@
 import asyncio
-import inspect
 import logging
 
 import voluptuous as vol
@@ -18,7 +17,7 @@ limit_amp_schema = vol.Schema(
         vol.Required("available_current_phase1"): int,
         vol.Required("available_current_phase2"): int,
         vol.Required("available_current_phase3"): int,
-        vol.Optional("available_current"): int
+        vol.Optional("available_current"): int,
     }
 )
 
@@ -106,5 +105,5 @@ async def async_setup_services(hass):
         DOMAIN,
         "limit_amps",
         service_handle_limit_amps,
-        schema=limit_amp_schemas,
+        schema=limit_amp_schema,
     )

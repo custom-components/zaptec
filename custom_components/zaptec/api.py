@@ -42,7 +42,6 @@ if __name__ == "__main__":
         word = word.replace("-", "_")
         return word.lower()
 
-
 else:
     from .const import API_URL, TOKEN_URL, CONST_URL
     from .misc import to_under
@@ -56,7 +55,7 @@ class AuthorizationFailedException(Exception):
 async def _update_remaps() -> None:
     wanted = ["Observations"]
     obs = {}
-    async with aiohttp.request("GET", CONST_URL as resp:
+    async with aiohttp.request("GET", CONST_URL) as resp:
         if resp.status == 200:
             data = await resp.json()
             for k, v in data.items():
@@ -124,6 +123,8 @@ class Circuit(ZapBase):
         self.set_attributes()
 
     async def get_chargers(self):
+        _LOGGER.debug("Called get chargers")
+
         chargers = []
         for item in self._data["Chargers"]:
             data = await self._account.charger(item["Id"])
@@ -217,10 +218,9 @@ class Installation(ZapBase):
             _LOGGER.debug("Azure Service bus is not available. Resolving to polling")
             # https://github.com/custom-components/zaptec/issues
             return
-        
+
         await self.cancel_stream()
         self._stream_task = asyncio.create_task(self._stream(cb=cb))
-        # self._stream_task = asyncio.create_task(self.fake_stream(cb=cb))
 
     async def _stream(self, cb=None):
         try:
@@ -230,7 +230,7 @@ class Installation(ZapBase):
             _LOGGER.debug("Azure Service bus is not available. Resolving to polling")
             # https://github.com/custom-components/zaptec/issues
             return
-        
+
         conf = await self.live_stream_connection_details()
         # Check if we can use it.
         if any(True for i in ["Password", "Username", "Host"] if conf.get(i) == ""):
@@ -311,7 +311,7 @@ class Installation(ZapBase):
             from azure.servicebus.exceptions import ServiceBusError
         except ImportError:
             return
-            
+
         if self._stream_task is not None:
             try:
                 self._stream_task.cancel()
@@ -384,7 +384,6 @@ class Account:
             "grant_type": "password",
         }
         async with aiohttp.request("POST", TOKEN_URL, data=p) as resp:
-
             if resp.status == 200:
                 data = await resp.json()
                 # The data includes the time the access token expires
@@ -418,7 +417,8 @@ class Account:
                         # _LOGGER.debug("content %s", content)
                         return content
                     else:
-                        json_result = await resp.json()
+                        json_result = await resp.json(content_type=None)
+                        # _LOGGER.debug("FUCK %s", json_result)
                         # _LOGGER.debug(json.dumps(json_result, indent=4))
                         return json_result
 
@@ -470,6 +470,7 @@ class Account:
             if charger.id not in self.map:
                 self.map[charger.id] = charger
         self.stand_alone_chargers = so_chargers
+
 
 class Charger(ZapBase):
     def __init__(self, data, account):
@@ -526,9 +527,11 @@ class Charger(ZapBase):
         return await self._send_command(324)
 
     async def start_charging(self):
+        _LOGGER.debug("Attempting to start charging")
         return await self._send_command(501)
 
     async def stop_charging(self):
+        _LOGGER.debug("Attempting to stops charging")
         return await self._send_command(502)
 
     async def report_charging_state(self):
@@ -597,7 +600,6 @@ class Charger(ZapBase):
         # Firmware version is called. SmartMainboardSoftwareApplicationVersion, stateid 908
         # I couldn't find a way to see if it was up to date..
         # maybe remove this later if it dont interest ppl.
-
         if self.installation_id in self._account.map:
             firmware_info = await self._account.charger_firmware(self.installation_id)
             for fm in firmware_info:
@@ -620,6 +622,7 @@ class Charger(ZapBase):
 
     async def _send_command(self, id_):
         cmd = "chargers/%s/SendCommand/%s" % (self.id, id_)
+        _LOGGER.debug("Calling %s", cmd)
         return await self._account._request(cmd, method="post")
 
 
@@ -631,7 +634,13 @@ if __name__ == "__main__":
     async def gogo():
         username = os.environ.get("zaptec_username")
         password = os.environ.get("zaptec_password")
-        acc = Account(username, password, client=aiohttp.ClientSession(connector=aiohttp.TCPConnector(verify_ssl=False)))
+        acc = Account(
+            username,
+            password,
+            client=aiohttp.ClientSession(
+                connector=aiohttp.TCPConnector(verify_ssl=False)
+            ),
+        )
         # Builds the interface.
         await acc.build()
 
