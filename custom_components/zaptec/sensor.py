@@ -44,7 +44,7 @@ async def _dry_setup(hass, config, async_add_entities, discovery_info=None):
         # _LOGGER.debug("%s", vars(ins))
         for circuit in ins.circuits:
             # _LOGGER.debug("Building circuit %s", circuit)
-            c = CircuteSensor(circuit)
+            c = CircuitSensor(circuit)
             sensors.append(c)
             for charger in circuit.chargers:
                 # _LOGGER.debug("Building charger %s", charger)
@@ -84,14 +84,14 @@ class ZapMixin:
         self.async_write_ha_state()
 
 
-class CircuteSensor(Entity):
+class CircuitSensor(Entity):
     def __init__(self, circuit):
         self._api = circuit
         self._attrs = circuit._attrs
 
     @property
     def name(self) -> str:
-        return "zaptec_circute_%s" % self._api._attrs["id"]
+        return "zaptec_circuit_%s" % self._api._attrs["id"]
 
     @property
     def extra_state_attributes(self) -> dict:
