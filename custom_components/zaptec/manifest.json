@@ -7,6 +7,6 @@
   "codeowners": [
     "hellowlol"
   ],
-  "requirements": [],
+  "requirements": ["azure-servicebus"],
   "version": "0.0.6b2"
 }
