@@ -446,11 +446,18 @@ class Account:
 
         self.installs = cls_installs
 
+        # Will also report chargers listed in installation hierarchy above
         so_chargers = await self.chargers()
+        added_chargers = []
         for charger in so_chargers:
             if charger.id not in self.map:
                 self.map[charger.id] = charger
-        self.stand_alone_chargers = so_chargers
+
+                # Our charger is not listed in the hierarchy above this add
+                # this as a stand-alone
+                added_chargers.append(charger)
+
+        self.stand_alone_chargers = added_chargers
 
 class Charger(ZapBase):
     def __init__(self, data, account):
