@@ -53,7 +53,7 @@ class AuthorizationFailedException(Exception):
 
 
 # should be a static method of account
-async def _update_remaps() -> None:
+async def _update_remaps(device_types=None) -> None:
     wanted = ["Observations"]
     obs = {}
     async with aiohttp.request("GET", CONST_URL) as resp:
@@ -64,6 +64,15 @@ async def _update_remaps() -> None:
                     obs.update(v)
                     # Add names.
                     obs.update({value: key for key, value in v.items()})
+
+                # Get from Schema.<Name>.ObservationIds for those where
+                # Schema.<Name>.DeviceType matches the list in device_types
+                if device_types and k == "Schema":
+                    for schema in v.values():
+                        v2 = schema.get("ObservationIds")
+                        if schema.get("DeviceType") in device_types and v2 is not None:
+                            obs.update(v2)
+                            obs.update({value: key for key, value in v2.items()})
 
         _LOGGER.debug("Update remaps")
         return obs
@@ -440,8 +449,6 @@ class Account:
 
     async def build(self):
         """Make the python interface."""
-        if not len(self.obs):
-            self.obs = await _update_remaps()
         installations = await self.installations()
 
         cls_installs = []
@@ -456,10 +463,19 @@ class Account:
         self.installs = cls_installs
 
         so_chargers = await self.chargers()
+        device_types = []
         for charger in so_chargers:
             if charger.id not in self.map:
                 self.map[charger.id] = charger
+
+            # Append the device type in order to read the extended
+            # IDs from the remap dict.
+            device_types.append(charger.device_type)
+
         self.stand_alone_chargers = so_chargers
+
+        if not len(self.obs):
+            self.obs = await _update_remaps(device_types)
 
 
 class Charger(ZapBase):
