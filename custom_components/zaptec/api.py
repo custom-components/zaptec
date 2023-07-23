@@ -238,6 +238,8 @@ class Installation(ZapBase):
             receiver = servicebus_client.get_subscription_receiver(
                 topic_name=conf["Topic"], subscription_name=conf["Subscription"]
             )
+            # Store the receiver in order to close it and cancel this stream
+            self._receiver = receiver
             async with receiver:
                 async for msg in receiver:
                     await asyncio.sleep(0)
@@ -295,6 +297,7 @@ class Installation(ZapBase):
     async def cancel_stream(self):
         if self._stream_task is not None:
             try:
+                await self._receiver.close()
                 self._stream_task.cancel()
                 await self._stream_task
                 _LOGGER.debug("Canceled stream")
