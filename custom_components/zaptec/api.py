@@ -1,14 +1,15 @@
+# pylint: disable=C0116
+
+
 import asyncio
 import json
 import logging
-import random
 import re
 from concurrent.futures import CancelledError
 from functools import partial
 
 import aiohttp
 import async_timeout
-
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -43,7 +44,7 @@ if __name__ == "__main__":
         return word.lower()
 
 else:
-    from .const import API_URL, TOKEN_URL, CONST_URL
+    from .const import API_URL, CONST_URL, TOKEN_URL
     from .misc import to_under
 
 
@@ -101,12 +102,16 @@ class ZapBase:
                     )
                     continue
                 stuff = {obs_key: stuff.get("ValueAsString")}
-            else:
-                stuff = stuff
 
             for key, value in stuff.items():
                 new_key = to_under(key)
                 self._attrs[new_key] = value
+                _LOGGER.debug(
+                    "Setting attribute %s value %s on %s",
+                    new_key,
+                    value,
+                    self.__class__.__name__,
+                )
 
     def __getattr__(self, key):
         try:
@@ -116,6 +121,8 @@ class ZapBase:
 
 
 class Circuit(ZapBase):
+    """Represents a circuits"""
+
     def __init__(self, data, account):
         super().__init__(data, account)
         self._chargers = []
@@ -123,8 +130,6 @@ class Circuit(ZapBase):
         self.set_attributes()
 
     async def get_chargers(self):
-        _LOGGER.debug("Called get chargers")
-
         chargers = []
         for item in self._data["Chargers"]:
             data = await self._account.charger(item["Id"])
@@ -136,12 +141,13 @@ class Circuit(ZapBase):
         return chargers
 
     async def state(self):
-        # This seems to be undocumentet.
         data = await self._account._request(f"circuits/{self.id}/")
         self.set_attributes(data)
 
 
 class Installation(ZapBase):
+    """This class represents an Installation"""
+
     def __init__(self, data, account):
         super().__init__(data, account)
         # fill out stuff here.
@@ -194,20 +200,6 @@ class Installation(ZapBase):
         )
         self.connection_details = data
         return data
-
-    async def fake_stream(self, cb=None):
-        """just a helper when the car isnt connected. should be removed later."""
-        # await asyncio.sleep(30)
-
-        d = '{"ChargerId":"yyyyyy-4132-42ec-9939-dddddd","StateId":553,"Timestamp":"2021-02-05T21:22:12.197449Z","ValueAsString":"1337.88"}'
-        while True:
-            num = random.uniform(1, 100)
-            json_result = json.loads(d)
-            json_result["ValueAsString"] = str(num)
-
-            if cb:
-                await cb(json_result)
-            await asyncio.sleep(5)
 
     async def stream(self, cb=None):
         """Kickoff the steam in the background."""
@@ -326,6 +318,8 @@ class Installation(ZapBase):
 
 
 class Account:
+    """This class represent an zaptec account"""
+
     def __init__(self, username, password, client=None):
         self._username = username
         self._password = password
@@ -334,7 +328,7 @@ class Account:
         self._access_token = None
         self.installs = []
         self.stand_alone_chargers = []
-        # Map using the id t lookup
+        # Map using the id for lookupss
         self.map = {}
         self.obs = {}
         if client is None:
@@ -370,7 +364,8 @@ class Account:
                     return True
                 else:
                     raise AuthorizationFailedException
-        except aiohttp.ClientConnectorError:
+        except aiohttp.ClientConnectorError as err:
+            _LOGGER.exception("Bad things happend while trying to authenticate :(")
             raise
 
         return False
@@ -401,7 +396,6 @@ class Account:
         full_url = API_URL + url
         if method == "post":
             header["Accept"] = "Application/patch-json+json"
-        # _LOGGER.debug("calling %s", full_url)
         try:
             with async_timeout.timeout(30):
                 call = getattr(self._client, method)
@@ -412,14 +406,10 @@ class Account:
                         await self._refresh_token()
                         return await self._request(url)
                     elif resp.status == 204:
-                        # Seems to return this on commands.. like method post
                         content = await resp.read()
-                        # _LOGGER.debug("content %s", content)
                         return content
                     else:
                         json_result = await resp.json(content_type=None)
-                        # _LOGGER.debug("FUCK %s", json_result)
-                        # _LOGGER.debug(json.dumps(json_result, indent=4))
                         return json_result
 
         except (asyncio.TimeoutError, aiohttp.ClientError) as err:
@@ -473,6 +463,8 @@ class Account:
 
 
 class Charger(ZapBase):
+    """Represents a charger"""
+
     def __init__(self, data, account):
         super().__init__(data, account)
         self.set_attributes()
@@ -597,7 +589,8 @@ class Charger(ZapBase):
         data = await self._account._request(f"chargers/{self.id}/state")
         # sett_attributes need to be set before any other call.
         self.set_attributes(data)
-        # Firmware version is called. SmartMainboardSoftwareApplicationVersion, stateid 908
+        # Firmware version is called. SmartMainboardSoftwareApplicationVersion,
+        # stateid 908
         # I couldn't find a way to see if it was up to date..
         # maybe remove this later if it dont interest ppl.
         if self.installation_id in self._account.map:
@@ -625,10 +618,44 @@ class Charger(ZapBase):
         _LOGGER.debug("Calling %s", cmd)
         return await self._account._request(cmd, method="post")
 
+    async def update(self, data):
+        # https://api.zaptec.com/help/index.html#/Charger/post_api_chargers__id__update
+        # Not really sure this should be added as ppl might use it wrong
+        cmd = f"chargers/{self.id}/update"
+        default = {
+            # nullable: true
+            # Adjustable between 0 and 32A. If charge current is below the charger minimum charge current (usually 6A), no charge current will be allocated.
+            "maxChargeCurrent": 0,
+            # MaxPhaseinteger($int32) # Enum 1,3
+            "maxChargePhases": "",
+            # The minimum allocated charge current. If there is not enough current available to provide the
+            # chargers minimum current it will not be able to charge.
+            # Usually set to match the vehicle minimum current for charging (defaults to 6A)
+            "minChargeCurrent": None,
+            # Adjustable between 0 and 32A. If offline charge current is below the charger minimum charge current (usually 6A),
+            # no charge current will be allocated when offline.
+            # Offline current override should only be done in special cases where charging stations should not automatically optimize offline current.
+            # In most cases this setting should be set to -1 to allow ZapCloud to optimise offline current. If -1, offline current will be automatically allocated.
+            "offlineChargeCurrent": None,
+            # Phasesinteger($int32) ENUM
+            # 0 = None
+            # 1 = Phase_1
+            # 2 = Phase_2
+            # 4 = Phase_3
+            # 7 = All
+            "offlineChargePhase": None,
+            # nullable
+            # The interval in seconds for a charger to report meter values. Defaults to 900 seconds for Pro and 3600 seconds for Go
+            "meterValueInterval": None,
+        }
+
+        pass
+
+        # return await self._account.request(cmd, data=data, method="post")
+
 
 if __name__ == "__main__":
     # Just to execute the script manually.
-    import asyncio
     import os
 
     async def gogo():

@@ -1,14 +1,18 @@
+# pylint: disable=C0116
+
 import asyncio
 import logging
 from datetime import timedelta
 
 import aiohttp
-from homeassistant.components.sensor import PLATFORM_SCHEMA
+from homeassistant.components.sensor import SensorEntity
+from homeassistant.const import STATE_UNAVAILABLE
+
+# from homeassistant.components.sensor import PLATFORM_SCHEMA
 from homeassistant.helpers.dispatcher import (
     async_dispatcher_connect,
     async_dispatcher_send,
 )
-from homeassistant.components.sensor import SensorEntity
 from homeassistant.helpers.typing import ConfigType, HomeAssistantType
 
 from .const import *
@@ -33,19 +37,20 @@ async def _dry_setup(hass, config, async_add_entities, discovery_info=None):
     sensors = []
     acc = hass.data[DOMAIN]["api"]
 
-    async def cb(data):
+    async def callback(data):
         """Callback thats executed when a new message from the message bus is in."""
         acc.update(data)
-        # Tell the sensor that htere is a update.
+        # Tell the sensor that there is an update.
         async_dispatcher_send(hass, EVENT_NEW_DATA)
 
+    # Not sure this should be added, lets see
+    hass.data[DOMAIN]["producer"].append(callback)
+
     for ins in acc.installs:
-        # _LOGGER.debug("Building install %s", ins._attrs)
-        await ins.stream(cb=cb)
-        # _LOGGER.debug("%s", vars(ins))
+        await ins.stream(cb=callback)
         for circuit in ins.circuits:
             # _LOGGER.debug("Building circuit %s", circuit)
-            c = CircuteSensor(circuit, hass)
+            c = CircuitSensor(circuit, hass)
             sensors.append(c)
             for charger in circuit.chargers:
                 _LOGGER.debug("Building charger %s", charger.id)
@@ -76,7 +81,7 @@ async def _dry_setup(hass, config, async_add_entities, discovery_info=None):
 
 async def async_setup_platform(
     hass: HomeAssistantType, config: ConfigType, async_add_entities, discovery_info=None
-) -> None:
+) -> None:  # pylint: disable=W0613
     return True
 
 
@@ -109,7 +114,7 @@ class ZapMixin:
         return False
 
 
-class CircuteSensor(ZapMixin, SensorEntity):
+class CircuitSensor(ZapMixin, SensorEntity):
     def __init__(self, circuit, hass):
         self._api = circuit
         self._attrs = circuit._attrs
@@ -117,7 +122,7 @@ class CircuteSensor(ZapMixin, SensorEntity):
 
     @property
     def name(self) -> str:
-        return "zaptec_circute_%s" % self._api._attrs["id"]
+        return "zaptec_circuit_%s" % self._api._attrs["id"]
 
     @property
     def extra_state_attributes(self) -> dict:
@@ -176,7 +181,7 @@ class ChargerSensor(ZapMixin, SensorEntity):
         self._api = api
         self._hass = hass
         self._attrs = api._attrs
-        self._state = "unknown"
+        self._state = STATE_UNAVAILABLE
 
     @property
     def name(self) -> str:
@@ -218,7 +223,6 @@ class ChargerSensor(ZapMixin, SensorEntity):
             self._state = value
         except KeyError:
             # This seems to happen when it starts up.
-            _LOGGER.debug("Shit happend during update")
-            self._state = "unknown"
+            self._state = STATE_UNAVAILABLE
 
         self.async_write_ha_state()
