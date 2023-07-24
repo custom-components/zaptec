@@ -1,5 +1,4 @@
 import asyncio
-import inspect
 import logging
 
 import voluptuous as vol
@@ -11,8 +10,16 @@ _LOGGER = logging.getLogger(__name__)
 
 has_id_schema = vol.Schema({vol.Required("charger_id"): str})
 
-has_inst_schema_1 = vol.Schema({vol.Required("installation_id"): str, vol.Required("available_current"): int})
-has_inst_schema_3 = vol.Schema({vol.Required("installation_id"): str, vol.Required("available_current_phase1"): int, vol.Required("available_current_phase2"): int, vol.Required("available_current_phase3"): int})
+
+limit_amp_schema = vol.Schema(
+    {
+        vol.Required("installation_id"): str,
+        vol.Required("available_current_phase1"): int,
+        vol.Required("available_current_phase2"): int,
+        vol.Required("available_current_phase3"): int,
+        vol.Optional("available_current"): int,
+    }
+)
 
 
 async def async_setup_services(hass):
@@ -56,20 +63,19 @@ async def async_setup_services(hass):
         charger_id = service_call.data["charger_id"]
         return await acc.map[charger_id].update_firmware()
 
-
-    async def service_handle_update_installation_1(service_call):
-        _LOGGER.debug("update current single phase")
-        installation_id = service_call.data["installation_id"]
-        available_current = service_call.data["available_current"]
-        return await acc.map[installation_id].limit_amps(availableCurrent=available_current)
-
-    async def service_handle_update_installation_3(service_call):
-        _LOGGER.debug("update current single phase")
+    async def service_handle_limit_amps(service_call):
+        _LOGGER.debug("limit amps")
         installation_id = service_call.data["installation_id"]
         available_current_phase1 = service_call.data["available_current_phase1"]
         available_current_phase2 = service_call.data["available_current_phase2"]
         available_current_phase3 = service_call.data["available_current_phase3"]
-        return await acc.map[installation_id].limit_amps(availableCurrentPhase1=available_current_phase1, availableCurrentPhase2=available_current_phase2, availableCurrentPhase3=available_current_phase3)
+        available_current = service_call.data["available_current"]
+        return await acc.map[installation_id].limit_amps(
+            availableCurrent=available_current,
+            availableCurrentPhase1=available_current_phase1,
+            availableCurrentPhase2=available_current_phase2,
+            availableCurrentPhase3=available_current_phase3,
+        )
 
     hass.services.async_register(
         DOMAIN, "stop_pause_charging", service_handle_stop_pause, schema=has_id_schema
@@ -96,9 +102,8 @@ async def async_setup_services(hass):
     )
 
     hass.services.async_register(
-        DOMAIN, "update_installation_1", service_handle_update_installation_1, schema=has_inst_schema_1
-    )
-
-    hass.services.async_register(
-        DOMAIN, "update_installation_3", service_handle_update_installation_3, schema=has_inst_schema_3
+        DOMAIN,
+        "limit_amps",
+        service_handle_limit_amps,
+        schema=limit_amp_schema,
     )
