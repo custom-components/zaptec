@@ -172,7 +172,7 @@ class Installation(ZapBase):
         data = await self._account.installation(self.id)
         self.set_attributes(data)
 
-    async def limit_amps(self, **kwargs):
+    async def limit_current(self, **kwargs):
         """Set a limit now how many amps the installation can use
 
         Use availableCurrent for 3phase
@@ -187,9 +187,12 @@ class Installation(ZapBase):
             "availableCurrentPhase3",
         ]
 
-        keys = list(kwargs.keys())
-        if any(k for k in keys for i in phases) and total in keys:
-            kwargs.pop("availableCurrent")
+        # If any of the phases are present and not None, remove the total field.
+        if any(k and v is not None
+               for k, v in kwargs.items()
+               if k in phases
+               ):
+            kwargs.pop(total, None)
 
         return await self._account._request(
             f"installation/{self.id}/update", method="post", data=kwargs
@@ -404,23 +407,24 @@ class Account:
             "Accept": "application/json",
         }
         full_url = API_URL + url
-        if method == "post":
-            header["Accept"] = "Application/patch-json+json"
         try:
             with async_timeout.timeout(30):
                 call = getattr(self._client, method)
                 if data is not None and method == "post":
-                    call = partial(call, data=data)
+                    call = partial(call, json=data)
                 async with call(full_url, headers=header) as resp:
-                    if resp.status == 401:
+                    if resp.status == 401:  # Unauthorized
                         await self._refresh_token()
                         return await self._request(url)
-                    elif resp.status == 204:
+                    elif resp.status == 204:  # No content
                         content = await resp.read()
                         return content
-                    else:
+                    elif resp.status == 200:  # OK
                         json_result = await resp.json(content_type=None)
                         return json_result
+                    else:
+                        _LOGGER.error("Could not get info from %s: %s", full_url, resp)
+                        return None
 
         except (asyncio.TimeoutError, aiohttp.ClientError) as err:
             _LOGGER.error("Could not get info from %s: %s", full_url, err)
