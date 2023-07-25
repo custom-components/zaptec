@@ -438,6 +438,16 @@ class Account:
 
     async def installation(self, installation_id):
         data = await self._request(f"installation/{installation_id}")
+
+        # Remove data fields with excessive data, making it bigger than the
+        # HA database appreciates for the size of attributes.
+        supportgroup = data.get('SupportGroup')
+        if supportgroup is not None:
+            if "LogoBase64" in supportgroup:
+                logo = supportgroup["LogoBase64"]
+                if len(logo) > 1024:
+                    supportgroup["LogoBase64"] = "<Removed, was %s bytes>" %(len(logo))
+
         return data
 
     async def charger(self, charger_id):
@@ -607,6 +617,17 @@ class Charger(ZapBase):
         # stateid 908
         # I couldn't find a way to see if it was up to date..
         # maybe remove this later if it dont interest ppl.
+
+        # Fetch some additional attributes from settings
+        data = await self._account._request(f"chargers/{self.id}/settings")
+        max_current_id = str(self._account.obs.get("ChargerMaxCurrent", ''))
+        min_current_id = str(self._account.obs.get("ChargerMinCurrent", ''))
+        settings = {
+            "charger_max_current": data.get(max_current_id,{}).get("Value"),
+            "charger_min_current": data.get(min_current_id,{}).get("Value"),
+        }
+        self.set_attributes(settings)
+
         if self.installation_id in self._account.map:
             firmware_info = await self._account.charger_firmware(self.installation_id)
             for fm in firmware_info:
