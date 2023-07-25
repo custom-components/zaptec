@@ -155,6 +155,7 @@ class Installation(ZapBase):
         self.circuits = []
 
         self._stream_task = None
+        self._stream_receiver = None
         self.set_attributes()
 
     async def build(self):
@@ -240,63 +241,70 @@ class Installation(ZapBase):
         obs_values = set(self._account.obs.values())
         obs = self._account.obs
 
-        async with servicebus_client:
-            receiver = servicebus_client.get_subscription_receiver(
-                topic_name=conf["Topic"], subscription_name=conf["Subscription"]
-            )
-            async with receiver:
-                async for msg in receiver:
-                    await asyncio.sleep(0)
-                    _LOGGER.debug("Got a message from the servicebus")
-                    # pretty sure there should be some other
-                    # better way to handle this but it will have to do
-                    # for now. # FIXME
-                    body = b"".join(msg.body)
-                    # body = "".join(body.decode(enc))
-                    _LOGGER.debug("body was %s", body)
-                    found = jsonish.search(body)
-                    if found:
-                        found = found.group()
-                        _LOGGER.debug("found %s", found)
-                        json_result = json.loads(found.decode("utf-8"))
+        try:
+            self._stream_receiver = None
+            async with servicebus_client:
+                receiver = servicebus_client.get_subscription_receiver(
+                    topic_name=conf["Topic"], subscription_name=conf["Subscription"]
+                )
+                # Store the receiver in order to close it and cancel this stream
+                self._stream_receiver = receiver
+                async with receiver:
+                    async for msg in receiver:
+                        await asyncio.sleep(0)
+                        _LOGGER.debug("Got a message from the servicebus")
+                        # pretty sure there should be some other
+                        # better way to handle this but it will have to do
+                        # for now. # FIXME
+                        body = b"".join(msg.body)
+                        # body = "".join(body.decode(enc))
+                        _LOGGER.debug("body was %s", body)
+                        found = jsonish.search(body)
+                        if found:
+                            found = found.group()
+                            _LOGGER.debug("found %s", found)
+                            json_result = json.loads(found.decode("utf-8"))
 
-                        _LOGGER.debug("%s", found)
+                            _LOGGER.debug("%s", found)
 
-                        # Add this should be removed later, only added.
-                        std = json_result.get("StateId")
-                        name = obs.get(std)
+                            # Add this should be removed later, only added.
+                            std = json_result.get("StateId")
+                            name = obs.get(std)
 
-                        if std and std not in seen:
-                            seen.add(json_result.get("StateId"))
+                            if std and std not in seen:
+                                seen.add(json_result.get("StateId"))
+                                _LOGGER.debug(
+                                    "Added %s %s to seen got %s of %s",
+                                    std,
+                                    to_under(name),
+                                    len(seen),
+                                    len(obs_values),
+                                )
+                                _LOGGER.debug(
+                                    "Have ids: %s", ", ".join([str(i) for i in seen])
+                                )
+                                _LOGGER.debug(
+                                    "Have names: %s",
+                                    ", ".join([to_under(obs.get(i, "")) for i in seen]),
+                                )
+                                _LOGGER.debug(
+                                    "Missing %s", ", ".join([str(i) for i in obs_values])
+                                )
+
+                            # Execute the callback.
+                            if cb:
+                                await cb(json_result)
+
+                        else:
                             _LOGGER.debug(
-                                "Added %s %s to seen got %s of %s",
-                                std,
-                                to_under(name),
-                                len(seen),
-                                len(obs_values),
-                            )
-                            _LOGGER.debug(
-                                "Have ids: %s", ", ".join([str(i) for i in seen])
-                            )
-                            _LOGGER.debug(
-                                "Have names: %s",
-                                ", ".join([to_under(obs.get(i, "")) for i in seen]),
-                            )
-                            _LOGGER.debug(
-                                "Missing %s", ", ".join([str(i) for i in obs_values])
+                                "Couldn't extract the json from the message body, %s", body
                             )
 
-                        # Execute the callback.
-                        if cb:
-                            await cb(json_result)
-
-                    else:
-                        _LOGGER.debug(
-                            "Couldn't extract the json from the message body, %s", body
-                        )
-
-                    # remove the msg from the "queue"
-                    await receiver.complete_message(msg)
+                        # remove the msg from the "queue"
+                        await receiver.complete_message(msg)
+        finally:
+            # To ensure its not set if not active
+            self._stream_receiver = None
 
     async def cancel_stream(self):
         try:
@@ -306,6 +314,8 @@ class Installation(ZapBase):
 
         if self._stream_task is not None:
             try:
+                if self._stream_receiver is not None:
+                    await self._stream_receiver.close()
                 self._stream_task.cancel()
                 await self._stream_task
                 _LOGGER.debug("Canceled stream")
