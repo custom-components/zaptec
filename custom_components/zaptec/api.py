@@ -7,7 +7,7 @@ import logging
 import re
 from concurrent.futures import CancelledError
 from functools import partial
-
+from pprint import pformat
 import aiohttp
 import async_timeout
 
@@ -29,23 +29,15 @@ signalr is used by the website.
 
 # to Support running this as a script.
 if __name__ == "__main__":
+    from const import API_URL, CONST_URL, TOKEN_URL
+    from misc import to_under, Redactor
+
     # remove me later
     logging.basicConfig(level=logging.DEBUG)
-    TOKEN_URL = "https://api.zaptec.com/oauth/token"
-    API_URL = "https://api.zaptec.com/api/"
-    CONST_URL = "https://api.zaptec.com/api/constants"
-
-    def to_under(word) -> str:
-        """helper to convert TurnOnThisButton to turn_on_this_button."""
-        # Ripped from inflection
-        word = re.sub(r"([A-Z]+)([A-Z][a-z])", r"\1_\2", word)
-        word = re.sub(r"([a-z\d])([A-Z])", r"\1_\2", word)
-        word = word.replace("-", "_")
-        return word.lower()
 
 else:
     from .const import API_URL, CONST_URL, TOKEN_URL
-    from .misc import to_under
+    from .misc import to_under, Redactor
 
 
 class AuthorizationFailedException(Exception):
@@ -475,6 +467,67 @@ class Account:
                 self.map[charger.id] = charger
         self.stand_alone_chargers = so_chargers
 
+    async def data_dump(self, redacted=True):
+        """ Debug API data dump """
+
+        # Helper to redact the output data
+        red = Redactor(redacted, self)
+
+        def gen_text(text, obj, mode=None):
+            if mode != 'noredact':
+                red.redact_obj_inplace(obj, mode=mode)
+            return f"\n{text}\n{'='*len(text)}\n{pformat(obj, compact=False, width=200)}\n"
+
+        async def req(url):
+            try:
+                return await self._request(url)
+            except Exception as err:
+                return {"FAILED": str(err)}
+
+        # Fetch from API and generate output
+        # ----------------------------------
+
+        installations = await req("installation")
+        installation_ids = [inst['Id'] for inst in installations.get('Data',[])]
+        yield gen_text("installation", installations)
+
+        chargers = await req("chargers")
+        charger_ids = [charger['Id'] for charger in chargers.get('Data',[])]
+        yield gen_text("chargers", chargers)
+
+        circuit_ids = []
+        charger_in_circuits_ids = []
+        for inst_id in installation_ids:
+            hierarchy = await req(f"installation/{inst_id}/hierarchy")
+
+            for circuit in hierarchy.get('Circuits', []):
+                circuit_ids.append(circuit['Id'])
+                for charger in circuit.get('Chargers', []):
+                    charger_in_circuits_ids.append(charger['Id'])
+
+            yield gen_text(f"installation/{red.redact(inst_id)}/hierarchy", hierarchy)
+
+            installation = await req(f"installation/{inst_id}")
+            yield gen_text(f"installation/{red.redact(inst_id)}", installation)
+
+        for circ_id in circuit_ids:
+            circuit = await req(f"circuits/{circ_id}")
+            yield gen_text(f"circuits/{red.redact(circ_id)}", circuit)
+
+        for charger_id in set([*charger_ids, *charger_in_circuits_ids]):
+            charger = await req(f"chargers/{charger_id}")
+            yield gen_text(f"chargers/{red.redact(charger_id)}", charger)
+
+            state = await req(f"chargers/{charger_id}/state")
+            yield gen_text(f"chargers/{red.redact(charger_id)}/state", state, mode='ids')
+
+            settings = await req(f"chargers/{charger_id}/settings")
+            yield gen_text(f"chargers/{red.redact(charger_id)}/settings", settings, mode='ids')
+
+        # # Print the redaction map
+        # reds = {v: k for k, v in red.redacts.items()}
+        # yield gen_text("**REDACTIONS**", reds, mode='noredact')
+
 
 class Charger(ZapBase):
     """Represents a charger"""
@@ -685,20 +738,24 @@ if __name__ == "__main__":
         # Builds the interface.
         await acc.build()
 
-        async def cb(data):
-            pass
+        # async def cb(data):
+        #     _LOGGER.info("CB")
+        #     print(data)
 
-            _LOGGER.info("CB")
-            # print(data)
+        # for ins in acc.installs:
+        #     for circuit in ins.circuits:
+        #         data = await circuit.state()
+        #         print(data)
+        #     # await ins._stream(cb=cb)
 
-        for ins in acc.installs:
-            for circuit in ins.circuits:
-                data = await circuit.state()
-                print(data)
-            # await ins._stream(cb=cb)
+        # for charger in acc.stand_alone_chargers:
+        #     data = await charger.state()
+        #     print(data)
 
-        for charger in acc.stand_alone_chargers:
-            data = await charger.state()
-            print(data)
+        # Dump the raw API data
+        async for text in acc.data_dump(redacted=False):
+            print(text, end='')
+
+        await acc._client.close()
 
     asyncio.run(gogo())

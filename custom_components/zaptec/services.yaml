@@ -59,3 +59,10 @@ limit_current:
     available_current_phase3:
       description: "The available current for phase 3"
       example: "16"
+
+debug_data_dump:
+  description: "Dump RAW data from the zaptec API."
+  fields:
+    redacted:
+      required: false
+      description: "Redact sensitive data"
