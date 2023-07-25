@@ -110,7 +110,7 @@ class ZapMixin:
         )
 
     @property
-    def should_pull(self):
+    def should_poll(self):
         return False
 
 
@@ -122,7 +122,7 @@ class CircuitSensor(ZapMixin, SensorEntity):
 
     @property
     def name(self) -> str:
-        return "zaptec_circuit_%s" % self._api._attrs["id"]
+        return self.unique_id
 
     @property
     def extra_state_attributes(self) -> dict:
@@ -130,7 +130,7 @@ class CircuitSensor(ZapMixin, SensorEntity):
 
     @property
     def unique_id(self):
-        return f"zaptec_{self._attrs['id']}".lower()
+        return f"zaptec_circuit_{self._attrs['id']}".lower()
 
     @property
     def device_info(self):
@@ -153,7 +153,7 @@ class InstallationSensor(ZapMixin, SensorEntity):
 
     @property
     def name(self) -> str:
-        return "zaptec_installation_%s" % self._attrs["id"]
+        return self.unique_id
 
     @property
     def extra_state_attributes(self) -> dict:
@@ -161,7 +161,7 @@ class InstallationSensor(ZapMixin, SensorEntity):
 
     @property
     def unique_id(self):
-        return f"zaptec_{self._attrs['id']}".lower()
+        return f"zaptec_installation_{self._attrs['id']}".lower()
 
     @property
     def device_info(self):
@@ -185,7 +185,7 @@ class ChargerSensor(ZapMixin, SensorEntity):
 
     @property
     def name(self) -> str:
-        return f"zaptec_charger_{self._api.id}".lower()
+        return self.unique_id
 
     @property
     def icon(self) -> str:
@@ -193,11 +193,11 @@ class ChargerSensor(ZapMixin, SensorEntity):
 
     @property
     def entity_picture(self) -> str:
-        return CHARGE_MODE_MAP[self._attrs["operating_mode"]][1]
+        return CHARGE_MODE_MAP[self._attrs["charger_operation_mode"]][1]
 
     @property
     def unique_id(self):
-        return f"{DOMAIN}_{self._attrs['id']}_chargers".lower()
+        return f"{DOMAIN}_charger_{self._attrs['id']}".lower()
 
     @property
     def device_info(self):
@@ -219,7 +219,7 @@ class ChargerSensor(ZapMixin, SensorEntity):
         _LOGGER.debug("Called _real_update for %s", self.__class__.__name__)
         # The api already updated and have new data available.
         try:
-            value = CHARGE_MODE_MAP[self._attrs["operating_mode"]][0]
+            value = CHARGE_MODE_MAP[self._attrs["charger_operation_mode"]][0]
             self._state = value
         except KeyError:
             # This seems to happen when it starts up.
