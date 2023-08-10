@@ -1,228 +1,113 @@
-# pylint: disable=C0116
+"""Zaptec component sensors."""
+from __future__ import annotations
 
-import asyncio
 import logging
-from datetime import timedelta
+from dataclasses import dataclass
 
-import aiohttp
-from homeassistant.components.sensor import SensorEntity
-from homeassistant.const import STATE_UNAVAILABLE
+from homeassistant import const
+from homeassistant.components.sensor import (SensorDeviceClass, SensorEntity,
+                                             SensorEntityDescription)
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import HomeAssistant, callback
+from homeassistant.exceptions import HomeAssistantError
+from homeassistant.helpers.entity import EntityDescription
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-# from homeassistant.components.sensor import PLATFORM_SCHEMA
-from homeassistant.helpers.dispatcher import (
-    async_dispatcher_connect,
-    async_dispatcher_send,
-)
-from homeassistant.helpers.typing import ConfigType, HomeAssistantType
-
+from . import ZaptecBaseEntity, ZaptecUpdateCoordinator
+from .api import Account
 from .const import *
 
+# pylint: disable=missing-function-docstring
+
 _LOGGER = logging.getLogger(__name__)
-SCAN_INTERVAL = timedelta(seconds=60)
 
 
-async def _update_remaps() -> None:
-    wanted = ["Observations"]
-    async with aiohttp.request("GET", CONST_URL) as resp:
-        if resp.status == 200:
-            data = await resp.json()
-            for k, v in data.items():
-                if k in wanted:
-                    OBSERVATIONS_REMAPS.update(v)
-                    # Add names.
-                    OBSERVATIONS_REMAPS.update({value: key for key, value in v.items()})
+class ZaptecSensor(ZaptecBaseEntity, SensorEntity):
+
+    @callback
+    def _update_from_zaptec(self) -> None:
+        self._attr_native_value = self._get_zaptec_value()
+        self._log_value(self._attr_native_value)
 
 
-async def _dry_setup(hass, config, async_add_entities, discovery_info=None):
-    sensors = []
-    acc = hass.data[DOMAIN]["api"]
+class ZaptecChargeSensor(ZaptecSensor):
 
-    async def callback(data):
-        """Callback thats executed when a new message from the message bus is in."""
-        acc.update(data)
-        # Tell the sensor that there is an update.
-        async_dispatcher_send(hass, EVENT_NEW_DATA)
-
-    # Not sure this should be added, lets see
-    hass.data[DOMAIN]["producer"].append(callback)
-
-    for ins in acc.installs:
-        await ins.stream(cb=callback)
-        for circuit in ins.circuits:
-            # _LOGGER.debug("Building circuit %s", circuit)
-            c = CircuitSensor(circuit, hass)
-            sensors.append(c)
-            for charger in circuit.chargers:
-                _LOGGER.debug("Building charger %s", charger.id)
-                # Force a update before its added.
-                await charger.state()
-                chs = ChargerSensor(charger, hass)
-                sensors.append(chs)
-        sensors.append(InstallationSensor(ins, hass))
-
-    for charger in acc.stand_alone_chargers:
-        _LOGGER.debug("charger %s", charger.id)
-        if charger.id in acc.map:
-            _LOGGER.debug(
-                "Skipping standalone charger %s as its already exists.", charger.id
-            )
-            continue
-        else:
-            # _LOGGER.debug("Building charger %s", charger)
-            # Force an update before its added.
-            await charger.state()
-            chs = ChargerSensor(charger, hass)
-            sensors.append(chs)
-
-    async_add_entities(sensors, False)
-
-    return True
+    @callback
+    def _update_from_zaptec(self) -> None:
+        state = self._get_zaptec_value()
+        mode = CHARGE_MODE_MAP.get(state, CHARGE_MODE_MAP["Unknown"])
+        self._attr_native_value = mode[0]
+        self._attr_icon = mode[1]
+        self._log_value(self._attr_native_value)
 
 
-async def async_setup_platform(
-    hass: HomeAssistantType, config: ConfigType, async_add_entities, discovery_info=None
-) -> None:  # pylint: disable=W0613
-    return True
+@dataclass
+class ZapSensorEntityDescription(SensorEntityDescription):
+    """Provide a description of a Zaptec sensor."""
+
+    cls: type|None = None
 
 
-async def async_setup_entry(hass, config_entry, async_add_devices):
-    return await _dry_setup(hass, config_entry.data, async_add_devices)
+INSTALLATION_ENTITIES: list[EntityDescription] = [
+]
+
+CIRCUIT_ENTITIES: list[EntityDescription] = [
+    ZapSensorEntityDescription(
+        key="max_current",
+        translation_key="max_current",
+        device_class=SensorDeviceClass.CURRENT,
+        entity_category=const.EntityCategory.DIAGNOSTIC,
+        icon="mdi:current-ac",
+        native_unit_of_measurement=const.UnitOfElectricCurrent.AMPERE,
+    ),
+]
+
+CHARGER_ENTITIES: list[EntityDescription] = [
+    ZapSensorEntityDescription(
+        key="operating_mode",
+        translation_key="operating_mode",
+        device_class=SensorDeviceClass.ENUM,
+        options=[x[0] for x in CHARGE_MODE_MAP.values()],
+        icon="mdi:ev-station",
+        cls=ZaptecChargeSensor,
+    ),
+    ZapSensorEntityDescription(
+        key="current_phase1",
+        translation_key="current_phase1",
+        device_class=SensorDeviceClass.CURRENT,
+        icon="mdi:current-ac",
+        native_unit_of_measurement=const.UnitOfElectricCurrent.AMPERE,
+    ),
+    ZapSensorEntityDescription(
+        key="current_phase2",
+        translation_key="current_phase2",
+        device_class=SensorDeviceClass.CURRENT,
+        icon="mdi:current-ac",
+        native_unit_of_measurement=const.UnitOfElectricCurrent.AMPERE,
+    ),
+    ZapSensorEntityDescription(
+        key="current_phase3",
+        translation_key="current_phase3",
+        device_class=SensorDeviceClass.CURRENT,
+        icon="mdi:current-ac",
+        native_unit_of_measurement=const.UnitOfElectricCurrent.AMPERE,
+    ),
+]
 
 
-class ZapMixin:
-    _attr_device_info = None
-    _attr_unique_id = None
-    _attr_has_entity_name = True
-    _attr_name = None
-    _attr_native_value = None
+async def async_setup_entry(
+    hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
+) -> None:
+    _LOGGER.debug("Setup sensors")
 
-    async def _real_update(self):
-        _LOGGER.debug("Called _real_update for %s", self.__class__.__name__)
-        # The api already updated and have new data available.
-        self.async_write_ha_state()
+    coordinator: ZaptecUpdateCoordinator = hass.data[DOMAIN][entry.entry_id]
+    acc: Account = coordinator.account
 
-    async def async_added_to_hass(self):
-        """Connect to dispatcher listening for entity data notifications."""
-        await super().async_added_to_hass()
-        _LOGGER.debug("called async_added_to_hass %s", self.__class__.__name__)
-        self.async_on_remove(
-            async_dispatcher_connect(self._hass, EVENT_NEW_DATA, self._real_update)
-        )
-
-    @property
-    def should_pull(self):
-        return False
-
-
-class CircuitSensor(ZapMixin, SensorEntity):
-    def __init__(self, circuit, hass):
-        self._api = circuit
-        self._attrs = circuit._attrs
-        self._hass = hass
-
-    @property
-    def name(self) -> str:
-        return "zaptec_circuit_%s" % self._api._attrs["id"]
-
-    @property
-    def extra_state_attributes(self) -> dict:
-        return self._attrs
-
-    @property
-    def unique_id(self):
-        return f"zaptec_{self._attrs['id']}".lower()
-
-    @property
-    def device_info(self):
-        return {
-            "identifiers": {(DOMAIN, self.unique_id)},
-            "name": self.name,
-            "manufacturer": DOMAIN,
-        }
-
-    @property
-    def state(self):
-        return self._attrs["active"]
-
-
-class InstallationSensor(ZapMixin, SensorEntity):
-    def __init__(self, api, hass):
-        self._api = api
-        self._attrs = api._attrs
-        self._hass = hass
-
-    @property
-    def name(self) -> str:
-        return "zaptec_installation_%s" % self._attrs["id"]
-
-    @property
-    def extra_state_attributes(self) -> dict:
-        return self._attrs
-
-    @property
-    def unique_id(self):
-        return f"zaptec_{self._attrs['id']}".lower()
-
-    @property
-    def device_info(self):
-        return {
-            "identifiers": {(DOMAIN, self.unique_id)},
-            "name": self.name,
-            "manufacturer": DOMAIN,
-        }
-
-    @property
-    def state(self):
-        return self._attrs["active"]
-
-
-class ChargerSensor(ZapMixin, SensorEntity):
-    def __init__(self, api, hass) -> None:
-        self._api = api
-        self._hass = hass
-        self._attrs = api._attrs
-        self._state = STATE_UNAVAILABLE
-
-    @property
-    def name(self) -> str:
-        return f"zaptec_charger_{self._api.id}".lower()
-
-    @property
-    def icon(self) -> str:
-        return "mdi:ev-station"
-
-    @property
-    def entity_picture(self) -> str:
-        return CHARGE_MODE_MAP[self._attrs["operating_mode"]][1]
-
-    @property
-    def unique_id(self):
-        return f"{DOMAIN}_{self._attrs['id']}_chargers".lower()
-
-    @property
-    def device_info(self):
-        return {
-            "identifiers": {(DOMAIN, self.unique_id)},
-            "name": self.name,
-            "manufacturer": DOMAIN,
-        }
-
-    @property
-    def state(self):
-        return self._state
-
-    @property
-    def extra_state_attributes(self) -> dict:
-        return self._attrs
-
-    async def _real_update(self):
-        _LOGGER.debug("Called _real_update for %s", self.__class__.__name__)
-        # The api already updated and have new data available.
-        try:
-            value = CHARGE_MODE_MAP[self._attrs["operating_mode"]][0]
-            self._state = value
-        except KeyError:
-            # This seems to happen when it starts up.
-            self._state = STATE_UNAVAILABLE
-
-        self.async_write_ha_state()
+    entities = ZaptecSensor.create_from_zaptec(
+        acc,
+        coordinator,
+        INSTALLATION_ENTITIES,
+        CIRCUIT_ENTITIES,
+        CHARGER_ENTITIES,
+    )
+    async_add_entities(entities, True)

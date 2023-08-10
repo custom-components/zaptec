@@ -1,28 +1,40 @@
-start_charging:
-  description: "Starts charger. Also authorizes if configured to use authorization."
-  fields:
-    charger_id:
-      description: "The charger id"
-      example: "yyyyyyyy-9999-99xx-xxxx-yyyyyyyyyyyy"
-
-stop_charging:
-  description: "Starts charger. Also authorizes if configured to use authorization."
-  fields:
-    charger_id:
-      description: "The charger id"
-      example: "yyyyyyyy-9999-99xx-xxxx-yyyyyyyyyyyy"
-
 stop_pause_charging:
-  description: "New stop/pause"
+  description: "Stop/pause charging"
   fields:
     charger_id:
+      required: true
       description: "The charger id"
       example: "yyyyyyyy-9999-99xx-xxxx-yyyyyyyyyyyy"
 
 resume_charging:
-  description: "New resume command."
+  description: "Resume/start charging"
   fields:
     charger_id:
+      required: true
+      description: "The charger id"
+      example: "yyyyyyyy-9999-99xx-xxxx-yyyyyyyyyyyy"
+
+authorize_charging:
+  description: "Authorize charging"
+  fields:
+    charger_id:
+      required: true
+      description: "The charger id"
+      example: "yyyyyyyy-9999-99xx-xxxx-yyyyyyyyyyyy"
+
+deauthorize_charging:
+  description: "Deauthorize charging and stop"
+  fields:
+    charger_id:
+      required: true
+      description: "The charger id"
+      example: "yyyyyyyy-9999-99xx-xxxx-yyyyyyyyyyyy"
+
+restart_charger:
+  description: "Restart charger."
+  fields:
+    charger_id:
+      required: true
       description: "The charger id"
       example: "yyyyyyyy-9999-99xx-xxxx-yyyyyyyyyyyy"
 
@@ -30,14 +42,8 @@ update_firmware:
   description: "New resume command."
   fields:
     charger_id:
+      required: true
       description: "Update the firmware."
-      example: "yyyyyyyy-9999-99xx-xxxx-yyyyyyyyyyyy"
-
-restart_charger:
-  description: "Restart charger."
-  fields:
-    charger_id:
-      description: "The charger id"
       example: "yyyyyyyy-9999-99xx-xxxx-yyyyyyyyyyyy"
 
 limit_current:

@@ -1,12 +1,13 @@
 """Adds config flow for zaptec."""
-import http
+from __future__ import annotations
+
 import logging
 
 import aiohttp
 import voluptuous as vol
 from homeassistant import config_entries
 
-from .api import Account, AuthorizationFailedException
+from .api import Account, AuthorizationError
 from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
@@ -52,10 +53,14 @@ class ZaptecFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
                 )
             except aiohttp.ClientConnectorError:
                 errors["base"] = "connection_failure"
-            except AuthorizationFailedException:
+            except AuthorizationError:
                 errors["base"] = "auth_failure"
 
             if valid_login:
+                unique_id = user_input["username"].lower()
+                await self.async_set_unique_id(unique_id)
+                self._abort_if_unique_id_configured()
+
                 return self.async_create_entry(
                     title=DOMAIN.capitalize(), data=user_input
                 )

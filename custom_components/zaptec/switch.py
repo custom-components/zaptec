@@ -1,100 +1,93 @@
-"""Switch platform for blueprint."""
+"""Switch platform for Zaptec."""
+from __future__ import annotations
+
 import logging
+from dataclasses import dataclass
 
-from homeassistant.components.switch import SwitchEntity
-from homeassistant.helpers.typing import ConfigType, HomeAssistantType
+from homeassistant.components.switch import (SwitchDeviceClass, SwitchEntity,
+                                             SwitchEntityDescription)
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import HomeAssistant, callback
+from homeassistant.exceptions import HomeAssistantError
+from homeassistant.helpers.entity import EntityDescription
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-# from . import SWITCH_SCHEMA_ATTRS
+from . import ZaptecBaseEntity, ZaptecUpdateCoordinator
+from .api import Account, Charger
 from .const import CHARGE_MODE_MAP, DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
-# Are there some other shit we are supposed to use instead?
-# PLATFORM_SCHEMA.extend(SWITCH_SCHEMA_ATTRS)
+
+class ZaptecSwitch(ZaptecBaseEntity, SwitchEntity):
+
+    @callback
+    def _update_from_zaptec(self) -> None:
+        self._attr_is_on = bool(self._get_zaptec_value())
+        self._log_value(self._attr_is_on)
 
 
-async def async_setup_platform(
-    hass: HomeAssistantType, config: ConfigType, async_add_entities, discovery_info=None
-) -> bool:  # pylint: disable=unused-argument
-    """Setup switch platform."""
-    return True
+class ZaptecChargeSwitch(ZaptecSwitch):
 
+    zaptec_obj: Charger
 
-async def async_setup_entry(hass, config_entry, async_add_devices):
-    """ "Setup the switch using ui."""
-    _LOGGER.debug("Setup switch for zaptec")
-    acc = hass.data.get(DOMAIN, {}).get("api")
-    if acc is None:
-        _LOGGER.debug("Didn't setup switch the api wasnt ready")
-        return False
-
-    switches = []
-    chargers = [c for c in acc.map.values() if c and c.__class__.__name__ == "Charger"]
-
-    for c in chargers:
-        switches.append(Switch(c, hass))
-
-    async_add_devices(switches, False)
-    return True
-
-
-class Switch(SwitchEntity):
-    """switch class."""
-
-    def __init__(self, api, hass) -> None:
-        self._api = api
-        self._status = False
-        # wft is this supposed to be?
-        self._name = "zaptec_%s_switch" % api.id
-        self._mode = ""
-        self._hass = hass
-
-    async def async_update(self) -> None:
-        """Update the switch."""
-
-        try:
-            value = CHARGE_MODE_MAP[self._api._attrs["operating_mode"]][0]
-            _LOGGER.info(
-                "Trying to update the switch raw value %s %s",
-                self._api._attrs["operating_mode"],
-                CHARGE_MODE_MAP[self._api._attrs["operating_mode"]][0],
-            )
-            return value
-        except KeyError:
-            # This seems to happen when it starts up.
-            _LOGGER.debug("Switch value is unknowns")
-            return "unknown"
+    @callback
+    def _update_from_zaptec(self) -> None:
+        state = self._get_zaptec_value()
+        self._attr_is_on = state in ["Connected_Charging"]
+        self._log_value(self._attr_is_on)
 
     async def async_turn_on(self, **kwargs):  # pylint: disable=unused-argument
         """Turn on the switch."""
-        return await self._api.resume_charging()
+        try:
+            await self.zaptec_obj.command('resume_charging')
+        except Exception as exc:
+            raise HomeAssistantError(exc) from exc
 
     async def async_turn_off(self, **kwargs):  # pylint: disable=unused-argument
         """Turn off the switch."""
-        return await self._api.stop_pause()
+        try:
+            await self.zaptec_obj.command('stop_pause')
+        except Exception as exc:
+            raise HomeAssistantError(exc) from exc
 
-    @property
-    def name(self) -> str:
-        """Return the name of the switch."""
-        return self._name
 
-    @property
-    def icon(self) -> str:
-        """Return the icon of this switch."""
-        return ""  # <-- what should this be?
+@dataclass
+class ZapSwitchEntityDescription(SwitchEntityDescription):
 
-    @property
-    def is_on(self) -> bool:
-        """Return true if the switch is on."""
-        if self._api._attrs.get("operating_mode") in [3]:
-            return True
-        return False
+    cls: type|None = None
 
-    # @property
-    # def state(self) -> bool:
-    #    return self.is_on
 
-    @property
-    def extra_state_attributes(self) -> dict:
-        """Return the state attributes."""
-        return self._api._attrs
+INSTALLATION_SWITCH_TYPES: list[EntityDescription] = [
+]
+
+CIRCUIT_SWITCH_TYPES: list[EntityDescription] = [
+]
+
+CHARGER_SWITCH_TYPES: list[EntityDescription] = [
+    ZapSwitchEntityDescription(
+        key="operating_mode",
+        translation_key="charging",
+        device_class=SwitchDeviceClass.SWITCH,
+        cls=ZaptecChargeSwitch,
+    ),
+    # FIXME: Implement a authentication required switch
+]
+
+
+async def async_setup_entry(
+    hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
+) -> None:
+    _LOGGER.debug("Setup switches")
+
+    coordinator: ZaptecUpdateCoordinator = hass.data[DOMAIN][entry.entry_id]
+    acc = coordinator.account
+
+    switches = ZaptecSwitch.create_from_zaptec(
+        acc,
+        coordinator,
+        INSTALLATION_SWITCH_TYPES,
+        CIRCUIT_SWITCH_TYPES,
+        CHARGER_SWITCH_TYPES,
+    )
+    async_add_entities(switches, True)
