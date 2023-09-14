@@ -27,13 +27,21 @@
             "operating_mode": { "name": "Charger mode" },
             "current_phase1": { "name": "Current phase 1" },
             "current_phase2": { "name": "Current phase 2" },
-            "current_phase3": { "name": "Current phase 3" }
-        },
-        "number": {
-            "available_current": { "name": "Available current" },
+            "current_phase3": { "name": "Current phase 3" },
+            "voltage_phase1": { "name": "Voltage phase 1" },
+            "voltage_phase2": { "name": "Voltage phase 2" },
+            "voltage_phase3": { "name": "Voltage phase 3" },
+            "total_charge_power": { "name": "Total charge power" },
+            "signed_meter_value": { "name": "Energy meter"},
+            "completed_session_energy": { "name": "Completed energy session" },
             "available_current_phase1": { "name": "Available current phase 1" },
             "available_current_phase2": { "name": "Available current phase 2" },
             "available_current_phase3": { "name": "Available current phase 3" }
+        },
+        "number": {
+            "available_current": { "name": "Available current" },
+            "charger_min_current": { "name": "Charger min current" },
+            "charger_max_current": { "name": "Charger max current" }
         },
         "binary_sensor": {
             "is_authorization_required": { "name": "Authorization required" },
@@ -43,12 +51,16 @@
             "resume_charging": { "name": "Resume charging" },
             "stop_pause": { "name": "Stop/pause charging" },
             "restart_charger": { "name": "Restart charger" },
-            "update_firmware": { "name": "Update firmware" },
+            "upgrade_firmware": { "name": "Upgrade firmware" },
             "authorize_charge": { "name": "Authorize charging" },
             "deauthorize_stop": { "name": "Deauthorize charging"}
         },
         "switch": {
-            "charging": { "name": "Charging" }
+            "charging": { "name": "Charging" },
+            "authorization_required": { "name": "Authorization required" }
+        },
+        "update": {
+            "firmware_update": { "name": "Firmware update" }
         }
     }
 }

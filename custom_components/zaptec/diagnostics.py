@@ -4,9 +4,11 @@ from __future__ import annotations
 from copy import deepcopy
 from typing import Any
 
-from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
-from homeassistant.helpers.device_registry import DeviceEntry
+# to Support running this as a script.
+if __name__ != "__main__":
+    from homeassistant.config_entries import ConfigEntry
+    from homeassistant.core import HomeAssistant
+    from homeassistant.helpers.device_registry import DeviceEntry
 
 from . import ZaptecUpdateCoordinator
 from .api import Account
@@ -145,8 +147,8 @@ async def async_get_device_diagnostics(
 
         for circuit in data.get('Circuits', []):
             circuit_ids.append(circuit['Id'])
-            for data in circuit.get('Chargers', []):
-                charger_in_circuits_ids.append(data['Id'])
+            for charger in circuit.get('Chargers', []):
+                charger_in_circuits_ids.append(charger['Id'])
 
         gen(url, data, ctx="hierarchy")
 
@@ -188,3 +190,55 @@ async def async_get_device_diagnostics(
         out.setdefault('redacts', red.redact_info)
 
     return out
+
+
+if __name__ == "__main__":
+
+    # Just to execute the script manually. Must be run using
+    # python -m custom_components.zaptec.diagnostics
+    import asyncio
+    import aiohttp
+    import os
+    from pprint import pprint
+    from dataclasses import dataclass
+
+    async def gogo():
+        username = os.environ.get("zaptec_username")
+        password = os.environ.get("zaptec_password")
+        acc = Account(
+            username,
+            password,
+            client=aiohttp.ClientSession(
+                connector=aiohttp.TCPConnector(ssl=False)
+            ),
+        )
+
+        try:
+
+            #
+            # Mocking to pretend to be a hass instance
+            #
+            @dataclass
+            class FakeHass:
+                data: dict
+
+            @dataclass
+            class FakeConfig:
+                entry_id: str
+
+            @dataclass
+            class FakeCoordinator:
+                account: Account
+
+            coordinator = FakeCoordinator(account=acc)
+            config = FakeConfig(entry_id='')
+            hass = FakeHass(data={DOMAIN: {config.entry_id: coordinator}})
+
+            # Get the diagnostics info
+            out = await async_get_device_diagnostics(hass, config, None)
+            pprint(out)
+
+        finally:
+            await acc._client.close()
+
+    asyncio.run(gogo())

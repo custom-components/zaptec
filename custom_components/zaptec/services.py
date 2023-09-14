@@ -45,37 +45,37 @@ async def async_setup_services(hass: HomeAssistant) -> None:
         _LOGGER.debug("Called stop pause")
         charger_id = service_call.data["charger_id"]
         charger: Charger = acc.map[charger_id]
-        await charger.command("stop_pause")
+        await charger.stop_pause()
 
     async def service_handle_resume_charging(service_call: ServiceCall) -> None:
         _LOGGER.debug("Called start and or resume")
         charger_id = service_call.data["charger_id"]
         charger: Charger = acc.map[charger_id]
-        await charger.command("resume_charging")
+        await charger.resume_charging()
 
     async def service_handle_authorize_charging(service_call: ServiceCall) -> None:
         _LOGGER.debug("Called authorize charging")
         charger_id = service_call.data["charger_id"]
         charger: Charger = acc.map[charger_id]
-        await charger.command("authorize_charge")
+        await charger.authorize_charge()
 
     async def service_handle_deauthorize_charging(service_call: ServiceCall) -> None:
         _LOGGER.debug("Called deauthorize charging and stop")
         charger_id = service_call.data["charger_id"]
         charger: Charger = acc.map[charger_id]
-        await charger.command("deauthorize_stop")
+        await charger.deauthorize_stop()
 
     async def service_handle_restart_charger(service_call: ServiceCall) -> None:
         _LOGGER.debug("Called restart charger")
         charger_id = service_call.data["charger_id"]
         charger: Charger = acc.map[charger_id]
-        await charger.command("restart_charger")
+        await charger.restart_charger()
 
     async def service_handle_update_firmware(service_call: ServiceCall) -> None:
         _LOGGER.debug("Called update firmware")
         charger_id = service_call.data["charger_id"]
         charger: Charger = acc.map[charger_id]
-        await charger.command("upgrade_firmware")
+        await charger.upgrade_firmware()
 
     async def service_handle_limit_current(service_call: ServiceCall) -> None:
         _LOGGER.debug("Called set current limit")
@@ -85,7 +85,7 @@ async def async_setup_services(hass: HomeAssistant) -> None:
         available_current_phase2 = service_call.data.get("available_current_phase2")
         available_current_phase3 = service_call.data.get("available_current_phase3")
         installation: Installation = acc.map[installation_id]
-        await installation.limit_current(
+        await installation.set_limit_current(
             availableCurrent=available_current,
             availableCurrentPhase1=available_current_phase1,
             availableCurrentPhase2=available_current_phase2,

@@ -8,6 +8,6 @@
     "hellowlol",
     "sveinse"
   ],
-  "requirements": ["azure-servicebus"],
+  "requirements": ["azure-servicebus", "pydantic"],
   "version": "0.0.6b2"
 }

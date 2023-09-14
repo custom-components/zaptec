@@ -49,6 +49,27 @@ class ZapSensorEntityDescription(SensorEntityDescription):
 
 
 INSTALLATION_ENTITIES: list[EntityDescription] = [
+    SensorEntityDescription(
+        key="available_current_phase1",
+        translation_key="available_current_phase1",
+        device_class=SensorDeviceClass.CURRENT,
+        icon="mdi:current-ac",
+        native_unit_of_measurement=const.UnitOfElectricCurrent.AMPERE,
+    ),
+    SensorEntityDescription(
+        key="available_current_phase2",
+        translation_key="available_current_phase2",
+        device_class=SensorDeviceClass.CURRENT,
+        icon="mdi:current-ac",
+        native_unit_of_measurement=const.UnitOfElectricCurrent.AMPERE,
+    ),
+    SensorEntityDescription(
+        key="available_current_phase3",
+        translation_key="available_current_phase3",
+        device_class=SensorDeviceClass.CURRENT,
+        icon="mdi:current-ac",
+        native_unit_of_measurement=const.UnitOfElectricCurrent.AMPERE,
+    ),
 ]
 
 CIRCUIT_ENTITIES: list[EntityDescription] = [
@@ -91,6 +112,48 @@ CHARGER_ENTITIES: list[EntityDescription] = [
         device_class=SensorDeviceClass.CURRENT,
         icon="mdi:current-ac",
         native_unit_of_measurement=const.UnitOfElectricCurrent.AMPERE,
+    ),
+    ZapSensorEntityDescription(
+        key="voltage_phase1",
+        translation_key="voltage_phase1",
+        device_class=SensorDeviceClass.VOLTAGE,
+        icon="mdi:sine-wave",
+        native_unit_of_measurement=const.UnitOfElectricPotential.VOLT,
+    ),
+    ZapSensorEntityDescription(
+        key="voltage_phase2",
+        translation_key="voltage_phase2",
+        device_class=SensorDeviceClass.VOLTAGE,
+        icon="mdi:sine-wave",
+        native_unit_of_measurement=const.UnitOfElectricPotential.VOLT,
+    ),
+    ZapSensorEntityDescription(
+        key="voltage_phase3",
+        translation_key="voltage_phase3",
+        device_class=SensorDeviceClass.VOLTAGE,
+        icon="mdi:sine-wave",
+        native_unit_of_measurement=const.UnitOfElectricPotential.VOLT,
+    ),
+    ZapSensorEntityDescription(
+        key="total_charge_power",
+        translation_key="total_charge_power",
+        device_class=SensorDeviceClass.POWER,
+        icon="mdi:flash",
+        native_unit_of_measurement=const.UnitOfPower.KILO_WATT,
+    ),
+    ZapSensorEntityDescription(
+        key="signed_meter_value_kwh",
+        translation_key="signed_meter_value",
+        device_class=SensorDeviceClass.ENERGY,
+        icon="mdi:counter",
+        native_unit_of_measurement=const.UnitOfEnergy.KILO_WATT_HOUR,
+    ),
+    ZapSensorEntityDescription(
+        key='completed_session.Energy',
+        translation_key="completed_session_energy",
+        device_class=SensorDeviceClass.ENERGY,
+        icon="mdi:counter",
+        native_unit_of_measurement=const.UnitOfEnergy.KILO_WATT_HOUR,
     ),
 ]
 

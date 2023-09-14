@@ -13,7 +13,7 @@ from homeassistant.helpers.entity import EntityDescription
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import ZaptecBaseEntity, ZaptecUpdateCoordinator
-from .api import Account, Charger
+from .api import Account, Charger, Installation
 from .const import CHARGE_MODE_MAP, DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
@@ -23,7 +23,7 @@ class ZaptecSwitch(ZaptecBaseEntity, SwitchEntity):
 
     @callback
     def _update_from_zaptec(self) -> None:
-        self._attr_is_on = bool(self._get_zaptec_value())
+        self._attr_is_on = self._get_zaptec_value()
         self._log_value(self._attr_is_on)
 
 
@@ -39,17 +39,68 @@ class ZaptecChargeSwitch(ZaptecSwitch):
 
     async def async_turn_on(self, **kwargs):  # pylint: disable=unused-argument
         """Turn on the switch."""
+        _LOGGER.debug(
+            "Turn on %s.%s   (in %s)",
+            self.__class__.__qualname__, self.key,
+            self.zaptec_obj.id,
+        )
+
         try:
-            await self.zaptec_obj.command('resume_charging')
+            await self.zaptec_obj.resume_charging()
         except Exception as exc:
             raise HomeAssistantError(exc) from exc
 
+        await self.coordinator.async_request_refresh()
+
     async def async_turn_off(self, **kwargs):  # pylint: disable=unused-argument
         """Turn off the switch."""
+        _LOGGER.debug(
+            "Turn off %s.%s   (in %s)",
+            self.__class__.__qualname__, self.key,
+            self.zaptec_obj.id,
+        )
+
         try:
-            await self.zaptec_obj.command('stop_pause')
+            await self.zaptec_obj.stop_pause()
         except Exception as exc:
             raise HomeAssistantError(exc) from exc
+
+        await self.coordinator.async_request_refresh()
+
+
+class ZaptecAuthorizationRequiredSwitch(ZaptecSwitch):
+
+    zaptec_obj: Installation
+
+    async def async_turn_on(self, **kwargs):  # pylint: disable=unused-argument
+        """Turn on the switch."""
+        _LOGGER.debug(
+            "Turn on %s.%s   (in %s)",
+            self.__class__.__qualname__, self.key,
+            self.zaptec_obj.id,
+        )
+
+        try:
+            await self.zaptec_obj.set_authenication_required(True)
+        except Exception as exc:
+            raise HomeAssistantError(exc) from exc
+
+        await self.coordinator.async_request_refresh()
+
+    async def async_turn_off(self, **kwargs):  # pylint: disable=unused-argument
+        """Turn off the switch."""
+        _LOGGER.debug(
+            "Turn off %s.%s   (in %s)",
+            self.__class__.__qualname__, self.key,
+            self.zaptec_obj.id,
+        )
+
+        try:
+            await self.zaptec_obj.set_authenication_required(False)
+        except Exception as exc:
+            raise HomeAssistantError(exc) from exc
+
+        await self.coordinator.async_request_refresh()
 
 
 @dataclass
@@ -59,6 +110,13 @@ class ZapSwitchEntityDescription(SwitchEntityDescription):
 
 
 INSTALLATION_SWITCH_TYPES: list[EntityDescription] = [
+    ZapSwitchEntityDescription(
+        key="is_required_authentication",
+        translation_key="authorization_required",
+        device_class=SwitchDeviceClass.SWITCH,
+        icon="mdi:lock-check-outline",
+        cls=ZaptecAuthorizationRequiredSwitch,
+    ),
 ]
 
 CIRCUIT_SWITCH_TYPES: list[EntityDescription] = [
@@ -71,7 +129,6 @@ CHARGER_SWITCH_TYPES: list[EntityDescription] = [
         device_class=SwitchDeviceClass.SWITCH,
         cls=ZaptecChargeSwitch,
     ),
-    # FIXME: Implement a authentication required switch
 ]
 
 

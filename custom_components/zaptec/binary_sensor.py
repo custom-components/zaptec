@@ -24,14 +24,14 @@ class ZaptecBinarySensor(ZaptecBaseEntity, BinarySensorEntity):
 
     @callback
     def _update_from_zaptec(self) -> None:
-        self._attr_is_on = bool(self._get_zaptec_value())
+        self._attr_is_on = self._get_zaptec_value()
         self._log_value(self._attr_is_on)
 
 
 class ZaptecBinarySensorWithAttrs(ZaptecBinarySensor):
 
     def _post_init(self):
-        self._attr_extra_state_attributes = self.zaptec_obj._attrs
+        self._attr_extra_state_attributes = self.zaptec_obj.asdict()
         self._attr_unique_id = self.zaptec_obj.id
 
 
@@ -39,7 +39,7 @@ class ZaptecBinarySensorLock(ZaptecBinarySensor):
 
     @callback
     def _update_from_zaptec(self) -> None:
-        self._attr_is_on = not bool(self._get_zaptec_value())
+        self._attr_is_on = not self._get_zaptec_value()
         self._log_value(self._attr_is_on)
 
 
@@ -98,7 +98,7 @@ CHARGER_ENTITIES: list[EntityDescription] = [
         entity_category=const.EntityCategory.DIAGNOSTIC,
         icon="mdi:lock",
         cls=ZaptecBinarySensorLock,
-    )
+    ),
 ]
 
 

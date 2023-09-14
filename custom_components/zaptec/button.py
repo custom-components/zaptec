@@ -22,21 +22,22 @@ _LOGGER = logging.getLogger(__name__)
 
 class ZaptecButton(ZaptecBaseEntity, ButtonEntity):
 
+    zaptec_obj: Charger
+
     async def async_press(self) -> None:
         """Press the button."""
         _LOGGER.debug(
-            "Press %s '%s' in %s",
-            self.__class__.__qualname__,
-            self.key,
-            self.zaptec_obj.id
+            "Press %s.%s   (in %s)",
+            self.__class__.__qualname__, self.key,
+            self.zaptec_obj.id,
         )
 
-        charger: Charger = self.zaptec_obj
-
         try:
-            await charger.command(self.key)
+            await self.zaptec_obj.command(self.key)
         except Exception as exc:
             raise HomeAssistantError(exc) from exc
+
+        await self.coordinator.async_request_refresh()
 
 
 @dataclass
@@ -79,8 +80,8 @@ CHARGER_ENTITIES: list[EntityDescription] = [
         icon="mdi:restart"
     ),
     ZapButtonEntityDescription(
-        key="update_firmware",
-        translation_key="update_firmware",
+        key="upgrade_firmware",
+        translation_key="upgrade_firmware",
         entity_category=const.EntityCategory.DIAGNOSTIC,
         icon="mdi:memory"
     ),

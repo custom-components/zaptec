@@ -36,6 +36,7 @@ PLATFORMS = [
     # Platform.SELECT,
     Platform.SENSOR,
     Platform.SWITCH,
+    Platform.UPDATE,
 ]
 
 # FIXME: Informing users that the interface is considerable different
@@ -204,14 +205,29 @@ class ZaptecBaseEntity(CoordinatorEntity[ZaptecUpdateCoordinator]):
         '''
 
     @callback
-    def _get_zaptec_value(self, default=MISSING):
+    def _get_zaptec_value(self, *, default=MISSING, key=None):
         '''Helper to retrieve the value from the Zaptec object. This is to
            be called from _handle_coordinator_update() in the inheriting class.
            It will fetch the attr given by the entity description key.
         '''
-        if default is MISSING:
-            return getattr(self.zaptec_obj, self.key)
-        return getattr(self.zaptec_obj, self.key, default)
+        obj = self.zaptec_obj
+        key = key or self.key
+        for k in key.split('.'):
+            # Do dict because some object contains sub-dicts which must
+            # be handled differently than attributes
+            if isinstance(obj, dict):
+                if default is MISSING:
+                    obj = obj[k]
+                else:
+                    obj = obj.get(k, default)
+            else:
+                if default is MISSING:
+                    obj = getattr(obj, k)
+                else:
+                    obj = getattr(obj, k, default)
+            if obj is default:
+                return obj
+        return obj
 
     @callback
     def _log_value(self, value, force=False):
@@ -219,13 +235,14 @@ class ZaptecBaseEntity(CoordinatorEntity[ZaptecUpdateCoordinator]):
            _handle_coordinator_update() in the inheriting class.
         '''
         prev = self._prev_value
-        self._prev_value = value
         if force or value != prev:
+            self._prev_value = value
             # Only logs when the value changes
-            _LOGGER.debug("    %s.%s = %s  (%s)",
-                          self.__class__.__qualname__,
-                          self.key,
-                          value, type(value))
+            _LOGGER.debug("    %s.%s  =  <%s> %s   (in %s)",
+                          self.__class__.__qualname__, self.key,
+                          type(value).__qualname__, value,
+                          self.zaptec_obj.id,
+            )
 
     @classmethod
     def create_from(

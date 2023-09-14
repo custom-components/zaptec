@@ -12,6 +12,7 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity import EntityDescription
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.const import EntityCategory
 
 from . import ZaptecBaseEntity, ZaptecUpdateCoordinator
 from .api import Installation
@@ -39,14 +40,41 @@ class ZaptecAvailableCurrentNumber(ZaptecNumber):
     async def async_set_native_value(self, value: float) -> None:
         """Update to Zaptec."""
         _LOGGER.debug(
-            "Setting %s '%s' to '%s' in %s",
-            self.__class__.__qualname__,
-            self.key,
-            value,
+            "Setting %s.%s to <%s> %s   (in %s)",
+            self.__class__.__qualname__, self.key,
+            type(value).__qualname__, value,
             self.zaptec_obj.id
         )
+
         try:
-            await self.zaptec_obj.limit_current(availableCurrent=value)
+            await self.zaptec_obj.set_limit_current(availableCurrent=value)
+        except Exception as exc:
+            raise HomeAssistantError(exc) from exc
+
+        await self.coordinator.async_request_refresh()
+
+
+class ZaptecSettingNumber(ZaptecNumber):
+
+    zaptec_obj: Installation
+
+    def _post_init(self):
+        # Get the max current rating from the reported max current
+        self.entity_description.native_max_value = self.zaptec_obj.charge_current_installation_max_limit
+
+    async def async_set_native_value(self, value: float) -> None:
+        """Update to Zaptec."""
+        _LOGGER.debug(
+            "Setting %s.%s to <%s> %s   (in %s)",
+            self.__class__.__qualname__, self.key,
+            type(value).__qualname__, value,
+            self.zaptec_obj.id
+        )
+
+        try:
+            await self.zaptec_obj.set_settings({
+                self.entity_description.setting: value
+            })
         except Exception as exc:
             raise HomeAssistantError(exc) from exc
 
@@ -57,6 +85,7 @@ class ZaptecAvailableCurrentNumber(ZaptecNumber):
 class ZapNumberEntityDescription(NumberEntityDescription):
 
     cls: type|None = None
+    setting: str|None = None
 
 
 INSTALLATION_ENTITIES: list[EntityDescription] = [
@@ -70,42 +99,36 @@ INSTALLATION_ENTITIES: list[EntityDescription] = [
         native_unit_of_measurement=const.UnitOfElectricCurrent.AMPERE,
         cls=ZaptecAvailableCurrentNumber,
     ),
-    ZapNumberEntityDescription(
-        key="available_current_phase1",
-        translation_key="available_current_phase1",
-        device_class=NumberDeviceClass.CURRENT,
-        native_min_value=0,
-        native_max_value=32,  # FIXME: Implememt max current per phase
-        icon="mdi:current-ac",
-        native_unit_of_measurement=const.UnitOfElectricCurrent.AMPERE,
-        # cls=ZaptecAvailableCurrentNumber,  # FIXME: Implement 3phase adjustment
-    ),
-    ZapNumberEntityDescription(
-        key="available_current_phase2",
-        translation_key="available_current_phase2",
-        device_class=NumberDeviceClass.CURRENT,
-        native_min_value=0,
-        native_max_value=32,  # FIXME: Implememt max current per phase
-        icon="mdi:current-ac",
-        native_unit_of_measurement=const.UnitOfElectricCurrent.AMPERE,
-        # cls=ZaptecAvailableCurrentNumber,  # FIXME: Implement 3phase adjustment
-    ),
-    ZapNumberEntityDescription(
-        key="available_current_phase3",
-        translation_key="available_current_phase3",
-        device_class=NumberDeviceClass.CURRENT,
-        native_min_value=0,
-        native_max_value=32,  # FIXME: Implememt max current per phase
-        icon="mdi:current-ac",
-        native_unit_of_measurement=const.UnitOfElectricCurrent.AMPERE,
-        # cls=ZaptecAvailableCurrentNumber,  # FIXME: Implement 3phase adjustment
-    ),
 ]
 
 CIRCUIT_ENTITIES: list[EntityDescription] = [
 ]
 
 CHARGER_ENTITIES: list[EntityDescription] = [
+    ZapNumberEntityDescription(
+        key="charger_min_current",
+        translation_key="charger_min_current",
+        device_class=NumberDeviceClass.CURRENT,
+        entity_category=EntityCategory.CONFIG,
+        native_min_value=0,
+        native_max_value=32,
+        icon="mdi:current-ac",
+        native_unit_of_measurement=const.UnitOfElectricCurrent.AMPERE,
+        cls=ZaptecSettingNumber,
+        setting="CurrentInMinimum",
+    ),
+    ZapNumberEntityDescription(
+        key="charger_max_current",
+        translation_key="charger_max_current",
+        device_class=NumberDeviceClass.CURRENT,
+        entity_category=EntityCategory.CONFIG,
+        native_min_value=0,
+        native_max_value=32,
+        icon="mdi:current-ac",
+        native_unit_of_measurement=const.UnitOfElectricCurrent.AMPERE,
+        cls=ZaptecSettingNumber,
+        setting="CurrentInMaximum",
+    ),
 ]
 
 
