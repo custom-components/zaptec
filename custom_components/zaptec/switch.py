@@ -71,7 +71,7 @@ class ZaptecChargeSwitch(ZaptecSwitch):
         )
 
         try:
-            await self.zaptec_obj.stop_pause()
+            await self.zaptec_obj.stop_charging_final()
         except Exception as exc:
             raise HomeAssistantError("Stop/pausing charging failed") from exc
 

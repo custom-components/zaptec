@@ -31,9 +31,10 @@
             "voltage_phase1": { "name": "Voltage phase 1" },
             "voltage_phase2": { "name": "Voltage phase 2" },
             "voltage_phase3": { "name": "Voltage phase 3" },
-            "total_charge_power": { "name": "Total charge power" },
+            "total_charge_power": { "name": "Charge power" },
+            "total_charge_power_session": { "name": "Session total charge" },
             "signed_meter_value": { "name": "Energy meter"},
-            "completed_session_energy": { "name": "Completed energy session" },
+            "completed_session_energy": { "name": "Completed session energy" },
             "available_current_phase1": { "name": "Available current phase 1" },
             "available_current_phase2": { "name": "Available current phase 2" },
             "available_current_phase3": { "name": "Available current phase 3" }
@@ -55,11 +56,11 @@
         },
         "button": {
             "resume_charging": { "name": "Resume charging" },
-            "stop_pause": { "name": "Stop/pause charging" },
+            "stop_charging": { "name": "Stop charging" },
             "restart_charger": { "name": "Restart charger" },
             "upgrade_firmware": { "name": "Upgrade firmware" },
             "authorize_charge": { "name": "Authorize charging" },
-            "deauthorize_stop": { "name": "Deauthorize charging"}
+            "deauthorize_and_stop": { "name": "Deauthorize charging"}
         },
         "switch": {
             "charging": { "name": "Charging" },

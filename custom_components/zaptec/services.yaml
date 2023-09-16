@@ -1,4 +1,4 @@
-stop_pause_charging:
+stop_charging:
   description: "Stop/pause charging"
   fields:
     charger_id:

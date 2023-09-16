@@ -149,7 +149,14 @@ CHARGER_ENTITIES: list[EntityDescription] = [
         translation_key="total_charge_power",
         device_class=SensorDeviceClass.POWER,
         icon="mdi:flash",
-        native_unit_of_measurement=const.UnitOfPower.KILO_WATT,
+        native_unit_of_measurement=const.UnitOfPower.WATT,
+    ),
+    ZapSensorEntityDescription(
+        key="total_charge_power_session",
+        translation_key="total_charge_power_session",
+        device_class=SensorDeviceClass.ENERGY,
+        icon="mdi:counter",
+        native_unit_of_measurement=const.UnitOfEnergy.KILO_WATT_HOUR,
     ),
     ZapSensorEntityDescription(
         key="signed_meter_value_kwh",

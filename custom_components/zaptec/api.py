@@ -259,7 +259,11 @@ class Installation(ZaptecBase):
 
                             # Convert the json payload
                             json_result = json.loads(obj[0]["text"])
-                            _LOGGER.debug("---   Subscription: %s", json_result)
+
+                            json_log = json_result.copy()
+                            if "StateId" in json_log:
+                                json_log["StateId"] = f"{json_log['StateId']} ({self._account._obs_ids.get(json_log['StateId'])})"
+                            _LOGGER.debug("---   Subscription: %s", json_log)
 
                             # Send result to account that will update the objects
                             self._account.update(json_result)
@@ -577,6 +581,11 @@ class Charger(ZaptecBase):
     async def command(self, command: str):
         """Send a command to the charger"""
 
+        if command == 'authorize_charge':
+            return await self.authorize_charge()
+
+        # Fetching the name from the const is perhaps not a good idea
+        # if Zaptec is changing them.
         cmdid = self._account._cmd_ids.get(command)
         if cmdid is None:
             raise ValueError(f"Unknown command {command}")
@@ -604,14 +613,14 @@ class Charger(ZaptecBase):
         )
         return data
 
-    async def stop_pause(self):
-        return await self.command("stop_pause")
+    async def stop_charging_final(self):
+        return await self.command("stop_charging_final")
 
     async def resume_charging(self):
         return await self.command("resume_charging")
 
-    async def deauthorize_stop(self):
-        return await self.command("deauthorize_stop")
+    async def deauthorize_and_stop(self):
+        return await self.command("deauthorize_and_stop")
 
     async def restart_charger(self):
         return await self.command("restart_charger")
@@ -711,9 +720,10 @@ class Account:
 
         async def log_response(resp: aiohttp.ClientResponse):
             try:
-                _LOGGER.debug(f"@@@  RESPONSE {resp.status} length {resp.content_length}")
+                contents = await resp.read()
+                _LOGGER.debug(f"@@@  RESPONSE {resp.status} length {len(contents)}")
                 _LOGGER.debug(f"     header {dict((k, v) for k, v in resp.headers.items())}")
-                if not resp.content_length:
+                if not contents:
                     return
                 if resp.status != 200:
                     _LOGGER.debug(f"     content {await resp.text()}")
@@ -828,6 +838,11 @@ class Account:
             self._obs_ids = Account._get_remap(self._const, ["Observations", "ObservationIds"], device_types)
             self._set_ids = Account._get_remap(self._const, ["Settings", "SettingIds"], device_types)
             self._cmd_ids = Account._get_remap(self._const, ["Commands", "CommandIds"], device_types)
+
+            # Commands can also be specified as lower case strings
+            self._cmd_ids.update({
+                to_under(k): v for k, v in self._cmd_ids.items() if isinstance(k, str)
+            })
 
         # Update the state on all chargers
         for data in self.map.values():

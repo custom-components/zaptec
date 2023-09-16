@@ -59,8 +59,8 @@ CHARGER_ENTITIES: list[EntityDescription] = [
         icon="mdi:play-circle-outline",
     ),
     ZapButtonEntityDescription(
-        key="stop_pause",
-        translation_key="stop_pause",
+        key="stop_charging_final",
+        translation_key="stop_charging",
         icon="mdi:pause-circle-outline",
     ),
     ZapButtonEntityDescription(
@@ -69,8 +69,8 @@ CHARGER_ENTITIES: list[EntityDescription] = [
         icon="mdi:lock-check-outline"
     ),
     ZapButtonEntityDescription(
-        key="deauthorize_stop",
-        translation_key="deauthorize_stop",
+        key="deauthorize_and_stop",
+        translation_key="deauthorize_and_stop",
         icon="mdi:lock-remove-outline"
     ),
     ZapButtonEntityDescription(

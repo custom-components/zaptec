@@ -41,14 +41,14 @@ async def async_setup_services(hass: HomeAssistant) -> None:
     _LOGGER.debug("Set up services")
     acc: Account = hass.data[DOMAIN]["api"]
 
-    async def service_handle_stop_pause(service_call: ServiceCall) -> None:
-        _LOGGER.debug("Called stop pause")
+    async def service_handle_stop_charging(service_call: ServiceCall) -> None:
+        _LOGGER.debug("Called stop charging")
         charger_id = service_call.data["charger_id"]
         charger: Charger = acc.map[charger_id]
-        await charger.stop_pause()
+        await charger.stop_charging_final()
 
     async def service_handle_resume_charging(service_call: ServiceCall) -> None:
-        _LOGGER.debug("Called start and or resume")
+        _LOGGER.debug("Called resume charging")
         charger_id = service_call.data["charger_id"]
         charger: Charger = acc.map[charger_id]
         await charger.resume_charging()
@@ -63,7 +63,7 @@ async def async_setup_services(hass: HomeAssistant) -> None:
         _LOGGER.debug("Called deauthorize charging and stop")
         charger_id = service_call.data["charger_id"]
         charger: Charger = acc.map[charger_id]
-        await charger.deauthorize_stop()
+        await charger.deauthorize_and_stop()
 
     async def service_handle_restart_charger(service_call: ServiceCall) -> None:
         _LOGGER.debug("Called restart charger")
@@ -94,7 +94,7 @@ async def async_setup_services(hass: HomeAssistant) -> None:
 
     # LIST OF SERVICES
     services: list[tuple[str, vol.Schema, TServiceHandler]] = [
-        ("stop_pause_charging",  has_id_schema, service_handle_stop_pause),
+        ("stop_charging",        has_id_schema, service_handle_stop_charging),
         ("resume_charging",      has_id_schema, service_handle_resume_charging),
         ("authorize_charging",   has_id_schema, service_handle_authorize_charging),
         ("deauthorize_charging", has_id_schema, service_handle_deauthorize_charging),

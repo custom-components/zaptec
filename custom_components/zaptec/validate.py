@@ -113,12 +113,15 @@ URLS = {
     'constants': None,
     r'installation/[0-9a-f\-]+': Installation,
     r'installation/[0-9a-f\-]+/hierarchy': Hierarchy,
+    r'installation/[0-9a-f\-]+/update': None,
+    r'installation/[0-9a-f\-]+/messagingConnectionDetails': InstallationConnectionDetails,
     r'circuits/[0-9a-f\-]+': Circuit,
     r'chargers/[0-9a-f\-]+': Charger,
     r'chargers/[0-9a-f\-]+/state': ChargerStates,
     r'chargers/[0-9a-f\-]+/settings': ChargerSettings,
+    r'chargers/[0-9a-f\-]+/authorizecharge': None,
+    r'chargers/[0-9a-f\-]+/SendCommand/[0-9]+': None,
     r'chargerFirmware/installation/[0-9a-f\-]+': ChargerFirmwares,
-    r'installation/[0-9a-f\-]+/messagingConnectionDetails': InstallationConnectionDetails,
 }
 
 _URLS = [
