@@ -23,8 +23,13 @@ class ZaptecSwitch(ZaptecBaseEntity, SwitchEntity):
 
     @callback
     def _update_from_zaptec(self) -> None:
-        self._attr_is_on = self._get_zaptec_value()
-        self._log_value(self._attr_is_on)
+        try:
+            self._attr_is_on = self._get_zaptec_value()
+            self._attr_available = True
+            self._log_value(self._attr_is_on)
+        except (KeyError, AttributeError):
+            self._attr_available = False
+            self._log_unavailable()
 
 
 class ZaptecChargeSwitch(ZaptecSwitch):
@@ -33,9 +38,14 @@ class ZaptecChargeSwitch(ZaptecSwitch):
 
     @callback
     def _update_from_zaptec(self) -> None:
-        state = self._get_zaptec_value()
-        self._attr_is_on = state in ["Connected_Charging"]
-        self._log_value(self._attr_is_on)
+        try:
+            state = self._get_zaptec_value()
+            self._attr_is_on = state in ["Connected_Charging"]
+            self._attr_available = True
+            self._log_value(self._attr_is_on)
+        except (KeyError, AttributeError):
+            self._attr_available = False
+            self._log_unavailable()
 
     async def async_turn_on(self, **kwargs):  # pylint: disable=unused-argument
         """Turn on the switch."""
@@ -48,7 +58,7 @@ class ZaptecChargeSwitch(ZaptecSwitch):
         try:
             await self.zaptec_obj.resume_charging()
         except Exception as exc:
-            raise HomeAssistantError(exc) from exc
+            raise HomeAssistantError("Resuming charging failed") from exc
 
         await self.coordinator.async_request_refresh()
 
@@ -63,7 +73,7 @@ class ZaptecChargeSwitch(ZaptecSwitch):
         try:
             await self.zaptec_obj.stop_pause()
         except Exception as exc:
-            raise HomeAssistantError(exc) from exc
+            raise HomeAssistantError("Stop/pausing charging failed") from exc
 
         await self.coordinator.async_request_refresh()
 
@@ -83,7 +93,7 @@ class ZaptecAuthorizationRequiredSwitch(ZaptecSwitch):
         try:
             await self.zaptec_obj.set_authenication_required(True)
         except Exception as exc:
-            raise HomeAssistantError(exc) from exc
+            raise HomeAssistantError("Setting authorization required failed") from exc
 
         await self.coordinator.async_request_refresh()
 
@@ -98,7 +108,7 @@ class ZaptecAuthorizationRequiredSwitch(ZaptecSwitch):
         try:
             await self.zaptec_obj.set_authenication_required(False)
         except Exception as exc:
-            raise HomeAssistantError(exc) from exc
+            raise HomeAssistantError("Setting authorization required failed") from exc
 
         await self.coordinator.async_request_refresh()
 

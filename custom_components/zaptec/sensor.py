@@ -26,19 +26,29 @@ class ZaptecSensor(ZaptecBaseEntity, SensorEntity):
 
     @callback
     def _update_from_zaptec(self) -> None:
-        self._attr_native_value = self._get_zaptec_value()
-        self._log_value(self._attr_native_value)
+        try:
+            self._attr_native_value = self._get_zaptec_value()
+            self._attr_available = True
+            self._log_value(self._attr_native_value)
+        except (KeyError, AttributeError):
+            self._attr_available = False
+            self._log_unavailable()
 
 
 class ZaptecChargeSensor(ZaptecSensor):
 
     @callback
     def _update_from_zaptec(self) -> None:
-        state = self._get_zaptec_value()
-        mode = CHARGE_MODE_MAP.get(state, CHARGE_MODE_MAP["Unknown"])
-        self._attr_native_value = mode[0]
-        self._attr_icon = mode[1]
-        self._log_value(self._attr_native_value)
+        try:
+            state = self._get_zaptec_value()
+            mode = CHARGE_MODE_MAP.get(state, CHARGE_MODE_MAP["Unknown"])
+            self._attr_native_value = mode[0]
+            self._attr_icon = mode[1]
+            self._attr_available = True
+            self._log_value(self._attr_native_value)
+        except (KeyError, AttributeError):
+            self._attr_available = False
+            self._log_unavailable()
 
 
 @dataclass
@@ -49,21 +59,21 @@ class ZapSensorEntityDescription(SensorEntityDescription):
 
 
 INSTALLATION_ENTITIES: list[EntityDescription] = [
-    SensorEntityDescription(
+    ZapSensorEntityDescription(
         key="available_current_phase1",
         translation_key="available_current_phase1",
         device_class=SensorDeviceClass.CURRENT,
         icon="mdi:current-ac",
         native_unit_of_measurement=const.UnitOfElectricCurrent.AMPERE,
     ),
-    SensorEntityDescription(
+    ZapSensorEntityDescription(
         key="available_current_phase2",
         translation_key="available_current_phase2",
         device_class=SensorDeviceClass.CURRENT,
         icon="mdi:current-ac",
         native_unit_of_measurement=const.UnitOfElectricCurrent.AMPERE,
     ),
-    SensorEntityDescription(
+    ZapSensorEntityDescription(
         key="available_current_phase3",
         translation_key="available_current_phase3",
         device_class=SensorDeviceClass.CURRENT,

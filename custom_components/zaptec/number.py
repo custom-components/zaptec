@@ -25,8 +25,13 @@ class ZaptecNumber(ZaptecBaseEntity, NumberEntity):
 
     @callback
     def _update_from_zaptec(self) -> None:
-        self._attr_native_value = self._get_zaptec_value()
-        self._log_value(self._attr_native_value)
+        try:
+            self._attr_native_value = self._get_zaptec_value()
+            self._attr_available = True
+            self._log_value(self._attr_native_value)
+        except (KeyError, AttributeError):
+            self._attr_available = False
+            self._log_unavailable()
 
 
 class ZaptecAvailableCurrentNumber(ZaptecNumber):
@@ -35,7 +40,7 @@ class ZaptecAvailableCurrentNumber(ZaptecNumber):
 
     def _post_init(self):
         # Get the max current rating from the reported max current
-        self.entity_description.native_max_value = self.zaptec_obj.max_current
+        self.entity_description.native_max_value = self.zaptec_obj.get('max_current', 32)
 
     async def async_set_native_value(self, value: float) -> None:
         """Update to Zaptec."""
@@ -49,7 +54,7 @@ class ZaptecAvailableCurrentNumber(ZaptecNumber):
         try:
             await self.zaptec_obj.set_limit_current(availableCurrent=value)
         except Exception as exc:
-            raise HomeAssistantError(exc) from exc
+            raise HomeAssistantError(f"Set current limit to {value} failed") from exc
 
         await self.coordinator.async_request_refresh()
 
@@ -60,7 +65,7 @@ class ZaptecSettingNumber(ZaptecNumber):
 
     def _post_init(self):
         # Get the max current rating from the reported max current
-        self.entity_description.native_max_value = self.zaptec_obj.charge_current_installation_max_limit
+        self.entity_description.native_max_value = self.zaptec_obj.get('charge_current_installation_max_limit', 32)
 
     async def async_set_native_value(self, value: float) -> None:
         """Update to Zaptec."""
@@ -76,7 +81,7 @@ class ZaptecSettingNumber(ZaptecNumber):
                 self.entity_description.setting: value
             })
         except Exception as exc:
-            raise HomeAssistantError(exc) from exc
+            raise HomeAssistantError(f"Setting {self.entity_description.setting} to {value} failed") from exc
 
         await self.coordinator.async_request_refresh()
 

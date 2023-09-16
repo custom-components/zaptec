@@ -187,21 +187,13 @@ class ZaptecBaseEntity(CoordinatorEntity[ZaptecUpdateCoordinator]):
         try:
             self._update_from_zaptec()
         except Exception as exc:
-            _LOGGER.exception("Error updating switch '%s': %s", self.name, exc)
-            self._update_from_zaptec_failed()
-            raise HomeAssistantError(exc) from exc
+            raise HomeAssistantError(f"Error updating entity {self.key}") from exc
         super()._handle_coordinator_update()
 
     @callback
     def _update_from_zaptec(self) -> None:
         '''Called when the coordinator has new data. Implement this in the
            inheriting class to update the entity state.
-        '''
-
-    @callback
-    def _update_from_zaptec_failed(self) -> None:
-        '''Called when the coordinator has failed to update. Implement this in
-           the inheriting class to update the entity state.
         '''
 
     @callback
@@ -243,6 +235,15 @@ class ZaptecBaseEntity(CoordinatorEntity[ZaptecUpdateCoordinator]):
                           type(value).__qualname__, value,
                           self.zaptec_obj.id,
             )
+
+    @callback
+    def _log_unavailable(self):
+        '''Helper to log when unavailable.
+        '''
+        _LOGGER.debug("    %s.%s  =  UNAVAILABLE   (in %s)",
+                      self.__class__.__qualname__, self.key,
+                      self.zaptec_obj.id,
+        )
 
     @classmethod
     def create_from(

@@ -35,7 +35,7 @@ class ZaptecButton(ZaptecBaseEntity, ButtonEntity):
         try:
             await self.zaptec_obj.command(self.key)
         except Exception as exc:
-            raise HomeAssistantError(exc) from exc
+            raise HomeAssistantError(f"Running command '{self.key}' failed") from exc
 
         await self.coordinator.async_request_refresh()
 

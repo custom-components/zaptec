@@ -24,8 +24,13 @@ class ZaptecBinarySensor(ZaptecBaseEntity, BinarySensorEntity):
 
     @callback
     def _update_from_zaptec(self) -> None:
-        self._attr_is_on = self._get_zaptec_value()
-        self._log_value(self._attr_is_on)
+        try:
+            self._attr_is_on = self._get_zaptec_value()
+            self._attr_available = True
+            self._log_value(self._attr_is_on)
+        except (KeyError, AttributeError):
+            self._attr_available = False
+            self._log_unavailable()
 
 
 class ZaptecBinarySensorWithAttrs(ZaptecBinarySensor):
@@ -39,8 +44,13 @@ class ZaptecBinarySensorLock(ZaptecBinarySensor):
 
     @callback
     def _update_from_zaptec(self) -> None:
-        self._attr_is_on = not self._get_zaptec_value()
-        self._log_value(self._attr_is_on)
+        try:
+            self._attr_is_on = not self._get_zaptec_value()
+            self._attr_available = True
+            self._log_value(self._attr_is_on)
+        except (KeyError, AttributeError):
+            self._attr_available = False
+            self._log_unavailable()
 
 
 @dataclass
@@ -53,7 +63,7 @@ INSTALLATION_ENTITIES: list[EntityDescription] = [
     ZapBinarySensorEntityDescription(
         key="active",
         name="Installation",
-        device_class=BinarySensorDeviceClass.CONNECTIVITY,
+        device_class=BinarySensorDeviceClass.CONNECTIVITY,  # False=disconnected, True=connected
         entity_category=const.EntityCategory.DIAGNOSTIC,
         icon="mdi:home-lightning-bolt-outline",
         has_entity_name=False,
@@ -65,7 +75,7 @@ CIRCUIT_ENTITIES: list[EntityDescription] = [
     ZapBinarySensorEntityDescription(
         key="is_active",
         name="Circuit",
-        device_class=BinarySensorDeviceClass.CONNECTIVITY,
+        device_class=BinarySensorDeviceClass.CONNECTIVITY,  # False=disconnected, True=connected
         entity_category=const.EntityCategory.DIAGNOSTIC,
         icon="mdi:orbit",
         has_entity_name=False,
@@ -86,10 +96,8 @@ CHARGER_ENTITIES: list[EntityDescription] = [
     ZapBinarySensorEntityDescription(
         key="is_authorization_required",
         translation_key="is_authorization_required",
-        device_class=BinarySensorDeviceClass.LOCK,  # False=unlocked, True=locked
         entity_category=const.EntityCategory.DIAGNOSTIC,
         icon="mdi:lock",
-        cls=ZaptecBinarySensorLock,
     ),
     ZapBinarySensorEntityDescription(
         key="permanent_cable_lock",

@@ -14,7 +14,7 @@ from homeassistant.helpers.entity import EntityDescription
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import ZaptecBaseEntity, ZaptecUpdateCoordinator
-from .api import Account
+from .api import Account, Charger
 from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
@@ -22,11 +22,18 @@ _LOGGER = logging.getLogger(__name__)
 
 class ZaptecUpdate(ZaptecBaseEntity, UpdateEntity):
 
+    zaptec_obj: Charger
+
     @callback
     def _update_from_zaptec(self) -> None:
-        self._attr_installed_version = self._get_zaptec_value(key="current_firmware_version")
-        self._attr_latest_version = self._get_zaptec_value(key="available_firmware_version")
-        self._log_value(self._attr_installed_version)
+        try:
+            self._attr_installed_version = self._get_zaptec_value(key="current_firmware_version")
+            self._attr_latest_version = self._get_zaptec_value(key="available_firmware_version")
+            self._attr_available = True
+            self._log_value(self._attr_installed_version)
+        except (KeyError, AttributeError):
+            self._attr_available = False
+            self._log_unavailable()
 
     async def async_install(self, version, backup):
         _LOGGER.debug(
@@ -38,7 +45,7 @@ class ZaptecUpdate(ZaptecBaseEntity, UpdateEntity):
         try:
             await self.zaptec_obj.upgrade_firmware()
         except Exception as exc:
-            raise HomeAssistantError(exc) from exc
+            raise HomeAssistantError("Sending update firmware command failed") from exc
 
         await self.coordinator.async_request_refresh()
 
@@ -56,7 +63,7 @@ CIRCUIT_ENTITIES: list[EntityDescription] = [
 ]
 
 CHARGER_ENTITIES: list[EntityDescription] = [
-    UpdateEntityDescription(
+    ZapUpdateEntityDescription(
         key="firmware_update",
         translation_key="firmware_update_to_date",
         device_class=UpdateDeviceClass.FIRMWARE,

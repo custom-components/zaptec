@@ -44,7 +44,13 @@
             "charger_max_current": { "name": "Charger max current" }
         },
         "binary_sensor": {
-            "is_authorization_required": { "name": "Authorization required" },
+            "is_authorization_required": { 
+                "name": "Authorization required",
+                "state": {
+                    "off": "Not required",
+                    "on": "Required"
+                }
+            },
             "permanent_cable_lock": { "name": "Permanent cable lock" }
         },
         "button": {
