@@ -5,8 +5,11 @@ import logging
 from dataclasses import dataclass
 
 from homeassistant import const
-from homeassistant.components.sensor import (SensorDeviceClass, SensorEntity,
-                                             SensorEntityDescription)
+from homeassistant.components.sensor import (
+    SensorDeviceClass,
+    SensorEntity,
+    SensorEntityDescription,
+)
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
@@ -23,7 +26,6 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class ZaptecSensor(ZaptecBaseEntity, SensorEntity):
-
     @callback
     def _update_from_zaptec(self) -> None:
         try:
@@ -36,7 +38,6 @@ class ZaptecSensor(ZaptecBaseEntity, SensorEntity):
 
 
 class ZaptecChargeSensor(ZaptecSensor):
-
     @callback
     def _update_from_zaptec(self) -> None:
         try:
@@ -55,7 +56,7 @@ class ZaptecChargeSensor(ZaptecSensor):
 class ZapSensorEntityDescription(SensorEntityDescription):
     """Provide a description of a Zaptec sensor."""
 
-    cls: type|None = None
+    cls: type | None = None
 
 
 INSTALLATION_ENTITIES: list[EntityDescription] = [
@@ -166,7 +167,7 @@ CHARGER_ENTITIES: list[EntityDescription] = [
         native_unit_of_measurement=const.UnitOfEnergy.KILO_WATT_HOUR,
     ),
     ZapSensorEntityDescription(
-        key='completed_session.Energy',
+        key="completed_session.Energy",
         translation_key="completed_session_energy",
         device_class=SensorDeviceClass.ENERGY,
         icon="mdi:counter",

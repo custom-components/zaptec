@@ -18,21 +18,26 @@ TServiceHandler = Callable[[ServiceCall], Awaitable[None]]
 # ====================
 has_id_schema = vol.Schema({vol.Required("charger_id"): str})
 
-has_limit_current_schema = vol.Schema(vol.SomeOf(
-    min_valid=1, max_valid=1, msg="Must specify either only available_current or all "
-    "three available_current_phaseX (where X is 1-3). They are mutually exclusive",
-    validators=[
-    {
-        vol.Required("installation_id"): str,
-        vol.Required("available_current"): int,
-    },
-    {
-        vol.Required("installation_id"): str,
-        vol.Required("available_current_phase1"): int,
-        vol.Required("available_current_phase2"): int,
-        vol.Required("available_current_phase3"): int,
-    },
-]))
+has_limit_current_schema = vol.Schema(
+    vol.SomeOf(
+        min_valid=1,
+        max_valid=1,
+        msg="Must specify either only available_current or all "
+        "three available_current_phaseX (where X is 1-3). They are mutually exclusive",
+        validators=[
+            {
+                vol.Required("installation_id"): str,
+                vol.Required("available_current"): int,
+            },
+            {
+                vol.Required("installation_id"): str,
+                vol.Required("available_current_phase1"): int,
+                vol.Required("available_current_phase2"): int,
+                vol.Required("available_current_phase3"): int,
+            },
+        ],
+    )
+)
 
 
 async def async_setup_services(hass: HomeAssistant) -> None:
@@ -94,13 +99,13 @@ async def async_setup_services(hass: HomeAssistant) -> None:
 
     # LIST OF SERVICES
     services: list[tuple[str, vol.Schema, TServiceHandler]] = [
-        ("stop_charging",        has_id_schema, service_handle_stop_charging),
-        ("resume_charging",      has_id_schema, service_handle_resume_charging),
-        ("authorize_charging",   has_id_schema, service_handle_authorize_charging),
+        ("stop_charging", has_id_schema, service_handle_stop_charging),
+        ("resume_charging", has_id_schema, service_handle_resume_charging),
+        ("authorize_charging", has_id_schema, service_handle_authorize_charging),
         ("deauthorize_charging", has_id_schema, service_handle_deauthorize_charging),
-        ("restart_charger",      has_id_schema, service_handle_restart_charger),
-        ("update_firmware",      has_id_schema, service_handle_update_firmware),
-        ("limit_current",        has_limit_current_schema, service_handle_limit_current),
+        ("restart_charger", has_id_schema, service_handle_restart_charger),
+        ("update_firmware", has_id_schema, service_handle_update_firmware),
+        ("limit_current", has_limit_current_schema, service_handle_limit_current),
     ]
 
     # Register the services

@@ -5,8 +5,11 @@ import logging
 from dataclasses import dataclass
 
 from homeassistant import const
-from homeassistant.components.number import (NumberDeviceClass, NumberEntity,
-                                             NumberEntityDescription)
+from homeassistant.components.number import (
+    NumberDeviceClass,
+    NumberEntity,
+    NumberEntityDescription,
+)
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
@@ -22,7 +25,6 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class ZaptecNumber(ZaptecBaseEntity, NumberEntity):
-
     @callback
     def _update_from_zaptec(self) -> None:
         try:
@@ -35,20 +37,23 @@ class ZaptecNumber(ZaptecBaseEntity, NumberEntity):
 
 
 class ZaptecAvailableCurrentNumber(ZaptecNumber):
-
     zaptec_obj: Installation
 
     def _post_init(self):
         # Get the max current rating from the reported max current
-        self.entity_description.native_max_value = self.zaptec_obj.get('max_current', 32)
+        self.entity_description.native_max_value = self.zaptec_obj.get(
+            "max_current", 32
+        )
 
     async def async_set_native_value(self, value: float) -> None:
         """Update to Zaptec."""
         _LOGGER.debug(
             "Setting %s.%s to <%s> %s   (in %s)",
-            self.__class__.__qualname__, self.key,
-            type(value).__qualname__, value,
-            self.zaptec_obj.id
+            self.__class__.__qualname__,
+            self.key,
+            type(value).__qualname__,
+            value,
+            self.zaptec_obj.id,
         )
 
         try:
@@ -60,37 +65,39 @@ class ZaptecAvailableCurrentNumber(ZaptecNumber):
 
 
 class ZaptecSettingNumber(ZaptecNumber):
-
     zaptec_obj: Installation
 
     def _post_init(self):
         # Get the max current rating from the reported max current
-        self.entity_description.native_max_value = self.zaptec_obj.get('charge_current_installation_max_limit', 32)
+        self.entity_description.native_max_value = self.zaptec_obj.get(
+            "charge_current_installation_max_limit", 32
+        )
 
     async def async_set_native_value(self, value: float) -> None:
         """Update to Zaptec."""
         _LOGGER.debug(
             "Setting %s.%s to <%s> %s   (in %s)",
-            self.__class__.__qualname__, self.key,
-            type(value).__qualname__, value,
-            self.zaptec_obj.id
+            self.__class__.__qualname__,
+            self.key,
+            type(value).__qualname__,
+            value,
+            self.zaptec_obj.id,
         )
 
         try:
-            await self.zaptec_obj.set_settings({
-                self.entity_description.setting: value
-            })
+            await self.zaptec_obj.set_settings({self.entity_description.setting: value})
         except Exception as exc:
-            raise HomeAssistantError(f"Setting {self.entity_description.setting} to {value} failed") from exc
+            raise HomeAssistantError(
+                f"Setting {self.entity_description.setting} to {value} failed"
+            ) from exc
 
         await self.coordinator.async_request_refresh()
 
 
 @dataclass
 class ZapNumberEntityDescription(NumberEntityDescription):
-
-    cls: type|None = None
-    setting: str|None = None
+    cls: type | None = None
+    setting: str | None = None
 
 
 INSTALLATION_ENTITIES: list[EntityDescription] = [
@@ -106,8 +113,7 @@ INSTALLATION_ENTITIES: list[EntityDescription] = [
     ),
 ]
 
-CIRCUIT_ENTITIES: list[EntityDescription] = [
-]
+CIRCUIT_ENTITIES: list[EntityDescription] = []
 
 CHARGER_ENTITIES: list[EntityDescription] = [
     ZapNumberEntityDescription(

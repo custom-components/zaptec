@@ -36,8 +36,11 @@ DEFAULT_SCAN_INTERVAL = 60
 
 REQUEST_REFRESH_DELAY = 0.3
 
+
 class Missing:
-    '''Singleton class representing a missing value.'''
+    """Singleton class representing a missing value."""
+
+
 MISSING = Missing()
 
 TRUTHY = ["true", "1", "on", "yes", 1, True]

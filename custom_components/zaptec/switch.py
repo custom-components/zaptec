@@ -4,8 +4,11 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 
-from homeassistant.components.switch import (SwitchDeviceClass, SwitchEntity,
-                                             SwitchEntityDescription)
+from homeassistant.components.switch import (
+    SwitchDeviceClass,
+    SwitchEntity,
+    SwitchEntityDescription,
+)
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
@@ -20,7 +23,6 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class ZaptecSwitch(ZaptecBaseEntity, SwitchEntity):
-
     @callback
     def _update_from_zaptec(self) -> None:
         try:
@@ -33,7 +35,6 @@ class ZaptecSwitch(ZaptecBaseEntity, SwitchEntity):
 
 
 class ZaptecChargeSwitch(ZaptecSwitch):
-
     zaptec_obj: Charger
 
     @callback
@@ -51,7 +52,8 @@ class ZaptecChargeSwitch(ZaptecSwitch):
         """Turn on the switch."""
         _LOGGER.debug(
             "Turn on %s.%s   (in %s)",
-            self.__class__.__qualname__, self.key,
+            self.__class__.__qualname__,
+            self.key,
             self.zaptec_obj.id,
         )
 
@@ -66,7 +68,8 @@ class ZaptecChargeSwitch(ZaptecSwitch):
         """Turn off the switch."""
         _LOGGER.debug(
             "Turn off %s.%s   (in %s)",
-            self.__class__.__qualname__, self.key,
+            self.__class__.__qualname__,
+            self.key,
             self.zaptec_obj.id,
         )
 
@@ -79,14 +82,14 @@ class ZaptecChargeSwitch(ZaptecSwitch):
 
 
 class ZaptecAuthorizationRequiredSwitch(ZaptecSwitch):
-
     zaptec_obj: Installation
 
     async def async_turn_on(self, **kwargs):  # pylint: disable=unused-argument
         """Turn on the switch."""
         _LOGGER.debug(
             "Turn on %s.%s   (in %s)",
-            self.__class__.__qualname__, self.key,
+            self.__class__.__qualname__,
+            self.key,
             self.zaptec_obj.id,
         )
 
@@ -101,7 +104,8 @@ class ZaptecAuthorizationRequiredSwitch(ZaptecSwitch):
         """Turn off the switch."""
         _LOGGER.debug(
             "Turn off %s.%s   (in %s)",
-            self.__class__.__qualname__, self.key,
+            self.__class__.__qualname__,
+            self.key,
             self.zaptec_obj.id,
         )
 
@@ -115,8 +119,7 @@ class ZaptecAuthorizationRequiredSwitch(ZaptecSwitch):
 
 @dataclass
 class ZapSwitchEntityDescription(SwitchEntityDescription):
-
-    cls: type|None = None
+    cls: type | None = None
 
 
 INSTALLATION_SWITCH_TYPES: list[EntityDescription] = [
@@ -129,8 +132,7 @@ INSTALLATION_SWITCH_TYPES: list[EntityDescription] = [
     ),
 ]
 
-CIRCUIT_SWITCH_TYPES: list[EntityDescription] = [
-]
+CIRCUIT_SWITCH_TYPES: list[EntityDescription] = []
 
 CHARGER_SWITCH_TYPES: list[EntityDescription] = [
     ZapSwitchEntityDescription(

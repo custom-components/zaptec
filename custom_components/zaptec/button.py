@@ -5,8 +5,11 @@ import logging
 from dataclasses import dataclass
 
 from homeassistant import const
-from homeassistant.components.button import (ButtonDeviceClass, ButtonEntity,
-                                             ButtonEntityDescription)
+from homeassistant.components.button import (
+    ButtonDeviceClass,
+    ButtonEntity,
+    ButtonEntityDescription,
+)
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
@@ -21,14 +24,14 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class ZaptecButton(ZaptecBaseEntity, ButtonEntity):
-
     zaptec_obj: Charger
 
     async def async_press(self) -> None:
         """Press the button."""
         _LOGGER.debug(
             "Press %s.%s   (in %s)",
-            self.__class__.__qualname__, self.key,
+            self.__class__.__qualname__,
+            self.key,
             self.zaptec_obj.id,
         )
 
@@ -42,15 +45,12 @@ class ZaptecButton(ZaptecBaseEntity, ButtonEntity):
 
 @dataclass
 class ZapButtonEntityDescription(ButtonEntityDescription):
+    cls: type | None = None
 
-    cls: type|None = None
 
+INSTALLATION_ENTITIES: list[EntityDescription] = []
 
-INSTALLATION_ENTITIES: list[EntityDescription] = [
-]
-
-CIRCUIT_ENTITIES: list[EntityDescription] = [
-]
+CIRCUIT_ENTITIES: list[EntityDescription] = []
 
 CHARGER_ENTITIES: list[EntityDescription] = [
     ZapButtonEntityDescription(
@@ -66,24 +66,24 @@ CHARGER_ENTITIES: list[EntityDescription] = [
     ZapButtonEntityDescription(
         key="authorize_charge",
         translation_key="authorize_charge",
-        icon="mdi:lock-check-outline"
+        icon="mdi:lock-check-outline",
     ),
     ZapButtonEntityDescription(
         key="deauthorize_and_stop",
         translation_key="deauthorize_and_stop",
-        icon="mdi:lock-remove-outline"
+        icon="mdi:lock-remove-outline",
     ),
     ZapButtonEntityDescription(
         key="restart_charger",
         translation_key="restart_charger",
         entity_category=const.EntityCategory.DIAGNOSTIC,
-        icon="mdi:restart"
+        icon="mdi:restart",
     ),
     ZapButtonEntityDescription(
         key="upgrade_firmware",
         translation_key="upgrade_firmware",
         entity_category=const.EntityCategory.DIAGNOSTIC,
-        icon="mdi:memory"
+        icon="mdi:memory",
     ),
 ]
 

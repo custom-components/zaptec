@@ -6,7 +6,10 @@ from dataclasses import dataclass
 
 from homeassistant import const
 from homeassistant.components.binary_sensor import (
-    BinarySensorDeviceClass, BinarySensorEntity, BinarySensorEntityDescription)
+    BinarySensorDeviceClass,
+    BinarySensorEntity,
+    BinarySensorEntityDescription,
+)
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
@@ -21,7 +24,6 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class ZaptecBinarySensor(ZaptecBaseEntity, BinarySensorEntity):
-
     @callback
     def _update_from_zaptec(self) -> None:
         try:
@@ -34,14 +36,12 @@ class ZaptecBinarySensor(ZaptecBaseEntity, BinarySensorEntity):
 
 
 class ZaptecBinarySensorWithAttrs(ZaptecBinarySensor):
-
     def _post_init(self):
         self._attr_extra_state_attributes = self.zaptec_obj.asdict()
         self._attr_unique_id = self.zaptec_obj.id
 
 
 class ZaptecBinarySensorLock(ZaptecBinarySensor):
-
     @callback
     def _update_from_zaptec(self) -> None:
         try:
@@ -55,8 +55,7 @@ class ZaptecBinarySensorLock(ZaptecBinarySensor):
 
 @dataclass
 class ZapBinarySensorEntityDescription(BinarySensorEntityDescription):
-
-    cls: type|None = None
+    cls: type | None = None
 
 
 INSTALLATION_ENTITIES: list[EntityDescription] = [

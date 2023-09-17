@@ -5,8 +5,11 @@ import logging
 from dataclasses import dataclass
 
 from homeassistant import const
-from homeassistant.components.update import (UpdateDeviceClass, UpdateEntity,
-                                             UpdateEntityDescription)
+from homeassistant.components.update import (
+    UpdateDeviceClass,
+    UpdateEntity,
+    UpdateEntityDescription,
+)
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
@@ -21,14 +24,17 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class ZaptecUpdate(ZaptecBaseEntity, UpdateEntity):
-
     zaptec_obj: Charger
 
     @callback
     def _update_from_zaptec(self) -> None:
         try:
-            self._attr_installed_version = self._get_zaptec_value(key="current_firmware_version")
-            self._attr_latest_version = self._get_zaptec_value(key="available_firmware_version")
+            self._attr_installed_version = self._get_zaptec_value(
+                key="current_firmware_version"
+            )
+            self._attr_latest_version = self._get_zaptec_value(
+                key="available_firmware_version"
+            )
             self._attr_available = True
             self._log_value(self._attr_installed_version)
         except (KeyError, AttributeError):
@@ -38,8 +44,9 @@ class ZaptecUpdate(ZaptecBaseEntity, UpdateEntity):
     async def async_install(self, version, backup):
         _LOGGER.debug(
             "Updating firmware %s.%s  (in %s)",
-            self.__class__.__qualname__, self.key,
-            self.zaptec_obj.id
+            self.__class__.__qualname__,
+            self.key,
+            self.zaptec_obj.id,
         )
 
         try:
@@ -52,15 +59,12 @@ class ZaptecUpdate(ZaptecBaseEntity, UpdateEntity):
 
 @dataclass
 class ZapUpdateEntityDescription(UpdateEntityDescription):
+    cls: type | None = None
 
-    cls: type|None = None
 
+INSTALLATION_ENTITIES: list[EntityDescription] = []
 
-INSTALLATION_ENTITIES: list[EntityDescription] = [
-]
-
-CIRCUIT_ENTITIES: list[EntityDescription] = [
-]
+CIRCUIT_ENTITIES: list[EntityDescription] = []
 
 CHARGER_ENTITIES: list[EntityDescription] = [
     ZapUpdateEntityDescription(

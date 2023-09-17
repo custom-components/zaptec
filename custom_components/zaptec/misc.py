@@ -24,7 +24,7 @@ def mc_nbfx_decoder(msg: bytes) -> None:
         while data:
             block = data[:count]
             data = data[count:]
-            count = (yield block)
+            count = yield block
 
     prod = data_producer(msg)
     next(prod)
@@ -33,7 +33,7 @@ def mc_nbfx_decoder(msg: bytes) -> None:
     SHORT_XMLNS_ATTRIBUTE = 0x08
     SHORT_ELEMENT = 0x40
     CHARS8TEXT = 0x98
-    CHARS16TEXT = 0x9a
+    CHARS16TEXT = 0x9A
 
     def read_string(bits16=False):
         """Read a string."""
@@ -53,7 +53,10 @@ def mc_nbfx_decoder(msg: bytes) -> None:
                 return
 
             if record_type in (
-                SHORT_ELEMENT, SHORT_XMLNS_ATTRIBUTE, CHARS8TEXT, CHARS16TEXT,
+                SHORT_ELEMENT,
+                SHORT_XMLNS_ATTRIBUTE,
+                CHARS8TEXT,
+                CHARS16TEXT,
             ):
                 yield record_type, read_string(bits16=(record_type == CHARS16TEXT))
             elif record_type == END_ELEMENT:

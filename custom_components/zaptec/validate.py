@@ -47,7 +47,7 @@ class ChargerStates(TypeWrapper, BaseModel):
 class ChargerSetting(BaseModel):
     model_config = ConfigDict(extra="allow")
     SettingsId: int
-    Value: str = ''
+    Value: str = ""
 
 
 # pydantic v2
@@ -108,41 +108,38 @@ class InstallationConnectionDetails(BaseModel):
 
 # Mapping of URL to pydantic model
 URLS = {
-    'installation': Installations,
-    'chargers': Chargers,
-    'constants': None,
-    r'installation/[0-9a-f\-]+': Installation,
-    r'installation/[0-9a-f\-]+/hierarchy': Hierarchy,
-    r'installation/[0-9a-f\-]+/update': None,
-    r'installation/[0-9a-f\-]+/messagingConnectionDetails': InstallationConnectionDetails,
-    r'circuits/[0-9a-f\-]+': Circuit,
-    r'chargers/[0-9a-f\-]+': Charger,
-    r'chargers/[0-9a-f\-]+/state': ChargerStates,
-    r'chargers/[0-9a-f\-]+/settings': ChargerSettings,
-    r'chargers/[0-9a-f\-]+/authorizecharge': None,
-    r'chargers/[0-9a-f\-]+/SendCommand/[0-9]+': None,
-    r'chargerFirmware/installation/[0-9a-f\-]+': ChargerFirmwares,
+    "installation": Installations,
+    "chargers": Chargers,
+    "constants": None,
+    r"installation/[0-9a-f\-]+": Installation,
+    r"installation/[0-9a-f\-]+/hierarchy": Hierarchy,
+    r"installation/[0-9a-f\-]+/update": None,
+    r"installation/[0-9a-f\-]+/messagingConnectionDetails": InstallationConnectionDetails,
+    r"circuits/[0-9a-f\-]+": Circuit,
+    r"chargers/[0-9a-f\-]+": Charger,
+    r"chargers/[0-9a-f\-]+/state": ChargerStates,
+    r"chargers/[0-9a-f\-]+/settings": ChargerSettings,
+    r"chargers/[0-9a-f\-]+/authorizecharge": None,
+    r"chargers/[0-9a-f\-]+/SendCommand/[0-9]+": None,
+    r"chargerFirmware/installation/[0-9a-f\-]+": ChargerFirmwares,
 }
 
-_URLS = [
-    (k, re.compile(k), v) for k, v in URLS.items()
-]
+_URLS = [(k, re.compile(k), v) for k, v in URLS.items()]
+
 
 def validate(data, url):
     """Validate the data."""
 
     for pat, re_pat, model in _URLS:
-
         # Mathes either the exact string or its regexp
         if url == pat or re_pat.fullmatch(url):
-
             try:
                 d = data
 
                 # pydantic v1
                 if isinstance(model, TypeWrapper):
-                    d = {'_data': data}
- 
+                    d = {"_data": data}
+
                 if isinstance(model, BaseModel):
                     # pydantic v1
                     model.parse_obj(d)
@@ -153,7 +150,7 @@ def validate(data, url):
                 # pydantic v2
                 # elif isinstance(model, TypeAdapter):
                 #     model.validate_python(data, strict=True)
- 
+
             except ValidationError as err:
                 _LOGGER.error("Failed to validate %s (pattern %s): %s", url, pat, err)
                 raise
