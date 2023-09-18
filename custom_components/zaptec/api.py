@@ -38,7 +38,7 @@ signalr is used by the website.
 
 # to Support running this as a script.
 if __name__ == "__main__":
-    from const import API_RETRIES, API_URL, FALSY, MISSING, TOKEN_URL, TRUTHY
+    from const import API_RETRIES, API_URL, MISSING, TOKEN_URL, TRUTHY
     from misc import mc_nbfx_decoder, to_under
     from validate import validate
 
@@ -50,7 +50,6 @@ else:
     from .const import (
         API_RETRIES,
         API_URL,
-        FALSY,
         MISSING,
         TOKEN_URL,
         TRUTHY,
@@ -83,6 +82,27 @@ class RequestRetryError(ZaptecApiError):
     """Retries too many times"""
 
 
+#
+# Attribute type converters
+#
+def type_ocmf(data):
+    """Open Charge Metering Format (OCMF) type"""
+    # https://github.com/SAFE-eV/OCMF-Open-Charge-Metering-Format/blob/master/OCMF-en.md
+    sects = data.split("|")
+    if len(sects) not in (2, 3) or sects[0] != "OCMF":
+        raise ValueError(f"Invalid OCMF data: {data}")
+    data = json.loads(sects[1])
+    return data
+
+
+def type_completed_session(data):
+    """Convert the CompletedSession to a dict"""
+    data = json.loads(data)
+    if "SignedSession" in data:
+        data["SignedSession"] = type_ocmf(data["SignedSession"])
+    return data
+
+
 class ZaptecBase(ABC):
     """Base class for Zaptec objects"""
 
@@ -104,7 +124,18 @@ class ZaptecBase(ABC):
         for k, v in data.items():
             # Cast the value to the correct type
             new_key = to_under(k)
-            new_v = self.ATTR_TYPES.get(new_key, lambda x: x)(v)
+            try:
+                new_v = self.ATTR_TYPES.get(new_key, lambda x: x)(v)
+            except Exception as err:
+                _LOGGER.error(
+                    "Failed to convert attribute %s (%s) value <%s> %s: %s",
+                    k,
+                    new_key,
+                    type(v).__qualname__,
+                    v,
+                    err,
+                )
+                new_v = v
             new_vt = type(new_v).__qualname__
             if new_key not in self._attrs:
                 qn = self.__class__.__qualname__
@@ -456,16 +487,17 @@ class Charger(ZaptecBase):
     # Type conversions for the named attributes
     ATTR_TYPES = {
         "active": bool,
-        "is_authorization_required": lambda x: x in TRUTHY,
-        "is_online": lambda x: x in TRUTHY,
         "charge_current_installation_max_limit": float,
         "charger_max_current": float,
         "charger_min_current": float,
-        "completed_session": json.loads,
+        "completed_session": type_completed_session,
         "current_phase1": float,
         "current_phase2": float,
         "current_phase3": float,
+        "is_authorization_required": lambda x: x in TRUTHY,
+        "is_online": lambda x: x in TRUTHY,
         "permanent_cable_lock": lambda x: x in TRUTHY,
+        "signed_meter_value": type_ocmf,
         "total_charge_power": float,
         "voltage_phase1": float,
         "voltage_phase2": float,
@@ -569,43 +601,6 @@ class Charger(ZaptecBase):
         data = await self._account._request(f"chargers/{self.id}/live")
         # FIXME: Missing validator (see validate)
         return data
-
-    async def update(self, data):
-        # FIXME: Is this in use or an experiment? Should it be removed from production code?
-
-        # https://api.zaptec.com/help/index.html#/Charger/post_api_chargers__id__update
-        # Not really sure this should be added as ppl might use it wrong
-        cmd = f"chargers/{self.id}/update"
-        default = {
-            # nullable: true
-            # Adjustable between 0 and 32A. If charge current is below the charger minimum charge current (usually 6A), no charge current will be allocated.
-            "maxChargeCurrent": 0,
-            # MaxPhaseinteger($int32) # Enum 1,3
-            "maxChargePhases": "",
-            # The minimum allocated charge current. If there is not enough current available to provide the
-            # chargers minimum current it will not be able to charge.
-            # Usually set to match the vehicle minimum current for charging (defaults to 6A)
-            "minChargeCurrent": None,
-            # Adjustable between 0 and 32A. If offline charge current is below the charger minimum charge current (usually 6A),
-            # no charge current will be allocated when offline.
-            # Offline current override should only be done in special cases where charging stations should not automatically optimize offline current.
-            # In most cases this setting should be set to -1 to allow ZapCloud to optimise offline current. If -1, offline current will be automatically allocated.
-            "offlineChargeCurrent": None,
-            # Phasesinteger($int32) ENUM
-            # 0 = None
-            # 1 = Phase_1
-            # 2 = Phase_2
-            # 4 = Phase_3
-            # 7 = All
-            "offlineChargePhase": None,
-            # nullable
-            # The interval in seconds for a charger to report meter values. Defaults to 900 seconds for Pro and 3600 seconds for Go
-            "meterValueInterval": None,
-        }
-
-        pass
-
-        # return await self._account.request(cmd, data=data, method="post")
 
     def type_operation_mode(self, v):
         modes = {

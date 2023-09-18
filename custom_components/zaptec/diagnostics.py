@@ -28,27 +28,32 @@ class Redactor:
     # Data fields that must be redacted from the output
     REDACT_KEYS = [
         "Address",
-        "City",
-        "Latitude",
-        "Longitude",
-        "ZipCode",
-        "Pin",
-        "SerialNo",
-        "LogoBase64",
-        "Id",
-        "CircuitId",
-        "DeviceId",
-        "InstallationId",
-        "MID",
         "ChargerId",
-        "Name",
+        "ChargerCurrentUserUuid",
+        "CircuitId",
+        "City",
+        "DeviceId",
+        "Id",
+        "ID",
+        "InstallationId",
         "InstallationName",
-        "SignedMeterValue",
-        "MacWiFi",
-        "LteImsi",
+        "Latitude",
+        "LogoBase64",
+        "Longitude",
         "LteIccid",
         "LteImei",
+        "LteImsi",
+        "MacWiFi",
+        "MacMain",
+        "MacPlcModuleGrid",
+        "MID",
+        "Name",
         "NewChargeCard",
+        "PilotTestResults",
+        "Pin",
+        "ProductionTestResults",
+        "SerialNo",
+        "ZipCode",
     ]
 
     # Keys that will be looked up into the observer id dict
@@ -57,21 +62,22 @@ class Redactor:
     # Key names that will be redacted if they the dict has a OBS_KEY entry
     # and it is in the REDACT_KEYS list.
     VALUES = [
-        "ValueAsString",
         "Value",
+        "ValueAsString",
     ]
 
-    def __init__(self, redacted, acc):
-        self.redacted = redacted
-        self.acc = acc
+    def __init__(self, do_redact: bool, obs_ids: dict[str, str]):
+        self.do_redact = do_redact
+        self.obs_ids = obs_ids
         self.redacts = {}
         self.redact_info = {}
 
     def redact(self, text: str, make_new=None, ctx=None):
         """Redact the text if it is present in the redacted dict.
-        A new redaction is created if make_new is True
+        A new redaction is created if make_new is not None. ctx is only
+        for logging output.
         """
-        if not self.redacted:
+        if not self.do_redact:
             return text
         elif text in self.redacts:
             return self.redacts[text]
@@ -89,22 +95,24 @@ class Redactor:
                     text = text.replace(k, v)
         return text
 
-    def redact_obj_inplace(self, obj, ctx=None):
+    def redact_obj_inplace(self, obj, ctx=None, secondpass=False):
         """Iterate over obj and redact the fields. NOTE! This function
         modifies the argument object in-place.
         """
         if isinstance(obj, list):
             for k in obj:
-                self.redact_obj_inplace(k, ctx=ctx)
+                self.redact_obj_inplace(k, ctx=ctx, secondpass=secondpass)
             return obj
         elif not isinstance(obj, dict):
-            return obj
+            return self.redact(obj, ctx=ctx)
         for k, v in obj.items():
             if isinstance(v, (list, dict)):
-                self.redact_obj_inplace(v, ctx=ctx)
+                self.redact_obj_inplace(v, ctx=ctx, secondpass=secondpass)
                 continue
             obj[k] = self.redact(
-                v, make_new=k if k in self.REDACT_KEYS else None, ctx=ctx
+                v,
+                make_new=k if not secondpass and k in self.REDACT_KEYS else None,
+                ctx=ctx,
             )
         return obj
 
@@ -114,9 +122,7 @@ class Redactor:
             for key in self.OBS_KEYS:
                 if key not in obj:
                     continue
-                keyv = self.acc._obs_ids.get(
-                    obj[key]
-                )  # FIXME: Access to private member
+                keyv = self.obs_ids.get(obj[key])
                 if keyv is not None:
                     obj[key] = f"{obj[key]} ({keyv})"
                 if keyv not in self.REDACT_KEYS:
@@ -140,7 +146,7 @@ async def async_get_device_diagnostics(
     api = out.setdefault("api", {})
 
     # Helper to redact the output data
-    red = Redactor(DO_REDACT, acc)
+    red = Redactor(DO_REDACT, acc._obs_ids)  # FIXME: Access to private member
 
     async def req(url):
         try:
@@ -148,17 +154,16 @@ async def async_get_device_diagnostics(
         except Exception as err:
             return {"failed": str(err)}
 
-    def gen(url, obj, ctx=None):
+    def add(url, obj, ctx=None):
         red.redact_obj_inplace(obj, ctx=ctx)
         api[red.redact(url)] = obj
 
     #
     #  API FETCHING
     #
-
     data = await req(url := "installation")
     installation_ids = [inst["Id"] for inst in data.get("Data", [])]
-    gen(url, data, ctx="installation")
+    add(url, data, ctx="installation")
 
     circuit_ids = []
     charger_in_circuits_ids = []
@@ -170,35 +175,34 @@ async def async_get_device_diagnostics(
             for charger in circuit.get("Chargers", []):
                 charger_in_circuits_ids.append(charger["Id"])
 
-        gen(url, data, ctx="hierarchy")
+        add(url, data, ctx="hierarchy")
 
         data = await req(url := f"installation/{inst_id}")
-        gen(url, data, ctx="installation")
+        add(url, data, ctx="installation")
 
     for circ_id in circuit_ids:
         data = await req(url := f"circuits/{circ_id}")
-        gen(url, data, ctx="circuit")
+        add(url, data, ctx="circuit")
 
     data = await req(url := "chargers")
     charger_ids = [charger["Id"] for charger in data.get("Data", [])]
-    gen(url, data, ctx="chargers")
+    add(url, data, ctx="chargers")
 
     for charger_id in set([*charger_ids, *charger_in_circuits_ids]):
         data = await req(url := f"chargers/{charger_id}")
-        gen(url, data, ctx="charger")
+        add(url, data, ctx="charger")
 
         data = await req(url := f"chargers/{charger_id}/state")
         red.redact_statelist(data, ctx="state")
-        gen(url, data, ctx="state")
+        add(url, data, ctx="state")
 
         data = await req(url := f"chargers/{charger_id}/settings")
         red.redact_statelist(data.values(), ctx="settings")
-        gen(url, data, ctx="settings")
+        add(url, data, ctx="settings")
 
     #
     #  MAPPINGS
     #
-
     out.setdefault(
         "maps",
         [
@@ -206,6 +210,9 @@ async def async_get_device_diagnostics(
             for obj in acc.map.values()
         ],
     )
+
+    # 2nd pass to replace any newer redacted text within the output.
+    red.redact_obj_inplace(out, secondpass=True)
 
     #
     #  REDACTED DATA
