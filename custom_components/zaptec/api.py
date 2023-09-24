@@ -38,7 +38,7 @@ signalr is used by the website.
 
 # to Support running this as a script.
 if __name__ == "__main__":
-    from const import API_RETRIES, API_URL, MISSING, TOKEN_URL, TRUTHY
+    from const import API_RETRIES, API_TIMEOUT, API_URL, MISSING, TOKEN_URL, TRUTHY
     from misc import mc_nbfx_decoder, to_under
     from validate import validate
 
@@ -47,13 +47,7 @@ if __name__ == "__main__":
     logging.getLogger("azure").setLevel(logging.WARNING)
 
 else:
-    from .const import (
-        API_RETRIES,
-        API_URL,
-        MISSING,
-        TOKEN_URL,
-        TRUTHY,
-    )
+    from .const import API_RETRIES, API_TIMEOUT, API_URL, MISSING, TOKEN_URL, TRUTHY
     from .misc import mc_nbfx_decoder, to_under
     from .validate import validate
 
@@ -780,7 +774,7 @@ class Account:
         }
         full_url = API_URL + url
         try:
-            async with async_timeout.timeout(30):
+            async with async_timeout.timeout(API_TIMEOUT):
                 if DEBUG_API_CALLS:
                     log_request()
 

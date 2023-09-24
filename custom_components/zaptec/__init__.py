@@ -28,6 +28,7 @@ from homeassistant.helpers.update_coordinator import (
 
 from .api import Account, ZaptecApiError, ZaptecBase
 from .const import (
+    API_TIMEOUT,
     DEFAULT_SCAN_INTERVAL,
     DOMAIN,
     MANUFACTURER,
@@ -146,7 +147,9 @@ class ZaptecUpdateCoordinator(DataUpdateCoordinator[None]):
         """Fetch data from Zaptec."""
 
         try:
-            async with async_timeout.timeout(10):
+            # This timeout is only a safeguard against the API methods locking
+            # up. The API methods themselves have their own timeouts.
+            async with async_timeout.timeout(10 * API_TIMEOUT):
                 if not self.account.is_built:
                     # Build the Zaptec hierarchy
                     await self.account.build()

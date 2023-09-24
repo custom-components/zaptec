@@ -227,10 +227,11 @@ if __name__ == "__main__":
     # Just to execute the script manually. Must be run using
     # python -m custom_components.zaptec.diagnostics
     import asyncio
-    import aiohttp
     import os
-    from pprint import pprint
     from dataclasses import dataclass
+    from pprint import pprint
+
+    import aiohttp
 
     async def gogo():
         username = os.environ.get("zaptec_username")

@@ -9,6 +9,7 @@ from homeassistant.components.sensor import (
     SensorDeviceClass,
     SensorEntity,
     SensorEntityDescription,
+    SensorStateClass,
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
@@ -165,6 +166,7 @@ CHARGER_ENTITIES: list[EntityDescription] = [
         device_class=SensorDeviceClass.ENERGY,
         icon="mdi:counter",
         native_unit_of_measurement=const.UnitOfEnergy.KILO_WATT_HOUR,
+        state_class=SensorStateClass.TOTAL,
     ),
     ZapSensorEntityDescription(
         key="completed_session.Energy",
