@@ -11,7 +11,7 @@ from functools import partial
 from typing import Any, Callable
 
 import aiohttp
-import async_timeout
+import pydantic
 
 # pylint: disable=missing-function-docstring
 
@@ -56,7 +56,7 @@ class ZaptecApiError(Exception):
     """Base exception for all Zaptec API errors"""
 
 
-class AuthorizationError(ZaptecApiError):
+class AuthenticationError(ZaptecApiError):
     """Authenatication failed"""
 
 
@@ -68,12 +68,20 @@ class RequestError(ZaptecApiError):
         self.error_code = error_code
 
 
+class RequestConnectionError(ZaptecApiError):
+    """Failed to make the request to the API"""
+
+
 class RequestTimeoutError(ZaptecApiError):
     """Failed to get the results from the API"""
 
 
 class RequestRetryError(ZaptecApiError):
     """Retries too many times"""
+
+
+class RequestDataError(ZaptecApiError):
+    """Data is not valid"""
 
 
 #
@@ -195,9 +203,6 @@ class Installation(ZaptecBase):
     async def build(self):
         """Build the installation object hierarchy."""
 
-        # Get state to ensure we have the full and updated data
-        await self.state()
-
         # Get the hierarchy of circurits and chargers
         try:
             hierarchy = await self._account._request(
@@ -216,7 +221,7 @@ class Installation(ZaptecBase):
         circuits = []
         for item in hierarchy["Circuits"]:
             _LOGGER.debug("    Circuit %s", item["Id"])
-            circ = Circuit(item, self._account)
+            circ = Circuit(item, self._account, installation=self)
             self._account.register(item["Id"], circ)
             await circ.build()
             circuits.append(circ)
@@ -438,20 +443,20 @@ class Circuit(ZaptecBase):
         "is_authorisation_required": bool,
     }
 
-    def __init__(self, data, account):
+    def __init__(
+        self, data: TDict, account: Account, installation: Installation | None = None
+    ):
         super().__init__(data, account)
         self.chargers = []
+        self.installation = installation
 
     async def build(self):
         """Build the python interface."""
 
-        # Get state to ensure we have the full and updated data
-        await self.state()
-
         chargers = []
         for item in self._attrs["chargers"]:
             _LOGGER.debug("      Charger %s", item["Id"])
-            chg = Charger(item, self._account)
+            chg = Charger(item, self._account, circuit=self)
             self._account.register(item["Id"], chg)
             await chg.build()
             chargers.append(chg)
@@ -498,8 +503,12 @@ class Charger(ZaptecBase):
         "voltage_phase3": float,
     }
 
-    def __init__(self, data: TDict, account: "Account") -> None:
+    def __init__(
+        self, data: TDict, account: "Account", circuit: Circuit | None = None
+    ) -> None:
         super().__init__(data, account)
+
+        self.circuit = circuit
 
         # Append the attr types that depends on self
         attr_types = self.ATTR_TYPES.copy()
@@ -675,14 +684,16 @@ class Charger(ZaptecBase):
 class Account:
     """This class represent an zaptec account"""
 
-    def __init__(self, username: str, password: str, client=None) -> None:
+    def __init__(
+        self, username: str, password: str, client: aiohttp.ClientSession | None = None
+    ) -> None:
         _LOGGER.debug("Account init")
         self._username = username
         self._password = password
-        self._client = client
+        self._client = client or aiohttp.ClientSession()
         self._token_info = {}
         self._access_token = None
-        self.installs: list[Installation] = []
+        self.installations: list[Installation] = []
         self.stand_alone_chargers: list[Charger] = []
         self.map: dict[str, ZaptecBase] = {}
         self._const = {}
@@ -690,13 +701,15 @@ class Account:
         self._set_ids = {}
         self._cmd_ids = {}
         self.is_built = False
-
-        if client is None:
-            self._client = aiohttp.ClientSession()
+        self._timeout = aiohttp.ClientTimeout(total=API_TIMEOUT)
 
     def register(self, id: str, data: ZaptecBase):
         """Register an object data with id"""
         self.map[id] = data
+
+    def unregister(self, id: str):
+        """Unregister an object data with id"""
+        del self.map[id]
 
     # =======================================================================
     #   API METHODS
@@ -709,17 +722,23 @@ class Account:
             "grant_type": "password",
         }
         try:
-            async with aiohttp.request("POST", TOKEN_URL, data=p) as resp:
+            timeout = aiohttp.ClientTimeout(total=API_TIMEOUT)
+            async with aiohttp.request(
+                "POST", TOKEN_URL, data=p, timeout=timeout
+            ) as resp:
                 if resp.status == 200:
                     data = await resp.json()
                     return True
                 else:
-                    raise AuthorizationError(
+                    raise AuthenticationError(
                         f"Failed to authenticate. Got status {resp.status}"
                     )
-        except aiohttp.ClientConnectorError as err:
-            _LOGGER.exception("Bad things happend while trying to authenticate :(")
-            raise
+        except asyncio.TimeoutError as err:
+            _LOGGER.error("Authentication timeout")
+            raise RequestTimeoutError("Authenticaton timed out") from err
+        except aiohttp.ClientConnectionError as err:
+            _LOGGER.error("Authentication request failed: %s", err)
+            raise RequestConnectionError("Authentication request failed") from err
 
     async def _refresh_token(self):
         # So for some reason they used grant_type password..
@@ -729,7 +748,7 @@ class Account:
             "password": self._password,
             "grant_type": "password",
         }
-        async with aiohttp.request("POST", TOKEN_URL, data=p) as resp:
+        async with self._client.post(TOKEN_URL, data=p, timeout=self._timeout) as resp:
             if resp.status == 200:
                 data = await resp.json()
                 # The data includes the time the access token expires
@@ -737,12 +756,14 @@ class Account:
                 self._token_info.update(data)
                 self._access_token = data.get("access_token")
             else:
-                raise AuthorizationError(
+                _LOGGER.error("Failed to authenticate. Got code %s", resp.status)
+                raise AuthenticationError(
                     "Failed to refresh token, check your credentials."
                 )
 
     async def _request(self, url: str, method="get", data=None, iteration=1):
         def log_request():
+            """Log the request"""
             try:
                 _LOGGER.debug(
                     f"@@@  REQUEST {method.upper()} to '{full_url}' length {len(data or '')}"
@@ -753,6 +774,7 @@ class Account:
                 _LOGGER.exception("Failed to log response")
 
         async def log_response(resp: aiohttp.ClientResponse):
+            """Log the response"""
             try:
                 contents = await resp.read()
                 _LOGGER.debug(f"@@@  RESPONSE {resp.status} length {len(contents)}")
@@ -768,60 +790,89 @@ class Account:
             except Exception as err:
                 _LOGGER.exception("Failed to log response")
 
+        async def log_error(resp: aiohttp.ClientResponse, msg, *args):
+            """Log the error"""
+            if not DEBUG_API_ERRORS:
+                return
+            _LOGGER.error(msg, *args)
+            if not DEBUG_API_CALLS:
+                log_request()
+                await log_response(resp)
+
         header = {
             "Authorization": f"Bearer {self._access_token}",
             "Accept": "application/json",
         }
         full_url = API_URL + url
+
+        if DEBUG_API_CALLS:
+            log_request()
+
+        request_fn = getattr(self._client, method)
+        if request_fn is None:
+            raise ValueError(f"Unknown method {method}")
+        if data is not None and method in ("post", "put"):
+            request_fn = partial(request_fn, json=data)
+
         try:
-            async with async_timeout.timeout(API_TIMEOUT):
+            resp: aiohttp.ClientResponse
+            async with request_fn(
+                full_url, headers=header, timeout=self._timeout
+            ) as resp:
                 if DEBUG_API_CALLS:
-                    log_request()
+                    await log_response(resp)
 
-                call = getattr(self._client, method)
-                if data is not None and method in ("post", "put"):
-                    call = partial(call, json=data)
-
-                resp: aiohttp.ClientResponse
-                async with call(full_url, headers=header) as resp:
-                    if DEBUG_API_CALLS:
-                        await log_response(resp)
-
-                    if resp.status == 401:  # Unauthorized
-                        await self._refresh_token()
-                        if iteration > API_RETRIES:
-                            raise RequestRetryError(
-                                f"Request to {full_url} failed after {iteration} retries"
-                            )
-                        return await self._request(url, iteration=iteration + 1)
-
-                    elif resp.status == 204:  # No content
-                        content = await resp.read()
-                        return content
-
-                    elif resp.status == 200:  # OK
-                        # FIXME: This will raise json error if the json is invalid. How to handle this?
-                        json_result = await resp.json(content_type=None)
-
-                        # Validate the incoming json data
-                        # FIXME: This raise pydantic.ValidationError if the json is unexpected. How to handle this?
-                        validate(json_result, url=url)
-
-                        return json_result
-
-                    else:
-                        if DEBUG_API_ERRORS and not DEBUG_API_CALLS:
-                            _LOGGER.debug("Failing request:")
-                            log_request()
-                            await log_response(resp)
-
-                        raise RequestError(
-                            f"{method} request to {full_url} failed with status {resp.status}: {resp}",
-                            resp.status,
+                if resp.status == 401:  # Unauthorized
+                    await self._refresh_token()
+                    if iteration > API_RETRIES:
+                        await log_error(resp, "Failed reauthentication too many times")
+                        raise RequestRetryError(
+                            f"Request to {full_url} failed after {iteration} retries"
                         )
+                    return await self._request(url, iteration=iteration + 1)
 
-        except (asyncio.TimeoutError, aiohttp.ClientError) as err:
-            raise RequestTimeoutError(f"Request to {full_url} failed: {err}") from err
+                elif resp.status == 204:  # No content
+                    content = await resp.read()
+                    return content
+
+                elif resp.status == 200:  # OK
+                    # Read the JSON payload
+                    try:
+                        json_result = await resp.json(content_type=None)
+                    except json.JSONDecodeError as err:
+                        await log_error(resp, "Failed to decode json: %s", err)
+                        raise RequestDataError(
+                            f"Failed to decode json: {err}", resp.status
+                        ) from err
+
+                    # Validate the incoming json data
+                    try:
+                        validate(json_result, url=url)
+                    except pydantic.ValidationError as err:
+                        await log_error(resp, "Failed to validate data: %s", err)
+                        raise RequestDataError(
+                            f"Failed to validate data: {err}", resp.status
+                        ) from err
+
+                    return json_result
+
+                else:
+                    await log_error(resp, "Failing request to %s", full_url)
+                    raise RequestError(
+                        f"{method} request to {full_url} failed with status {resp.status}: {resp}",
+                        resp.status,
+                    )
+
+        except asyncio.TimeoutError as err:
+            if DEBUG_API_ERRORS:
+                _LOGGER.error(f"Request to %s timed out", full_url)
+            raise RequestTimeoutError(f"Request to {full_url} timed out") from err
+        except aiohttp.ClientConnectionError as err:
+            if DEBUG_API_ERRORS:
+                _LOGGER.error("Request to %s failed: %s", full_url, err)
+            raise RequestConnectionError(
+                f"Request to {full_url} failed: {err}"
+            ) from err
 
     #   API METHODS DONE
     # =======================================================================
@@ -841,7 +892,7 @@ class Account:
             await inst.build()
             installs.append(inst)
 
-        self.installs = installs
+        self.installations = installs
 
         # Get list of chargers
         # Will also report chargers listed in installation hierarchy above
@@ -885,12 +936,13 @@ class Account:
                 {to_under(k): v for k, v in self._cmd_ids.items() if isinstance(k, str)}
             )
 
-        # Update the state on all chargers
-        for data in self.map.values():
-            if isinstance(data, Charger):
-                await data.state()
-
         self.is_built = True
+
+    async def update_states(self, id: str | None = None):
+        """Update the state for the given id. If id is None, all"""
+        for data in self.map.values():
+            if id is None or data.id == id:
+                await data.state()
 
     def update(self, data: TDict):
         """update for the stream. Note build has to called first."""
@@ -905,6 +957,10 @@ class Account:
                 _LOGGER.warning("Got update for unknown charger id %s", cls_id)
         else:
             _LOGGER.warning("Unknown update message %s", data)
+
+    def get_chargers(self):
+        """Return a list of all chargers"""
+        return [v for v in self.map.values() if isinstance(v, Charger)]
 
     @staticmethod
     def _get_remap(const, wanted, device_types=None) -> dict:
@@ -969,7 +1025,6 @@ if __name__ == "__main__":
         acc = Account(
             username,
             password,
-            client=aiohttp.ClientSession(connector=aiohttp.TCPConnector(ssl=False)),
         )
 
         try:
@@ -992,7 +1047,7 @@ if __name__ == "__main__":
             #         outfile.write(json.dumps(data, indent=2) + '\n')
             #         outfile.flush()
 
-            #     for ins in acc.installs:
+            #     for ins in acc.installations:
             #         await ins._stream(cb=cb)
 
         finally:

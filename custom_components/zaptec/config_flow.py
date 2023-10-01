@@ -2,13 +2,30 @@
 from __future__ import annotations
 
 import logging
+from typing import Any
 
-import aiohttp
+import homeassistant.helpers.config_validation as cv
 import voluptuous as vol
 from homeassistant import config_entries
+from homeassistant.config_entries import data_entry_flow
+from homeassistant.const import (
+    CONF_NAME,
+    CONF_PASSWORD,
+    CONF_SCAN_INTERVAL,
+    CONF_USERNAME,
+)
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
-from .api import Account, AuthorizationError
-from .const import DOMAIN
+from .api import (
+    Account,
+    AuthenticationError,
+    Charger,
+    RequestConnectionError,
+    RequestDataError,
+    RequestRetryError,
+    RequestTimeoutError,
+)
+from .const import CONF_CHARGERS, CONF_MANUAL_SELECT, DEFAULT_SCAN_INTERVAL, DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -17,58 +34,124 @@ class ZaptecFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
     """Config flow for Blueprint."""
 
     VERSION = 1
-    CONNECTION_CLASS = config_entries.CONN_CLASS_CLOUD_POLL
 
     def __init__(self):
         """Initialize."""
-        self._errors = {}
+        self._account: Account | None = None
+        self._input: dict[str, Any] = {}
 
     async def async_step_user(
-        self, user_input=None
-    ):  # pylint: disable=dangerous-default-value
-        """Handle a flow initialized by the user."""
-        errors = {}
+        self, user_input: dict[str, Any] | None = None
+    ) -> data_entry_flow.FlowResult:
+        """Handle a flow initiated by the user."""
+        errors: dict[str, str] = {}
 
-        entries = self.hass.config_entries.async_entries(DOMAIN)
-        if entries:
-            return self.async_abort(reason="already_setup")
-
-        data_schema = {
-            vol.Required("username", default=""): str,
-            vol.Required("password", default=""): str,
-            vol.Optional("scan_interval", default=30): vol.Coerce(int),
-        }
-
-        placeholders = {
-            "username": "firstname.lastname@gmail.com",
-            "password": "your password",
-            "scan_interval": 30,
-        }
+        if self._async_current_entries():
+            return self.async_abort(reason="already_exists")
 
         if user_input is not None:
             valid_login = False
             try:
                 valid_login = await Account.check_login(
-                    user_input["username"], user_input["password"]
+                    username=user_input[CONF_USERNAME],
+                    password=user_input[CONF_PASSWORD],
                 )
-            except aiohttp.ClientConnectorError:
-                errors["base"] = "connection_failure"
-            except AuthorizationError:
-                errors["base"] = "auth_failure"
+            except (RequestConnectionError, RequestTimeoutError):
+                errors["base"] = "cannot_connect"
+            except AuthenticationError:
+                errors["base"] = "invalid_auth"
+            except Exception:
+                _LOGGER.exception("Unexpected exception")
+                errors["base"] = "unknown"
 
             if valid_login:
-                unique_id = user_input["username"].lower()
+                unique_id = user_input[CONF_USERNAME].lower()
                 await self.async_set_unique_id(unique_id)
                 self._abort_if_unique_id_configured()
+
+                if user_input.get(CONF_MANUAL_SELECT, False):
+                    self._input = user_input
+                    return await self.async_step_chargers()
 
                 return self.async_create_entry(
                     title=DOMAIN.capitalize(), data=user_input
                 )
 
+        data = {
+            vol.Required(CONF_USERNAME): str,
+            vol.Required(CONF_PASSWORD): str,
+            vol.Optional(CONF_NAME): str,
+            vol.Optional(CONF_SCAN_INTERVAL, default=DEFAULT_SCAN_INTERVAL): vol.Coerce(
+                int
+            ),
+            vol.Optional(CONF_MANUAL_SELECT): bool,
+        }
+
         return self.async_show_form(
             step_id="user",
-            data_schema=vol.Schema(data_schema),
-            description_placeholders=placeholders,
+            data_schema=vol.Schema(data),
+            errors=errors,
+        )
+
+    async def async_step_chargers(
+        self, user_input: dict[str, Any] | None = None
+    ) -> data_entry_flow.FlowResult:
+        """Handle login steps"""
+        errors: dict[str, str] = {}
+
+        if user_input is not None:
+            if user_input.get(CONF_CHARGERS):
+                self._input.update(user_input)
+
+                return self.async_create_entry(
+                    title=DOMAIN.capitalize(), data=self._input
+                )
+
+            errors["base"] = "no_chargers_selected"
+
+        try:
+            if not self._account:
+                self._account = Account(
+                    username=self._input[CONF_USERNAME],
+                    password=self._input[CONF_PASSWORD],
+                    client=async_get_clientsession(self.hass),
+                )
+
+            # Build the hierarchy, but don't fetch any detailed data yet
+            if not self._account.is_built:
+                await self._account.build()
+
+            # Get all chargers
+            chargers = self._account.get_chargers()
+        except (RequestConnectionError, RequestTimeoutError, RequestDataError):
+            errors["base"] = "cannot_connect"
+            chargers = []
+        except (AuthenticationError, RequestRetryError):
+            errors["base"] = "invalid_auth"
+            chargers = []
+        except Exception:
+            _LOGGER.exception("Unexpected exception")
+            errors["base"] = "unknown"
+            chargers = []
+
+        def charger_text(charger: Charger):
+            text = f"{charger.name} ({getattr(charger, 'device_id', '-')})"
+            circuit = charger.circuit
+            if circuit:
+                text += f" in {circuit.name} circuit"
+                if circuit.installation:
+                    text += f" of {circuit.installation.name} installation"
+            return text
+
+        data = {
+            vol.Required(CONF_CHARGERS): cv.multi_select(
+                {charger.id: charger_text(charger) for charger in chargers},
+            ),
+        }
+
+        return self.async_show_form(
+            step_id="chargers",
+            data_schema=vol.Schema(data),
             errors=errors,
         )
 
@@ -77,4 +160,4 @@ class ZaptecFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         Special type of import, we're not actually going to store any data.
         Instead, we're going to rely on the values that are in config file.
         """
-        return self.async_create_entry(title="configuration.yaml", data={})
+        return await self.async_step_user(user_input)

@@ -9,6 +9,7 @@ from typing import Any
 import async_timeout
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
+    CONF_NAME,
     CONF_PASSWORD,
     CONF_SCAN_INTERVAL,
     CONF_USERNAME,
@@ -29,6 +30,8 @@ from homeassistant.helpers.update_coordinator import (
 from .api import Account, ZaptecApiError, ZaptecBase
 from .const import (
     API_TIMEOUT,
+    CONF_CHARGERS,
+    CONF_MANUAL_SELECT,
     DEFAULT_SCAN_INTERVAL,
     DOMAIN,
     MANUFACTURER,
@@ -111,6 +114,8 @@ class ZaptecUpdateCoordinator(DataUpdateCoordinator[None]):
 
         _LOGGER.debug("Setting up coordinator")
 
+        self._config = entry.data
+
         self.account = Account(
             entry.data[CONF_USERNAME],
             entry.data[CONF_PASSWORD],
@@ -134,7 +139,7 @@ class ZaptecUpdateCoordinator(DataUpdateCoordinator[None]):
         )
 
     async def cancel_streams(self):
-        await asyncio.gather(*(i.cancel_stream() for i in self.account.installs))
+        await asyncio.gather(*(i.cancel_stream() for i in self.account.installations))
 
     @callback
     async def _stream_update(self, event):
@@ -154,16 +159,55 @@ class ZaptecUpdateCoordinator(DataUpdateCoordinator[None]):
                     # Build the Zaptec hierarchy
                     await self.account.build()
 
+                    # Get the list if chargers to include
+                    chargers = None
+                    if self._config.get(CONF_MANUAL_SELECT, False):
+                        chargers = self._config.get(CONF_CHARGERS)
+
+                    # Selected chargers to add
+                    if chargers is not None:
+                        _LOGGER.debug("Configured chargers: %s", chargers)
+                        want = set(chargers)
+                        all_objects = set(self.account.map.keys())
+
+                        # Log if there are any objects listed not found in Zaptec
+                        not_present = want - all_objects
+                        if not_present:
+                            _LOGGER.error("Charger objects %s not found", not_present)
+
+                        # Calculate the objects to keep. From the list of chargers
+                        # we want to keep, we also want to keep the circuit and
+                        # installation objects.
+                        keep = set()
+                        for charger in self.account.get_chargers():
+                            if charger.id in want:
+                                keep.add(charger.id)
+                                if charger.circuit:
+                                    keep.add(charger.circuit.id)
+                                    if charger.circuit.installation:
+                                        keep.add(charger.circuit.installation.id)
+
+                        if not keep:
+                            _LOGGER.error("No zaptec objects will be added")
+
+                        # Unregister all discovered objects not in the keep list
+                        for objid in all_objects:
+                            if objid not in keep:
+                                _LOGGER.debug("Unregistering: %s", objid)
+                                self.account.unregister(objid)
+
                     # Setup the stream subscription
-                    for install in self.account.installs:
-                        await install.stream(cb=self._stream_update)
-                    return
+                    for install in self.account.installations:
+                        if install.id in self.account.map:
+                            await install.stream(cb=self._stream_update)
 
                 # Fetch updates
-                for k, v in self.account.map.items():
-                    await v.state()
+                await self.account.update_states()
+
         except ZaptecApiError as err:
-            _LOGGER.exception(f"{err}")
+            _LOGGER.exception(
+                "Fetching data failed: %s: %s", type(err).__qualname__, err
+            )
             raise UpdateFailed(err) from err
 
 
@@ -267,8 +311,9 @@ class ZaptecBaseEntity(CoordinatorEntity[ZaptecUpdateCoordinator]):
     @classmethod
     def create_from(
         cls,
-        sensors: list[EntityDescription],
+        descriptions: list[EntityDescription],
         coordinator: ZaptecUpdateCoordinator,
+        entry: ConfigEntry,
         zaptec_obj: ZaptecBase,
         device_info: DeviceInfo,
     ) -> list[ZaptecBaseEntity]:
@@ -276,16 +321,21 @@ class ZaptecBaseEntity(CoordinatorEntity[ZaptecUpdateCoordinator]):
         EntityDescription objects.
         """
 
+        # Calculate the prefix to use for the entity name
+        prefix = entry.data.get(CONF_NAME, "").rstrip()
+        if prefix:
+            prefix = prefix + " "
+
         # Start with the common device info and append the provided device info
         dev_info = DeviceInfo(
             manufacturer=MANUFACTURER,
             identifiers={(DOMAIN, zaptec_obj.id)},
-            name=zaptec_obj.name,
+            name=prefix + zaptec_obj.name,
         )
         dev_info.update(device_info)
 
         entities = []
-        for description in sensors:
+        for description in descriptions:
             # Use provided class if it exists, otherwise use the class this
             # function was called from
             klass = getattr(description, "cls", cls) or cls
@@ -298,6 +348,7 @@ class ZaptecBaseEntity(CoordinatorEntity[ZaptecUpdateCoordinator]):
         cls,
         account: Account,
         coordinator: ZaptecUpdateCoordinator,
+        entry: ConfigEntry,
         installation_entities: list[EntityDescription],
         circuit_entities: list[EntityDescription],
         charger_entities: list[EntityDescription],
@@ -308,55 +359,63 @@ class ZaptecBaseEntity(CoordinatorEntity[ZaptecUpdateCoordinator]):
         """
         entities = []
 
-        for zap_install in account.installs:
-            entities.extend(
-                cls.create_from(
-                    installation_entities,
-                    coordinator,
-                    zap_install,
-                    DeviceInfo(
-                        model=f"{zap_install.name} Installation",
-                    ),
-                )
-            )
-
-            for zap_circuit in zap_install.circuits:
+        for zap_install in account.installations:
+            if zap_install.id in account.map:
                 entities.extend(
                     cls.create_from(
-                        circuit_entities,
+                        installation_entities,
                         coordinator,
-                        zap_circuit,
+                        entry,
+                        zap_install,
                         DeviceInfo(
-                            model=f"{zap_circuit.name} Circuit",
-                            via_device=(DOMAIN, zap_install.id),
+                            model=f"{zap_install.name} Installation",
                         ),
                     )
                 )
 
-                for zap_charger in zap_circuit.chargers:
+            for zap_circuit in zap_install.circuits:
+                if zap_circuit.id in account.map:
                     entities.extend(
                         cls.create_from(
-                            charger_entities,
+                            circuit_entities,
                             coordinator,
-                            zap_charger,
+                            entry,
+                            zap_circuit,
                             DeviceInfo(
-                                model=f"{zap_charger.name} Charger",
-                                via_device=(DOMAIN, zap_circuit.id),
+                                model=f"{zap_circuit.name} Circuit",
+                                via_device=(DOMAIN, zap_install.id),
                             ),
                         )
                     )
 
+                for zap_charger in zap_circuit.chargers:
+                    if zap_charger.id in account.map:
+                        entities.extend(
+                            cls.create_from(
+                                charger_entities,
+                                coordinator,
+                                entry,
+                                zap_charger,
+                                DeviceInfo(
+                                    model=f"{zap_charger.name} Charger",
+                                    via_device=(DOMAIN, zap_circuit.id),
+                                ),
+                            )
+                        )
+
         for zap_charger in account.stand_alone_chargers:
-            entities.extend(
-                cls.create_from(
-                    charger_entities,
-                    coordinator,
-                    zap_charger,
-                    DeviceInfo(
-                        model=f"{zap_charger.name} Charger",
-                    ),
+            if zap_charger.id in account.map:
+                entities.extend(
+                    cls.create_from(
+                        charger_entities,
+                        coordinator,
+                        entry,
+                        zap_charger,
+                        DeviceInfo(
+                            model=f"{zap_charger.name} Charger",
+                        ),
+                    )
                 )
-            )
 
         return entities
 

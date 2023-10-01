@@ -1,23 +1,33 @@
 {
-    "config":{
-        "error":{
-            "auth_failure":"Unable to connect to Zaptec. Check your username and password.",
-            "connection_failure":"Unable to connect to Zaptec. Test again later.",
-            "refused_failure":"Connection refused to Zaptec. Test again later."
-        },
-        "step":{
-            "user":{
-                "title":"Zaptec",
-                "description":"If you need help with this integration: https://github.com/custom-components/zaptec",
-                "data":{
-                    "username":"Username",
-                    "password":"Password",
-                    "scan_interval":"Scan interval"
+    "config": {
+        "step": {
+            "user": {
+                "title": "Zaptec setup",
+                "description": "Add your Zaptec Portal login details.\n\nThe optional prefix will add the prefix to all devices. Note that it is generally better to rename the device names in HA than adding a prefix.",
+                "data": {
+                    "username": "Username",
+                    "password": "Password",
+                    "name": "Optional prefix",
+                    "scan_interval": "Scan interval",
+                    "manual_select": "Manually select chargers. Next screen will select the chargers to add."
+                }
+            },
+            "chargers": {
+                "title": "Zaptec charger selection",
+                "description": "Select the chargers you want to add to Home Assistant.",
+                "data": {
+                    "chargers": "Chargers"
                 }
             }
         },
+        "error": {
+            "cannot_connect": "[%key:common::config_flow::error::cannot_connect%]",
+            "invalid_auth": "[%key:common::config_flow::error::invalid_auth%]",
+            "unknown": "[%key:common::config_flow::error::unknown%]",
+            "no_chargers_selected": "No chargers selected. Please select at least one charger."
+        },
         "abort":{
-            "single_instance_allowed":"Only a single instance is allowed."
+            "already_exists": "One instance of Zaptec already exists."
         }
     },
     "entity": {
@@ -45,7 +55,7 @@
             "charger_max_current": { "name": "Charger max current" }
         },
         "binary_sensor": {
-            "is_authorization_required": { 
+            "is_authorization_required": {
                 "name": "Authorization required",
                 "state": {
                     "off": "Not required",

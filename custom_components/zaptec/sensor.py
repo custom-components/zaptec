@@ -189,6 +189,7 @@ async def async_setup_entry(
     entities = ZaptecSensor.create_from_zaptec(
         acc,
         coordinator,
+        entry,
         INSTALLATION_ENTITIES,
         CIRCUIT_ENTITIES,
         CHARGER_ENTITIES,

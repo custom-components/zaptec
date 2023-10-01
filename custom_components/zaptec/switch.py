@@ -155,6 +155,7 @@ async def async_setup_entry(
     switches = ZaptecSwitch.create_from_zaptec(
         acc,
         coordinator,
+        entry,
         INSTALLATION_SWITCH_TYPES,
         CIRCUIT_SWITCH_TYPES,
         CHARGER_SWITCH_TYPES,
