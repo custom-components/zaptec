@@ -7,7 +7,7 @@
                 "data": {
                     "username": "Username",
                     "password": "Password",
-                    "name": "Optional prefix",
+                    "prefix": "Optional prefix",
                     "scan_interval": "Scan interval",
                     "manual_select": "Manually select chargers. Next screen will select the chargers to add."
                 }

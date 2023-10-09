@@ -9,7 +9,6 @@ import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.config_entries import data_entry_flow
 from homeassistant.const import (
-    CONF_NAME,
     CONF_PASSWORD,
     CONF_SCAN_INTERVAL,
     CONF_USERNAME,
@@ -25,7 +24,7 @@ from .api import (
     RequestRetryError,
     RequestTimeoutError,
 )
-from .const import CONF_CHARGERS, CONF_MANUAL_SELECT, DEFAULT_SCAN_INTERVAL, DOMAIN
+from .const import CONF_CHARGERS, CONF_MANUAL_SELECT, CONF_PREFIX, DEFAULT_SCAN_INTERVAL, DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -80,7 +79,7 @@ class ZaptecFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         data = {
             vol.Required(CONF_USERNAME): str,
             vol.Required(CONF_PASSWORD): str,
-            vol.Optional(CONF_NAME): str,
+            vol.Optional(CONF_PREFIX): str,
             vol.Optional(CONF_SCAN_INTERVAL, default=DEFAULT_SCAN_INTERVAL): vol.Coerce(
                 int
             ),

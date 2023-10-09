@@ -9,7 +9,6 @@ from typing import Any
 import async_timeout
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
-    CONF_NAME,
     CONF_PASSWORD,
     CONF_SCAN_INTERVAL,
     CONF_USERNAME,
@@ -32,6 +31,7 @@ from .const import (
     API_TIMEOUT,
     CONF_CHARGERS,
     CONF_MANUAL_SELECT,
+    CONF_PREFIX,
     DEFAULT_SCAN_INTERVAL,
     DOMAIN,
     MANUFACTURER,
@@ -324,7 +324,7 @@ class ZaptecBaseEntity(CoordinatorEntity[ZaptecUpdateCoordinator]):
         """
 
         # Calculate the prefix to use for the entity name
-        prefix = coordinator.config_entry.data.get(CONF_NAME, "").rstrip()
+        prefix = coordinator.config_entry.data.get(CONF_PREFIX, "").rstrip()
         if prefix:
             prefix = prefix + " "
 

@@ -40,6 +40,7 @@ REQUEST_REFRESH_DELAY = 0.3
 
 CONF_MANUAL_SELECT = "manual_select"
 CONF_CHARGERS = "chargers"
+CONF_PREFIX = "prefix"
 
 
 class Missing:
