@@ -150,14 +150,11 @@ async def async_setup_entry(
     _LOGGER.debug("Setup switches")
 
     coordinator: ZaptecUpdateCoordinator = hass.data[DOMAIN][entry.entry_id]
-    acc = coordinator.account
 
-    switches = ZaptecSwitch.create_from_zaptec(
-        acc,
+    entities = ZaptecSwitch.create_from_zaptec(
         coordinator,
-        entry,
         INSTALLATION_SWITCH_TYPES,
         CIRCUIT_SWITCH_TYPES,
         CHARGER_SWITCH_TYPES,
     )
-    async_add_entities(switches, True)
+    async_add_entities(entities, True)

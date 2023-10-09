@@ -184,12 +184,9 @@ async def async_setup_entry(
     _LOGGER.debug("Setup sensors")
 
     coordinator: ZaptecUpdateCoordinator = hass.data[DOMAIN][entry.entry_id]
-    acc: Account = coordinator.account
 
     entities = ZaptecSensor.create_from_zaptec(
-        acc,
         coordinator,
-        entry,
         INSTALLATION_ENTITIES,
         CIRCUIT_ENTITIES,
         CHARGER_ENTITIES,

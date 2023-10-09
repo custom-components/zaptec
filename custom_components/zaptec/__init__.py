@@ -27,7 +27,7 @@ from homeassistant.helpers.update_coordinator import (
     UpdateFailed,
 )
 
-from .api import Account, ZaptecApiError, ZaptecBase
+from .api import Account, Charger, Circuit, Installation, ZaptecApiError, ZaptecBase
 from .const import (
     API_TIMEOUT,
     CONF_CHARGERS,
@@ -55,9 +55,6 @@ PLATFORMS = [
     Platform.UPDATE,
 ]
 
-# FIXME: Informing users that the interface is considerable different
-# FIXME: Setting that allows users to continue with old naming scheme?
-
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Set up integration."""
@@ -83,6 +80,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     # Setup all platforms
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    entry.async_on_unload(entry.add_update_listener(async_reload_entry))
     return True
 
 
@@ -102,19 +100,18 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 async def async_reload_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
     """Reload config entry."""
-    await async_unload_entry(hass, entry)
-    await async_setup_entry(hass, entry)
+    _LOGGER.debug("Reloading entry %s", entry.entry_id)
+    await hass.config_entries.async_reload(entry.entry_id)
 
 
 class ZaptecUpdateCoordinator(DataUpdateCoordinator[None]):
     account: Account
+    config_entry: ConfigEntry
 
     def __init__(self, hass: HomeAssistant, *, entry: ConfigEntry) -> None:
         """Initialize account-wide Zaptec data updater."""
 
         _LOGGER.debug("Setting up coordinator")
-
-        self._config = entry.data
 
         self.account = Account(
             entry.data[CONF_USERNAME],
@@ -122,7 +119,6 @@ class ZaptecUpdateCoordinator(DataUpdateCoordinator[None]):
             client=async_get_clientsession(hass),
         )
 
-        self._entry = entry
         scan_interval = entry.data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
 
         super().__init__(
@@ -161,8 +157,8 @@ class ZaptecUpdateCoordinator(DataUpdateCoordinator[None]):
 
                     # Get the list if chargers to include
                     chargers = None
-                    if self._config.get(CONF_MANUAL_SELECT, False):
-                        chargers = self._config.get(CONF_CHARGERS)
+                    if self.config_entry.data.get(CONF_MANUAL_SELECT, False):
+                        chargers = self.config_entry.data.get(CONF_CHARGERS)
 
                     # Selected chargers to add
                     if chargers is not None:
@@ -290,30 +286,36 @@ class ZaptecBaseEntity(CoordinatorEntity[ZaptecUpdateCoordinator]):
             self._prev_value = value
             # Only logs when the value changes
             _LOGGER.debug(
-                "    %s.%s  =  <%s> %s   (in %s)",
+                "    %s.%s  =  <%s> %s   (in %s %s)",
                 self.__class__.__qualname__,
                 self.key,
                 type(value).__qualname__,
                 value,
-                self.zaptec_obj.id,
+                type(self.zaptec_obj).__qualname__,
+                self.zaptec_obj.name,
             )
 
     @callback
     def _log_unavailable(self):
         """Helper to log when unavailable."""
         _LOGGER.debug(
-            "    %s.%s  =  UNAVAILABLE   (in %s)",
+            "    %s.%s  =  UNAVAILABLE   (in %s %s)",
             self.__class__.__qualname__,
             self.key,
-            self.zaptec_obj.id,
+            type(self.zaptec_obj).__qualname__,
+            self.zaptec_obj.name,
         )
 
+    @property
+    def key(self):
+        """Helper to retrieve the key from the entity description."""
+        return self.entity_description.key
+
     @classmethod
-    def create_from(
+    def create_from_descriptions(
         cls,
         descriptions: list[EntityDescription],
         coordinator: ZaptecUpdateCoordinator,
-        entry: ConfigEntry,
         zaptec_obj: ZaptecBase,
         device_info: DeviceInfo,
     ) -> list[ZaptecBaseEntity]:
@@ -322,7 +324,7 @@ class ZaptecBaseEntity(CoordinatorEntity[ZaptecUpdateCoordinator]):
         """
 
         # Calculate the prefix to use for the entity name
-        prefix = entry.data.get(CONF_NAME, "").rstrip()
+        prefix = coordinator.config_entry.data.get(CONF_NAME, "").rstrip()
         if prefix:
             prefix = prefix + " "
 
@@ -334,24 +336,32 @@ class ZaptecBaseEntity(CoordinatorEntity[ZaptecUpdateCoordinator]):
         )
         dev_info.update(device_info)
 
-        entities = []
+        entities: list[ZaptecBaseEntity] = []
         for description in descriptions:
             # Use provided class if it exists, otherwise use the class this
             # function was called from
-            klass = getattr(description, "cls", cls) or cls
+            klass: type[ZaptecBaseEntity] = getattr(description, "cls", cls) or cls
+
+            # Create the entity object
+            _LOGGER.debug(
+                "Adding %s.%s   (in %s %s)",
+                klass.__qualname__,
+                description.key,
+                type(zaptec_obj).__qualname__,
+                zaptec_obj.name,
+            )
             entity = klass(coordinator, zaptec_obj, description, dev_info)
             entities.append(entity)
+
         return entities
 
     @classmethod
     def create_from_zaptec(
         cls,
-        account: Account,
         coordinator: ZaptecUpdateCoordinator,
-        entry: ConfigEntry,
-        installation_entities: list[EntityDescription],
-        circuit_entities: list[EntityDescription],
-        charger_entities: list[EntityDescription],
+        installation_descriptions: list[EntityDescription],
+        circuit_descriptions: list[EntityDescription],
+        charger_descriptions: list[EntityDescription],
     ) -> list[ZaptecBaseEntity]:
         """Helper factory to populate the listed entities for the detected
         Zaptec devices. It sets the proper device info on the installation,
@@ -359,67 +369,50 @@ class ZaptecBaseEntity(CoordinatorEntity[ZaptecUpdateCoordinator]):
         """
         entities = []
 
-        for zap_install in account.installations:
-            if zap_install.id in account.map:
+        # Iterate over every zaptec object in the account mapping and add
+        # the listed entities for each object type
+        for obj in coordinator.account.map.values():
+            if isinstance(obj, Installation):
+                info = DeviceInfo(model=f"{obj.name} Installation")
+
                 entities.extend(
-                    cls.create_from(
-                        installation_entities,
+                    cls.create_from_descriptions(
+                        installation_descriptions,
                         coordinator,
-                        entry,
-                        zap_install,
-                        DeviceInfo(
-                            model=f"{zap_install.name} Installation",
-                        ),
+                        obj,
+                        info,
                     )
                 )
 
-            for zap_circuit in zap_install.circuits:
-                if zap_circuit.id in account.map:
-                    entities.extend(
-                        cls.create_from(
-                            circuit_entities,
-                            coordinator,
-                            entry,
-                            zap_circuit,
-                            DeviceInfo(
-                                model=f"{zap_circuit.name} Circuit",
-                                via_device=(DOMAIN, zap_install.id),
-                            ),
-                        )
-                    )
+            elif isinstance(obj, Circuit):
+                info = DeviceInfo(model=f"{obj.name} Circuit")
+                if obj.installation:
+                    info["via_device"] = (DOMAIN, obj.installation.id)
 
-                for zap_charger in zap_circuit.chargers:
-                    if zap_charger.id in account.map:
-                        entities.extend(
-                            cls.create_from(
-                                charger_entities,
-                                coordinator,
-                                entry,
-                                zap_charger,
-                                DeviceInfo(
-                                    model=f"{zap_charger.name} Charger",
-                                    via_device=(DOMAIN, zap_circuit.id),
-                                ),
-                            )
-                        )
-
-        for zap_charger in account.stand_alone_chargers:
-            if zap_charger.id in account.map:
                 entities.extend(
-                    cls.create_from(
-                        charger_entities,
+                    cls.create_from_descriptions(
+                        circuit_descriptions,
                         coordinator,
-                        entry,
-                        zap_charger,
-                        DeviceInfo(
-                            model=f"{zap_charger.name} Charger",
-                        ),
+                        obj,
+                        info,
                     )
                 )
+
+            elif isinstance(obj, Charger):
+                info = DeviceInfo(model=f"{obj.name} Charger")
+                if obj.circuit:
+                    info["via_device"] = (DOMAIN, obj.circuit.id)
+
+                entities.extend(
+                    cls.create_from_descriptions(
+                        charger_descriptions,
+                        coordinator,
+                        obj,
+                        info,
+                    )
+                )
+
+            else:
+                _LOGGER.error("Unknown zaptec object type: %s", type(obj).__qualname__)
 
         return entities
-
-    @property
-    def key(self):
-        """Helper to retrieve the key from the entity description."""
-        return self.entity_description.key

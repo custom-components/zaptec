@@ -146,11 +146,11 @@ async def async_get_device_diagnostics(
     api = out.setdefault("api", {})
 
     # Helper to redact the output data
-    red = Redactor(DO_REDACT, acc._obs_ids)  # FIXME: Access to private member
+    red = Redactor(DO_REDACT, acc._obs_ids)
 
     async def req(url):
         try:
-            return await acc._request(url)  # FIXME: Access to private member
+            return await acc._request(url)
         except Exception as err:
             return {"failed": str(err)}
 
