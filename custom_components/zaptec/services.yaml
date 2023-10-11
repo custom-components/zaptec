@@ -1,67 +1,134 @@
 stop_charging:
-  description: "Stop/pause charging"
+  name: Stop charging
+  description: >-
+    Stop or pauses the active charging. Select either charger device(s)
+    or specify the charger_id directly
   fields:
+    device_id:
+      description: Select charger device
+      selector:
+        device:
+          integration: zaptec
     charger_id:
-      required: true
-      description: "The charger id"
-      example: "yyyyyyyy-9999-99xx-xxxx-yyyyyyyyyyyy"
+      description: Charger identifier
+      example: 00000000-1111-2222-3333-444444444444
 
 resume_charging:
-  description: "Resume/start charging"
+  name: Resume charging
+  description: >-
+    Resume or start charging. Select either charger device(s) or
+    specify the charger_id directly
   fields:
+    device_id:
+      description: Select charger device
+      selector:
+        device:
+          integration: zaptec
     charger_id:
-      required: true
-      description: "The charger id"
-      example: "yyyyyyyy-9999-99xx-xxxx-yyyyyyyyyyyy"
+      description: Charger identifier
+      example: 00000000-1111-2222-3333-444444444444
 
 authorize_charging:
-  description: "Authorize charging"
+  name: Authorize charging
+  description: >-
+    Authorize the charge session and resume charging. Select charger
+    device(s) or specify the charger_id directly.
   fields:
+    device_id:
+      description: Select charger device
+      selector:
+        device:
+          integration: zaptec
     charger_id:
-      required: true
-      description: "The charger id"
-      example: "yyyyyyyy-9999-99xx-xxxx-yyyyyyyyyyyy"
+      description: Charger identifier
+      example: 00000000-1111-2222-3333-444444444444
 
 deauthorize_charging:
-  description: "Deauthorize charging and stop"
+  name: Deauthorize charging
+  description: >-
+    Deauthorize the session and stop charging. Select charger device(s)
+    or specify the charger_id directly.
   fields:
+    device_id:
+      description: Select charger device
+      selector:
+        device:
+          integration: zaptec
     charger_id:
-      required: true
-      description: "The charger id"
-      example: "yyyyyyyy-9999-99xx-xxxx-yyyyyyyyyyyy"
+      description: Charger identifier
+      example: 00000000-1111-2222-3333-444444444444
 
 restart_charger:
-  description: "Restart charger."
+  name: Restart charger
+  description: >-
+    Restart the charger. Select charger device(s) or specify the
+    charger_id directly.
   fields:
+    device_id:
+      description: Select charger device
+      selector:
+        device:
+          integration: zaptec
     charger_id:
-      required: true
-      description: "The charger id"
-      example: "yyyyyyyy-9999-99xx-xxxx-yyyyyyyyyyyy"
+      description: Charger identifier
+      example: 00000000-1111-2222-3333-444444444444
 
 update_firmware:
-  description: "New resume command."
+  name: Update firmware
+  description: >-
+    Send update firmware request to the charger. Select charger
+    device(s) or specify the charger_id directly.
   fields:
+    device_id:
+      description: Select charger device
+      selector:
+        device:
+          integration: zaptec
     charger_id:
-      required: true
-      description: "Update the firmware."
-      example: "yyyyyyyy-9999-99xx-xxxx-yyyyyyyyyyyy"
+      description: Charger identifier
+      example: 00000000-1111-2222-3333-444444444444
 
 limit_current:
-  description: "Update available current for the installation."
+  name: Set current limit
+  description: >-
+    Set the available current for the installation. Select installation
+    device(s) or specify the installation_id directly. The available
+    current can either be using the available_current or the
+    available_current_phasex fields. All three phases must be present.
   fields:
+    device_id:
+      description: Select installation device
+      selector:
+        device:
+          integration: zaptec
     installation_id:
-      required: true
-      description: "The installation id"
-      example: "yyyyyyyy-9999-99xx-xxxx-yyyyyyyyyyyy"
+      description: Installer identifier
+      example: 00000000-1111-2222-3333-444444444444
     available_current:
-      description: "The available current for all phases. Cannot be used together with any available_current_phase* fields"
-      example: "16"
+      description: The available current for all phases. Cannot be used together with any available_current_phase* fields
+      example: 16
+      selector:
+        number:
+          min: 0
+          max: 32
     available_current_phase1:
-      description: "The available current for phase 1"
-      example: "16"
+      description: The available current for phase 1
+      example: 16
+      selector:
+        number:
+          min: 0
+          max: 32
     available_current_phase2:
-      description: "The available current for phase 2"
-      example: "16"
+      description: The available current for phase 2
+      example: 16
+      selector:
+        number:
+          min: 0
+          max: 32
     available_current_phase3:
-      description: "The available current for phase 3"
-      example: "16"
+      description: The available current for phase 3
+      example: 16
+      selector:
+        number:
+          min: 0
+          max: 32

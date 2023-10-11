@@ -159,6 +159,7 @@ CHARGER_ENTITIES: list[EntityDescription] = [
         device_class=SensorDeviceClass.ENERGY,
         icon="mdi:counter",
         native_unit_of_measurement=const.UnitOfEnergy.KILO_WATT_HOUR,
+        state_class=SensorStateClass.TOTAL_INCREASING,
     ),
     ZapSensorEntityDescription(
         key="signed_meter_value_kwh",
@@ -166,7 +167,7 @@ CHARGER_ENTITIES: list[EntityDescription] = [
         device_class=SensorDeviceClass.ENERGY,
         icon="mdi:counter",
         native_unit_of_measurement=const.UnitOfEnergy.KILO_WATT_HOUR,
-        state_class=SensorStateClass.TOTAL,
+        state_class=SensorStateClass.TOTAL_INCREASING,
     ),
     ZapSensorEntityDescription(
         key="completed_session.Energy",

@@ -39,6 +39,7 @@ from .const import (
     REQUEST_REFRESH_DELAY,
     STARTUP,
 )
+from .services import async_setup_services, async_unload_services
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -78,6 +79,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data.setdefault(DOMAIN, {})
     hass.data[DOMAIN][entry.entry_id] = coordinator
 
+    # Setup services
+    await async_setup_services(hass)
+
     # Setup all platforms
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     entry.async_on_unload(entry.add_update_listener(async_reload_entry))
@@ -94,6 +98,8 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if unload_ok:
         coordinator = hass.data[DOMAIN].pop(entry.entry_id)
         await coordinator.cancel_streams()
+
+    await async_unload_services(hass)
 
     return unload_ok
 
