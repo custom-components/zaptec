@@ -11,7 +11,7 @@ from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import device_registry, entity_registry
 
-from .api import Account, Charger, Installation
+from .api import Charger, Installation
 from .const import DOMAIN
 
 if TYPE_CHECKING:
@@ -101,7 +101,7 @@ async def async_setup_services(hass: HomeAssistant) -> None:
 
     def iter_objects(
         service_call: ServiceCall, mustbe: type[T]
-    ) -> Generator[tuple[Account, T], None, None]:
+    ) -> Generator[tuple[ZaptecUpdateCoordinator, T], None, None]:
         ent_reg = entity_registry.async_get(hass)
         dev_reg = device_registry.async_get(hass)
 
@@ -159,15 +159,15 @@ async def async_setup_services(hass: HomeAssistant) -> None:
             else:
                 err_device = f"id {uid}"
 
-            # Get all account and objects that matches the uid from all coordinators/account objects
+            # Get all coordinators and objects that matches the uid from all coordinator objects
             matches = set(
-                (coord.account, obj)
+                (coord, obj)
                 for coord in hass.data[DOMAIN].values()
                 for obj in coord.account.map.values()
                 if obj.id == uid
             )
             # Filter out the objects that doesn't match the expected type
-            want: set[tuple[Account, T]] = set(
+            want: set[tuple[ZaptecUpdateCoordinator, T]] = set(
                 (a, o) for a, o in matches if isinstance(o, mustbe)
             )
 
@@ -195,39 +195,45 @@ async def async_setup_services(hass: HomeAssistant) -> None:
 
     async def service_handle_stop_charging(service_call: ServiceCall) -> None:
         _LOGGER.debug("Called stop charging")
-        for acc, obj in iter_objects(service_call, Charger):
+        for coordinator, obj in iter_objects(service_call, Charger):
             _LOGGER.debug("  >> to %s", obj.id)
             await obj.stop_charging_final()
+            await coordinator.async_request_refresh()
 
     async def service_handle_resume_charging(service_call: ServiceCall) -> None:
         _LOGGER.debug("Called resume charging")
-        for acc, obj in iter_objects(service_call, mustbe=Charger):
+        for coordinator, obj in iter_objects(service_call, mustbe=Charger):
             _LOGGER.debug("  >> to %s", obj.id)
             await obj.resume_charging()
+            await coordinator.async_request_refresh()
 
     async def service_handle_authorize_charging(service_call: ServiceCall) -> None:
         _LOGGER.debug("Called authorize charging")
-        for acc, obj in iter_objects(service_call, mustbe=Charger):
+        for coordinator, obj in iter_objects(service_call, mustbe=Charger):
             _LOGGER.debug("  >> to %s", obj.id)
             await obj.authorize_charge()
+            await coordinator.async_request_refresh()
 
     async def service_handle_deauthorize_charging(service_call: ServiceCall) -> None:
         _LOGGER.debug("Called deauthorize charging and stop")
-        for acc, obj in iter_objects(service_call, mustbe=Charger):
+        for coordinator, obj in iter_objects(service_call, mustbe=Charger):
             _LOGGER.debug("  >> to %s", obj.id)
             await obj.deauthorize_and_stop()
+            await coordinator.async_request_refresh()
 
     async def service_handle_restart_charger(service_call: ServiceCall) -> None:
         _LOGGER.debug("Called restart charger")
-        for acc, obj in iter_objects(service_call, mustbe=Charger):
+        for coordinator, obj in iter_objects(service_call, mustbe=Charger):
             _LOGGER.debug("  >> to %s", obj.id)
             await obj.restart_charger()
+            await coordinator.async_request_refresh()
 
     async def service_handle_upgrade_firmware(service_call: ServiceCall) -> None:
         _LOGGER.debug("Called update firmware")
-        for acc, obj in iter_objects(service_call, mustbe=Charger):
+        for coordinator, obj in iter_objects(service_call, mustbe=Charger):
             _LOGGER.debug("  >> to %s", obj.id)
             await obj.upgrade_firmware()
+            await coordinator.async_request_refresh()
 
     async def service_handle_limit_current(service_call: ServiceCall) -> None:
         _LOGGER.debug("Called set current limit")
@@ -235,7 +241,7 @@ async def async_setup_services(hass: HomeAssistant) -> None:
         available_current_phase1 = service_call.data.get("available_current_phase1")
         available_current_phase2 = service_call.data.get("available_current_phase2")
         available_current_phase3 = service_call.data.get("available_current_phase3")
-        for acc, obj in iter_objects(service_call, mustbe=Installation):
+        for coordinator, obj in iter_objects(service_call, mustbe=Installation):
             _LOGGER.debug("  >> to %s", obj.id)
             await obj.set_limit_current(
                 availableCurrent=available_current,
@@ -243,6 +249,7 @@ async def async_setup_services(hass: HomeAssistant) -> None:
                 availableCurrentPhase2=available_current_phase2,
                 availableCurrentPhase3=available_current_phase3,
             )
+            await coordinator.async_request_refresh()
 
     # LIST OF SERVICES
     services: list[tuple[str, vol.Schema, TServiceHandler]] = [

@@ -7,25 +7,14 @@ import logging
 from abc import ABC, abstractmethod
 from collections.abc import Iterable
 from concurrent.futures import CancelledError
-from functools import partial
-from typing import Any, Callable
+from typing import Any, AsyncGenerator, Callable, Protocol
 
 import aiohttp
 import pydantic
 
-# pylint: disable=missing-function-docstring
-
-# Type definitions
-TValue = str | int | float | bool
-TDict = dict[str, TValue]
-
-_LOGGER = logging.getLogger(__name__)
-
-# Set to True to debug log all API calls
-DEBUG_API_CALLS = False
-
-# Set to True to debug log all API errors
-DEBUG_API_ERRORS = True
+from .const import API_RETRIES, API_TIMEOUT, API_URL, MISSING, TOKEN_URL, TRUTHY
+from .misc import mc_nbfx_decoder, to_under
+from .validate import validate
 
 """
 stuff are missing from the api docs compared to what the portal uses.
@@ -36,20 +25,27 @@ https://api.zaptec.com/api/dashboard/activechargersforowner?limit=250
 signalr is used by the website.
 """
 
-# to Support running this as a script.
-if __name__ == "__main__":
-    from const import API_RETRIES, API_TIMEOUT, API_URL, MISSING, TOKEN_URL, TRUTHY
-    from misc import mc_nbfx_decoder, to_under
-    from validate import validate
+# pylint: disable=missing-function-docstring
 
-    # remove me later
-    logging.basicConfig(level=logging.DEBUG)
-    logging.getLogger("azure").setLevel(logging.WARNING)
+# Type definitions
+TValue = str | int | float | bool
+TDict = dict[str, TValue]
 
-else:
-    from .const import API_RETRIES, API_TIMEOUT, API_URL, MISSING, TOKEN_URL, TRUTHY
-    from .misc import mc_nbfx_decoder, to_under
-    from .validate import validate
+
+class TLogExc(Protocol):
+    """Protocol for logging exceptions"""
+
+    def __call__(self, exc: Exception) -> Exception:
+        ...
+
+
+_LOGGER = logging.getLogger(__name__)
+
+# Set to True to debug log all API calls
+DEBUG_API_CALLS = False
+
+# Set to True to debug log all API errors
+DEBUG_API_ERRORS = True
 
 
 class ZaptecApiError(Exception):
@@ -396,9 +392,9 @@ class Installation(ZaptecBase):
         Use availableCurrent for setting all phases at once. Use
         availableCurrentPhase* to set each phase individually.
         """
-        has_availablecurrent = "availableCurrent" in kwargs
+        has_availablecurrent = kwargs.get("availableCurrent") is not None
         has_availablecurrentphases = all(
-            k in kwargs
+            kwargs.get(k) is not None
             for k in (
                 "availableCurrentPhase1",
                 "availableCurrentPhase2",
@@ -715,7 +711,46 @@ class Account:
     #   API METHODS
 
     @staticmethod
-    async def check_login(username: str, password: str) -> bool:
+    def _request_log(url, method, iteration, **kwargs):
+        """Helper that yields request log entries."""
+        try:
+            data = kwargs.get("data", "")
+            jdata = kwargs.get("json", "")
+            dlength = f" data length {len(data)}" if "data" in kwargs else ""
+            jlength = f" json length {len(jdata)}" if "json" in kwargs else ""
+            attempt = f" (attempt {iteration})" if iteration > 1 else ""
+            yield f"@@@  REQUEST {method.upper()} to '{url}'{dlength}{jlength}{attempt}"
+            if "headers" in kwargs:
+                yield f"     headers {dict((k, v) for k, v in kwargs['headers'].items())}"
+            if "data" in kwargs:
+                yield f"     data '{kwargs['data']}'"
+            if "json" in kwargs:
+                yield f"     json '{kwargs['json']}'"
+        except Exception:
+            _LOGGER.exception("Failed to log request (ignored exception)")
+
+    @staticmethod
+    async def _response_log(resp: aiohttp.ClientResponse):
+        """Helper that yield response log entries."""
+        try:
+            contents = await resp.read()
+            yield f"@@@  RESPONSE {resp.status} length {len(contents)}"
+            yield f"     headers {dict((k, v) for k, v in resp.headers.items())}"
+            if not contents:
+                return
+            if resp.status != 200:
+                yield f"     data '{await resp.text()}'"
+            else:
+                yield f"     json '{await resp.json(content_type=None)}'"
+        except Exception:
+            _LOGGER.exception("Failed to log response (ignored exception)")
+
+    @staticmethod
+    async def check_login(
+        username: str, password: str, client: aiohttp.ClientSession | None = None
+    ) -> bool:
+        """Check if the login is valid."""
+        client = client or aiohttp.ClientSession()
         p = {
             "username": username,
             "password": password,
@@ -723,9 +758,7 @@ class Account:
         }
         try:
             timeout = aiohttp.ClientTimeout(total=API_TIMEOUT)
-            async with aiohttp.request(
-                "POST", TOKEN_URL, data=p, timeout=timeout
-            ) as resp:
+            async with client.post(TOKEN_URL, data=p, timeout=timeout) as resp:
                 if resp.status == 200:
                     data = await resp.json()
                     return True
@@ -740,6 +773,76 @@ class Account:
             _LOGGER.error("Authentication request failed: %s", err)
             raise RequestConnectionError("Authentication request failed") from err
 
+    async def _retry_request(
+        self, url: str, method="get", **kwargs
+    ) -> AsyncGenerator[tuple[aiohttp.ClientResponse, TLogExc], None]:
+        """API request generator that handles retries. This function handles
+        logging and error handling. The generator will yield responses. If the
+        request needs to be retried, the caller must call __next__."""
+
+        error: Exception | None = None
+        iteration = 0
+        for iteration in range(1, API_RETRIES + 1):
+            try:
+                # Log the request
+                log_req = list(self._request_log(url, method, iteration, **kwargs))
+                if DEBUG_API_CALLS:
+                    for msg in log_req:
+                        _LOGGER.debug(msg)
+
+                # Make the request
+                async with self._client.request(
+                    method=method, url=url, **kwargs
+                ) as resp:
+                    # Log the response
+                    log_resp = [m async for m in self._response_log(resp)]
+                    if DEBUG_API_CALLS:
+                        for msg in log_resp:
+                            _LOGGER.debug(msg)
+
+                    # Prepare the exception handler
+                    def log_exc(exc: Exception) -> Exception:
+                        """Log the exception and return it."""
+                        if DEBUG_API_ERRORS:
+                            if not DEBUG_API_CALLS:
+                                for msg in log_req + log_resp:
+                                    _LOGGER.debug(msg)
+                            _LOGGER.error(exc)
+                        return exc
+
+                    # Let the caller handle the response. If the caller
+                    # calls __next__ on the generator the request will be
+                    # retried.
+                    yield resp, log_exc
+
+            # Exceptions that can be retried
+            except (asyncio.TimeoutError, aiohttp.ClientConnectionError) as err:
+                error = err  # Capture tha last error
+                if DEBUG_API_ERRORS:
+                    _LOGGER.error(
+                        "Request to %s failed (attempt %s): %s: %s",
+                        url,
+                        iteration,
+                        type(err).__qualname__,
+                        err,
+                    )
+
+        # Arriving after retrying too many times.
+
+        if isinstance(error, asyncio.TimeoutError):
+            raise RequestTimeoutError(
+                f"Request to {url} timed out after {iteration} retries"
+            ) from error
+
+        if isinstance(error, aiohttp.ClientConnectionError):
+            raise RequestConnectionError(
+                f"Request to {url} failed after {iteration} retries: {error}"
+            ) from error
+
+        raise RequestRetryError(
+            f"Request to {url} failed after {iteration} retries"
+        ) from error
+
     async def _refresh_token(self):
         # So for some reason they used grant_type password..
         # what the point with oauth then? Anyway this is valid for 24 hour
@@ -748,131 +851,90 @@ class Account:
             "password": self._password,
             "grant_type": "password",
         }
-        async with self._client.post(TOKEN_URL, data=p, timeout=self._timeout) as resp:
+        if DEBUG_API_CALLS:
+            _LOGGER.debug("@@@  REFRESH TOKEN")
+
+        async for resp, log_exc in self._retry_request(
+            TOKEN_URL, method="post", data=p, timeout=self._timeout
+        ):
             if resp.status == 200:
                 data = await resp.json()
                 # The data includes the time the access token expires
                 # atm we just ignore it and refresh token when needed.
                 self._token_info.update(data)
                 self._access_token = data.get("access_token")
-            else:
-                _LOGGER.error("Failed to authenticate. Got code %s", resp.status)
-                raise AuthenticationError(
-                    "Failed to refresh token, check your credentials."
-                )
-
-    async def _request(self, url: str, method="get", data=None, iteration=1):
-        def log_request():
-            """Log the request"""
-            try:
-                _LOGGER.debug(
-                    f"@@@  REQUEST {method.upper()} to '{full_url}' length {len(data or '')}"
-                )
-                if data:
-                    _LOGGER.debug(f"     content {data}")
-            except Exception as err:
-                _LOGGER.exception("Failed to log response")
-
-        async def log_response(resp: aiohttp.ClientResponse):
-            """Log the response"""
-            try:
-                contents = await resp.read()
-                _LOGGER.debug(f"@@@  RESPONSE {resp.status} length {len(contents)}")
-                _LOGGER.debug(
-                    f"     header {dict((k, v) for k, v in resp.headers.items())}"
-                )
-                if not contents:
-                    return
-                if resp.status != 200:
-                    _LOGGER.debug(f"     content {await resp.text()}")
-                else:
-                    _LOGGER.debug(f"     json '{await resp.json(content_type=None)}'")
-            except Exception as err:
-                _LOGGER.exception("Failed to log response")
-
-        async def log_error(resp: aiohttp.ClientResponse, msg, *args):
-            """Log the error"""
-            if not DEBUG_API_ERRORS:
-                return
-            _LOGGER.error(msg, *args)
-            if not DEBUG_API_CALLS:
-                log_request()
-                await log_response(resp)
-
-        header = {
-            "Authorization": f"Bearer {self._access_token}",
-            "Accept": "application/json",
-        }
-        full_url = API_URL + url
-
-        if DEBUG_API_CALLS:
-            log_request()
-
-        request_fn = getattr(self._client, method)
-        if request_fn is None:
-            raise ValueError(f"Unknown method {method}")
-        if data is not None and method in ("post", "put"):
-            request_fn = partial(request_fn, json=data)
-
-        try:
-            resp: aiohttp.ClientResponse
-            async with request_fn(
-                full_url, headers=header, timeout=self._timeout
-            ) as resp:
                 if DEBUG_API_CALLS:
-                    await log_response(resp)
+                    _LOGGER.debug("     TOKEN OK")
+                return
 
-                if resp.status == 401:  # Unauthorized
-                    await self._refresh_token()
-                    if iteration > API_RETRIES:
-                        await log_error(resp, "Failed reauthentication too many times")
-                        raise RequestRetryError(
-                            f"Request to {full_url} failed after {iteration} retries"
-                        )
-                    return await self._request(url, iteration=iteration + 1)
-
-                elif resp.status == 204:  # No content
-                    content = await resp.read()
-                    return content
-
-                elif resp.status == 200:  # OK
-                    # Read the JSON payload
-                    try:
-                        json_result = await resp.json(content_type=None)
-                    except json.JSONDecodeError as err:
-                        await log_error(resp, "Failed to decode json: %s", err)
-                        raise RequestDataError(
-                            f"Failed to decode json: {err}", resp.status
-                        ) from err
-
-                    # Validate the incoming json data
-                    try:
-                        validate(json_result, url=url)
-                    except pydantic.ValidationError as err:
-                        await log_error(resp, "Failed to validate data: %s", err)
-                        raise RequestDataError(
-                            f"Failed to validate data: {err}", resp.status
-                        ) from err
-
-                    return json_result
-
-                else:
-                    await log_error(resp, "Failing request to %s", full_url)
-                    raise RequestError(
-                        f"{method} request to {full_url} failed with status {resp.status}: {resp}",
-                        resp.status,
+            elif resp.status == 400:
+                data = await resp.json()
+                raise log_exc(
+                    AuthenticationError(
+                        f"Failed to authenticate. {data.get('error_description', '')}"
                     )
+                )
 
-        except asyncio.TimeoutError as err:
-            if DEBUG_API_ERRORS:
-                _LOGGER.error(f"Request to %s timed out", full_url)
-            raise RequestTimeoutError(f"Request to {full_url} timed out") from err
-        except aiohttp.ClientConnectionError as err:
-            if DEBUG_API_ERRORS:
-                _LOGGER.error("Request to %s failed: %s", full_url, err)
-            raise RequestConnectionError(
-                f"Request to {full_url} failed: {err}"
-            ) from err
+            raise log_exc(
+                RequestError(
+                    f"POST request to {TOKEN_URL} failed with status {resp.status}: {resp}",
+                    resp.status,
+                )
+            )
+
+    async def _request(self, url: str, method="get", data=None):
+        """Make a request to the API."""
+
+        full_url = API_URL + url
+        kwargs = {
+            "timeout": self._timeout,
+            "headers": {
+                "Authorization": f"Bearer {self._access_token}",
+                "Accept": "application/json",
+            },
+        }
+        if data is not None:
+            kwargs["json"] = data
+
+        async for resp, log_exc in self._retry_request(
+            full_url, method=method, **kwargs
+        ):
+            # The log_exc callback is a helper that will log the failing request
+
+            if resp.status == 401:  # Unauthorized
+                await self._refresh_token()
+                kwargs["headers"]["Authorization"] = f"Bearer {self._access_token}"
+                continue  # Retry request
+
+            elif resp.status == 204:  # No content
+                content = await resp.read()
+                return content
+
+            elif resp.status == 200:  # OK
+                # Read the JSON payload
+                try:
+                    json_result = await resp.json(content_type=None)
+                except json.JSONDecodeError as err:
+                    raise log_exc(
+                        RequestDataError(f"Failed to decode json: {err}"),
+                    ) from err
+
+                # Validate the incoming json data
+                try:
+                    validate(json_result, url=url)
+                except pydantic.ValidationError as err:
+                    raise log_exc(
+                        RequestDataError(f"Failed to validate data: {err}"),
+                    ) from err
+
+                return json_result
+
+            raise log_exc(
+                RequestError(
+                    f"{method.upper()} request to {full_url} failed with status {resp.status}: {resp}",
+                    resp.status,
+                )
+            )
 
     #   API METHODS DONE
     # =======================================================================
@@ -1015,9 +1077,12 @@ class Account:
 
 
 if __name__ == "__main__":
-    # Just to execute the script manually.
+    # Just to execute the script manually with "python -m custom_components.zaptec.api"
     import os
     from pprint import pprint
+
+    logging.basicConfig(level=logging.DEBUG)
+    logging.getLogger("azure").setLevel(logging.WARNING)
 
     async def gogo():
         username = os.environ.get("zaptec_username")

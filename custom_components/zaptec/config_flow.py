@@ -54,6 +54,7 @@ class ZaptecFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
                 valid_login = await Account.check_login(
                     username=user_input[CONF_USERNAME],
                     password=user_input[CONF_PASSWORD],
+                    client=async_get_clientsession(self.hass),
                 )
             except (RequestConnectionError, RequestTimeoutError):
                 errors["base"] = "cannot_connect"
