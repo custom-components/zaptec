@@ -23,3 +23,10 @@ $RECYCLE.BIN/
 # =========================
 
 __pycache__
+
+# Python virtual environments
+venv*
+
+# Home Assistant configuration
+config/*
+!config/configuration.yaml
