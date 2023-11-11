@@ -1,6 +1,6 @@
 {
   "domain": "zaptec",
-  "name": "zaptec",
+  "name": "Zaptec EV charger",
   "documentation": "https://github.com/custom-components/zaptec",
   "dependencies": [],
   "config_flow": true,
