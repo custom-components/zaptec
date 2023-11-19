@@ -29,6 +29,8 @@ To use this component, a user with access to
 Confirmed to work with
 
 * Zaptec Go
+* Zaptec Home
+* Zaptec PRO
 
 >  :information_source: Please reach out if you have been able to make this component work with
 other Zaptec chargers.

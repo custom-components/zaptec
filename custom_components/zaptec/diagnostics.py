@@ -92,7 +92,7 @@ class Redactor:
         if isinstance(text, str):
             for k, v in self.redacts.items():
                 if str(k) in text:
-                    text = text.replace(k, v)
+                    text = text.replace(str(k), v)
         return text
 
     def redact_obj_inplace(self, obj, ctx=None, secondpass=False):
@@ -139,86 +139,90 @@ async def async_get_device_diagnostics(
 ) -> dict[str, Any]:
     """Return diagnostics for a device."""
 
-    coordinator: ZaptecUpdateCoordinator = hass.data[DOMAIN][config_entry.entry_id]
-    acc: Account = coordinator.account
-
     out = {}
     api = out.setdefault("api", {})
 
-    # Helper to redact the output data
-    red = Redactor(DO_REDACT, acc._obs_ids)
+    try:
+        coordinator: ZaptecUpdateCoordinator = hass.data[DOMAIN][config_entry.entry_id]
+        acc: Account = coordinator.account
 
-    async def req(url):
-        try:
-            return await acc._request(url)
-        except Exception as err:
-            return {"failed": str(err)}
+        # Helper to redact the output data
+        red = Redactor(DO_REDACT, acc._obs_ids)
 
-    def add(url, obj, ctx=None):
-        red.redact_obj_inplace(obj, ctx=ctx)
-        api[red.redact(url)] = obj
+        async def req(url):
+            try:
+                return await acc._request(url)
+            except Exception as err:
+                return {"failed": str(err)}
 
-    #
-    #  API FETCHING
-    #
-    data = await req(url := "installation")
-    installation_ids = [inst["Id"] for inst in data.get("Data", [])]
-    add(url, data, ctx="installation")
+        def add(url, obj, ctx=None):
+            red.redact_obj_inplace(obj, ctx=ctx)
+            api[red.redact(url)] = obj
 
-    circuit_ids = []
-    charger_in_circuits_ids = []
-    for inst_id in installation_ids:
-        data = await req(url := f"installation/{inst_id}/hierarchy")
-
-        for circuit in data.get("Circuits", []):
-            circuit_ids.append(circuit["Id"])
-            for charger in circuit.get("Chargers", []):
-                charger_in_circuits_ids.append(charger["Id"])
-
-        add(url, data, ctx="hierarchy")
-
-        data = await req(url := f"installation/{inst_id}")
+        #
+        #  API FETCHING
+        #
+        data = await req(url := "installation")
+        installation_ids = [inst["Id"] for inst in data.get("Data", [])]
         add(url, data, ctx="installation")
 
-    for circ_id in circuit_ids:
-        data = await req(url := f"circuits/{circ_id}")
-        add(url, data, ctx="circuit")
+        circuit_ids = []
+        charger_in_circuits_ids = []
+        for inst_id in installation_ids:
+            data = await req(url := f"installation/{inst_id}/hierarchy")
 
-    data = await req(url := "chargers")
-    charger_ids = [charger["Id"] for charger in data.get("Data", [])]
-    add(url, data, ctx="chargers")
+            for circuit in data.get("Circuits", []):
+                circuit_ids.append(circuit["Id"])
+                for charger in circuit.get("Chargers", []):
+                    charger_in_circuits_ids.append(charger["Id"])
 
-    for charger_id in set([*charger_ids, *charger_in_circuits_ids]):
-        data = await req(url := f"chargers/{charger_id}")
-        add(url, data, ctx="charger")
+            add(url, data, ctx="hierarchy")
 
-        data = await req(url := f"chargers/{charger_id}/state")
-        red.redact_statelist(data, ctx="state")
-        add(url, data, ctx="state")
+            data = await req(url := f"installation/{inst_id}")
+            add(url, data, ctx="installation")
 
-        data = await req(url := f"chargers/{charger_id}/settings")
-        red.redact_statelist(data.values(), ctx="settings")
-        add(url, data, ctx="settings")
+        for circ_id in circuit_ids:
+            data = await req(url := f"circuits/{circ_id}")
+            add(url, data, ctx="circuit")
 
-    #
-    #  MAPPINGS
-    #
-    out.setdefault(
-        "maps",
-        [
-            red.redact_obj_inplace(deepcopy(obj._attrs), ctx="maps")
-            for obj in acc.map.values()
-        ],
-    )
+        data = await req(url := "chargers")
+        charger_ids = [charger["Id"] for charger in data.get("Data", [])]
+        add(url, data, ctx="chargers")
 
-    # 2nd pass to replace any newer redacted text within the output.
-    red.redact_obj_inplace(out, secondpass=True)
+        for charger_id in set([*charger_ids, *charger_in_circuits_ids]):
+            data = await req(url := f"chargers/{charger_id}")
+            add(url, data, ctx="charger")
 
-    #
-    #  REDACTED DATA
-    #
-    if INCLUDE_REDACTS:
-        out.setdefault("redacts", red.redact_info)
+            data = await req(url := f"chargers/{charger_id}/state")
+            red.redact_statelist(data, ctx="state")
+            add(url, data, ctx="state")
+
+            data = await req(url := f"chargers/{charger_id}/settings")
+            red.redact_statelist(data.values(), ctx="settings")
+            add(url, data, ctx="settings")
+
+        #
+        #  MAPPINGS
+        #
+        out.setdefault(
+            "maps",
+            [
+                red.redact_obj_inplace(deepcopy(obj._attrs), ctx="maps")
+                for obj in acc.map.values()
+            ],
+        )
+
+        # 2nd pass to replace any newer redacted text within the output.
+        red.redact_obj_inplace(out, secondpass=True)
+
+        #
+        #  REDACTED DATA
+        #
+        if INCLUDE_REDACTS:
+            out.setdefault("redacts", red.redact_info)
+
+    except Exception as err:
+        out["failure"] = str(err)
 
     return out
 
