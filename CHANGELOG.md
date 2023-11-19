@@ -1,9 +1,11 @@
 # Changelog
 
-## 0.7.1a1
+## 0.7.1a2
 
 * Fixed issue with failures during diagnostics that prevents useful downloads,
   custom-components/zaptec#63
+* Added new charger sensor "Humidity", "Temperature (internal)" and
+  "Allocated charge current"
 
 ## 0.7.0
 

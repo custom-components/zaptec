@@ -176,6 +176,29 @@ CHARGER_ENTITIES: list[EntityDescription] = [
         icon="mdi:counter",
         native_unit_of_measurement=const.UnitOfEnergy.KILO_WATT_HOUR,
     ),
+    ZapSensorEntityDescription(
+        key="humidity",
+        translation_key="humidity",
+        device_class=SensorDeviceClass.HUMIDITY,
+        icon="mdi:humidity",
+        native_unit_of_measurement=const.PERCENTAGE,
+        entity_category=const.EntityCategory.DIAGNOSTIC,
+    ),
+    ZapSensorEntityDescription(
+        key="temperature_internal5",
+        translation_key="temperature_internal5",
+        device_class=SensorDeviceClass.TEMPERATURE,
+        icon="mdi:temperature-celsius",
+        native_unit_of_measurement=const.TEMP_CELSIUS,
+        entity_category=const.EntityCategory.DIAGNOSTIC,
+    ),
+    ZapSensorEntityDescription(
+        key="charge_current_set",
+        translation_key="charge_current_set",
+        device_class=SensorDeviceClass.CURRENT,
+        icon="mdi:current-ac",
+        native_unit_of_measurement=const.UnitOfElectricCurrent.AMPERE,
+    ),
 ]
 
 

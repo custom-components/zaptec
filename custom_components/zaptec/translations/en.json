@@ -47,7 +47,10 @@
             "completed_session_energy": { "name": "Completed session energy" },
             "available_current_phase1": { "name": "Available current phase 1" },
             "available_current_phase2": { "name": "Available current phase 2" },
-            "available_current_phase3": { "name": "Available current phase 3" }
+            "available_current_phase3": { "name": "Available current phase 3" },
+            "humidity": { "name": "Humidity" },
+            "temperature_internal5": { "name": "Temperature (internal)" },
+            "charge_current_set": { "name": "Allocated charge current" }
         },
         "number": {
             "available_current": { "name": "Available current" },
