@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.7.1a1
+
+* Fixed issue with failures during diagnostics that prevents useful downloads,
+  custom-components/zaptec#63
+
 ## 0.7.0
 
 Major refactor of the component
