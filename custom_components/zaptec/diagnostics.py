@@ -1,8 +1,9 @@
 """Diagnostics support for Zaptec."""
 from __future__ import annotations
 
+import traceback
 from copy import deepcopy
-from typing import Any
+from typing import Any, TypeVar, cast
 
 # to Support running this as a script.
 if __name__ != "__main__":
@@ -13,6 +14,8 @@ if __name__ != "__main__":
 from . import ZaptecUpdateCoordinator
 from .api import Account
 from .const import DOMAIN
+
+T = TypeVar("T")
 
 # IF this is true, the output data will be redacted.
 DO_REDACT = True
@@ -56,6 +59,23 @@ class Redactor:
         "ZipCode",
     ]
 
+    # Never redact these words
+    NEVER_REDACT = [
+        true,
+        false,
+        "true",
+        "false",
+        "0",
+        "0.",
+        "0.0",
+        0,
+        0.,
+        "1",
+        "1.",
+        1,
+        1.,
+    ]
+
     # Keys that will be looked up into the observer id dict
     OBS_KEYS = ["SettingId", "StateId"]
 
@@ -72,48 +92,58 @@ class Redactor:
         self.redacts = {}
         self.redact_info = {}
 
-    def redact(self, text: str, make_new=None, ctx=None):
-        """Redact the text if it is present in the redacted dict.
-        A new redaction is created if make_new is not None. ctx is only
+    def redact(self, obj: T, ctx=None, key=None, secondpass=False) -> T:
+        """Redact the object if it is present in the redacted dict.
+        A new redaction is created if make_new is not None. ctx is
         for logging output.
         """
-        if not self.do_redact:
-            return text
-        elif text in self.redacts:
-            return self.redacts[text]
-        elif make_new is not None:
-            red = f"<--Redact #{len(self.redacts) + 1}-->"
-            self.redacts[text] = red
-            self.redact_info[red] = {  # For statistics only
-                "text": text,
-                "from": f"{make_new} in {ctx}",
-            }
-            return red
-        if isinstance(text, str):
-            for k, v in self.redacts.items():
-                if str(k) in text:
-                    text = text.replace(str(k), v)
-        return text
 
-    def redact_obj_inplace(self, obj, ctx=None, secondpass=False):
-        """Iterate over obj and redact the fields. NOTE! This function
-        modifies the argument object in-place.
-        """
-        if isinstance(obj, list):
-            for k in obj:
-                self.redact_obj_inplace(k, ctx=ctx, secondpass=secondpass)
+        if not self.do_redact:
             return obj
-        elif not isinstance(obj, dict):
-            return self.redact(obj, ctx=ctx)
-        for k, v in obj.items():
-            if isinstance(v, (list, dict)):
-                self.redact_obj_inplace(v, ctx=ctx, secondpass=secondpass)
-                continue
-            obj[k] = self.redact(
-                v,
-                make_new=k if not secondpass and k in self.REDACT_KEYS else None,
-                ctx=ctx,
+
+        if isinstance(obj, str):
+            # Check if new redaction is needed
+            if key and key in self.REDACT_KEYS and obj not in self.NEVER_REDACT:
+                red = f"<--Redact #{len(self.redacts) + 1}-->"
+                self.redacts[obj] = red
+                self.redact_info[red] = {  # For statistics only
+                    "text": obj,
+                    "from": f"{key} in {ctx}",
+                }
+                return cast(T, red)
+
+            # Check if the string is already redacted
+            if obj in self.redacts:
+                return self.redacts[obj]
+
+            # Check if the string contains a redacted string
+            for k, v in self.redacts.items():
+                if k in obj:
+                    obj = obj.replace(k, v)
+
+        elif isinstance(obj, (tuple, list)):
+            # Redact each element in the list
+            return cast(
+                T,
+                [self.redact(k, ctx=ctx, key=key, secondpass=secondpass) for k in obj],
             )
+
+        elif isinstance(obj, dict):
+            # Redact each value in the dict. Unless secondpass is set, the keys
+            # are checked if they are in the REDACT_KEYS list.
+            return cast(
+                T,
+                {
+                    k: self.redact(
+                        v,
+                        ctx=ctx,
+                        key=k if not secondpass else key,
+                        secondpass=secondpass,
+                    )
+                    for k, v in obj.items()
+                },
+            )
+
         return obj
 
     def redact_statelist(self, objs, ctx=None):
@@ -130,7 +160,7 @@ class Redactor:
                 for value in self.VALUES:
                     if value not in obj:
                         continue
-                    obj[value] = self.redact(obj[value], make_new=obj[key], ctx=ctx)
+                    obj[value] = self.redact(obj[value], key=obj[key], ctx=ctx)
         return objs
 
 
@@ -141,6 +171,7 @@ async def async_get_device_diagnostics(
 
     out = {}
     api = out.setdefault("api", {})
+    red = None
 
     try:
         coordinator: ZaptecUpdateCoordinator = hass.data[DOMAIN][config_entry.entry_id]
@@ -151,13 +182,21 @@ async def async_get_device_diagnostics(
 
         async def req(url):
             try:
-                return await acc._request(url)
+                result = await acc._request(url)
+                if not isinstance(result, (dict, list)):
+                    return {
+                        "type error": f"Expected dict, got type {type(result).__name__}, value {result}",
+                    }
+                return result
             except Exception as err:
-                return {"failed": str(err)}
+                return {
+                    "exception": type(err).__name__,
+                    "err": str(err),
+                    "tb": list(traceback.format_exc().splitlines()),
+                }
 
         def add(url, obj, ctx=None):
-            red.redact_obj_inplace(obj, ctx=ctx)
-            api[red.redact(url)] = obj
+            api[red.redact(url, ctx=ctx)] = red.redact(obj, ctx=ctx)
 
         #
         #  API FETCHING
@@ -204,25 +243,47 @@ async def async_get_device_diagnostics(
         #
         #  MAPPINGS
         #
+        def addmap(k, v):
+            obj = {
+                '__key': k,
+                '__type': v.__class__.__name__,
+            }
+            obj.update(v._attrs)
+            return obj
+
         out.setdefault(
             "maps",
-            [
-                red.redact_obj_inplace(deepcopy(obj._attrs), ctx="maps")
-                for obj in acc.map.values()
-            ],
+            [red.redact(addmap(k, v), ctx="maps") for k, v in acc.map.items()],
         )
 
-        # 2nd pass to replace any newer redacted text within the output.
-        red.redact_obj_inplace(out, secondpass=True)
+    except Exception as err:
+        out.setdefault("failures", []).append(
+            {
+                "exception": type(err).__name__,
+                "err": str(err),
+                "tb": list(traceback.format_exc().splitlines()),
+            }
+        )
 
-        #
-        #  REDACTED DATA
-        #
-        if INCLUDE_REDACTS:
-            out.setdefault("redacts", red.redact_info)
+    try:
+        if red:
+            # 2nd pass to replace any newer redacted text within the output.
+            out = red.redact(out, secondpass=True)
+
+            #
+            #  REDACTED DATA
+            #
+            if INCLUDE_REDACTS:
+                out.setdefault("redacts", red.redact_info)
 
     except Exception as err:
-        out["failure"] = str(err)
+        out.setdefault("failures", []).append(
+            {
+                "exception": type(err).__name__,
+                "err": str(err),
+                "tb": list(traceback.format_exc().splitlines()),
+            }
+        )
 
     return out
 
@@ -245,6 +306,7 @@ if __name__ == "__main__":
             password,
             client=aiohttp.ClientSession(connector=aiohttp.TCPConnector(ssl=False)),
         )
+        await acc.build()
 
         try:
             #

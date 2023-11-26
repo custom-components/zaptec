@@ -57,7 +57,7 @@ the aid of manual templates. The same objects exists, but under the names
 `<name> Installer`, `<name> Charger` and `<name> Circuit`.
 
 
-# Installation
+# Installation and setup
 
 This integration is available in HACS (Home Assistant Community Store).
 
@@ -65,6 +65,28 @@ Just search for Zaptec in the HACS list or click the badge below:
 
 [![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=custom-components&repository=zaptec)
 
+After adding it to HACS it must be added to HA.
+
+- Click Settings (left hand side menu at the bottom)
+- Click Devices & Services
+- Select Integrations pane
+- Press "+ Add integration" in the bottom right corner
+- In the search for dialog enter "Zaptec" and click it
+
+Next the **Zaptec setup** dialog is presented. Fill in the form:
+
+- **Username**: Your Zaptec portal username
+- **Password**: Your Zaptec portal password
+- **Optional prefix** specifies if a prefix on all entities are wanted. Leave
+  this blank unless there is a specific need for it. Its generally better to
+  rename entities in HA than using this feature.
+- **Scan interval** indicates how many seconds between the cloud is polled for
+  new data. Zaptec has rate limiting, so putting a too low value might cause
+  problems. Default value is fine.
+- **Manually select chargers** will allow you to select which chargers that should
+  be included into HA. This is useful for large installation that have many
+  chargers. When selected a new dialog asking for which
+  chargers to add will be selected.
 
 # Usage
 

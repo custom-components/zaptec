@@ -82,6 +82,14 @@ INSTALLATION_ENTITIES: list[EntityDescription] = [
         icon="mdi:current-ac",
         native_unit_of_measurement=const.UnitOfElectricCurrent.AMPERE,
     ),
+    ZapSensorEntityDescription(
+        key="max_current",
+        translation_key="max_current",
+        device_class=SensorDeviceClass.CURRENT,
+        entity_category=const.EntityCategory.DIAGNOSTIC,
+        icon="mdi:current-ac",
+        native_unit_of_measurement=const.UnitOfElectricCurrent.AMPERE,
+    ),
 ]
 
 CIRCUIT_ENTITIES: list[EntityDescription] = [
@@ -180,7 +188,7 @@ CHARGER_ENTITIES: list[EntityDescription] = [
         key="humidity",
         translation_key="humidity",
         device_class=SensorDeviceClass.HUMIDITY,
-        icon="mdi:humidity",
+        icon="mdi:water-percent",
         native_unit_of_measurement=const.PERCENTAGE,
         entity_category=const.EntityCategory.DIAGNOSTIC,
     ),

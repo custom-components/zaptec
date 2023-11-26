@@ -7,6 +7,7 @@ import logging
 from abc import ABC, abstractmethod
 from collections.abc import Iterable
 from concurrent.futures import CancelledError
+from contextlib import aclosing
 from typing import Any, AsyncGenerator, Callable, Protocol
 
 import aiohttp
@@ -774,7 +775,7 @@ class Account:
             raise RequestConnectionError("Authentication request failed") from err
 
     async def _retry_request(
-        self, url: str, method="get", **kwargs
+        self, url: str, method="get", retries=API_RETRIES, **kwargs
     ) -> AsyncGenerator[tuple[aiohttp.ClientResponse, TLogExc], None]:
         """API request generator that handles retries. This function handles
         logging and error handling. The generator will yield responses. If the
@@ -782,7 +783,7 @@ class Account:
 
         error: Exception | None = None
         iteration = 0
-        for iteration in range(1, API_RETRIES + 1):
+        for iteration in range(1, retries + 1):
             try:
                 # Log the request
                 log_req = list(self._request_log(url, method, iteration, **kwargs))
@@ -832,16 +833,16 @@ class Account:
         if isinstance(error, asyncio.TimeoutError):
             raise RequestTimeoutError(
                 f"Request to {url} timed out after {iteration} retries"
-            ) from error
+            ) from None
 
         if isinstance(error, aiohttp.ClientConnectionError):
             raise RequestConnectionError(
                 f"Request to {url} failed after {iteration} retries: {error}"
-            ) from error
+            ) from None
 
         raise RequestRetryError(
             f"Request to {url} failed after {iteration} retries"
-        ) from error
+        ) from None
 
     async def _refresh_token(self):
         # So for some reason they used grant_type password..
@@ -854,33 +855,46 @@ class Account:
         if DEBUG_API_CALLS:
             _LOGGER.debug("@@@  REFRESH TOKEN")
 
-        async for resp, log_exc in self._retry_request(
-            TOKEN_URL, method="post", data=p, timeout=self._timeout
-        ):
-            if resp.status == 200:
-                data = await resp.json()
-                # The data includes the time the access token expires
-                # atm we just ignore it and refresh token when needed.
-                self._token_info.update(data)
-                self._access_token = data.get("access_token")
-                if DEBUG_API_CALLS:
-                    _LOGGER.debug("     TOKEN OK")
-                return
+        # Run the _retry_request() in a context manager that will close the
+        # generator when the context is exited, ensuring the request and
+        # connection is closed when done.
+        async with aclosing(
+            self._retry_request(
+                TOKEN_URL,
+                method="post",
+                data=p,
+                retries=API_RETRIES,
+                timeout=self._timeout,
+            )
+        ) as ctx:
+            # Each iteration is a new request. resp is the response object, while
+            # log_exc is a callback that will log the exception if the request
+            # fails.
+            async for resp, log_exc in ctx:
+                if resp.status == 200:
+                    data = await resp.json()
+                    # The data includes the time the access token expires
+                    # atm we just ignore it and refresh token when needed.
+                    self._token_info.update(data)
+                    self._access_token = data.get("access_token")
+                    if DEBUG_API_CALLS:
+                        _LOGGER.debug("     TOKEN OK")
+                    return
 
-            elif resp.status == 400:
-                data = await resp.json()
+                elif resp.status == 400:
+                    data = await resp.json()
+                    raise log_exc(
+                        AuthenticationError(
+                            f"Failed to authenticate. {data.get('error_description', '')}"
+                        )
+                    )
+
                 raise log_exc(
-                    AuthenticationError(
-                        f"Failed to authenticate. {data.get('error_description', '')}"
+                    RequestError(
+                        f"POST request to {TOKEN_URL} failed with status {resp.status}: {resp}",
+                        resp.status,
                     )
                 )
-
-            raise log_exc(
-                RequestError(
-                    f"POST request to {TOKEN_URL} failed with status {resp.status}: {resp}",
-                    resp.status,
-                )
-            )
 
     async def _request(self, url: str, method="get", data=None):
         """Make a request to the API."""
@@ -896,45 +910,55 @@ class Account:
         if data is not None:
             kwargs["json"] = data
 
-        async for resp, log_exc in self._retry_request(
-            full_url, method=method, **kwargs
-        ):
-            # The log_exc callback is a helper that will log the failing request
-
-            if resp.status == 401:  # Unauthorized
-                await self._refresh_token()
-                kwargs["headers"]["Authorization"] = f"Bearer {self._access_token}"
-                continue  # Retry request
-
-            elif resp.status == 204:  # No content
-                content = await resp.read()
-                return content
-
-            elif resp.status == 200:  # OK
-                # Read the JSON payload
-                try:
-                    json_result = await resp.json(content_type=None)
-                except json.JSONDecodeError as err:
-                    raise log_exc(
-                        RequestDataError(f"Failed to decode json: {err}"),
-                    ) from err
-
-                # Validate the incoming json data
-                try:
-                    validate(json_result, url=url)
-                except pydantic.ValidationError as err:
-                    raise log_exc(
-                        RequestDataError(f"Failed to validate data: {err}"),
-                    ) from err
-
-                return json_result
-
-            raise log_exc(
-                RequestError(
-                    f"{method.upper()} request to {full_url} failed with status {resp.status}: {resp}",
-                    resp.status,
-                )
+        # Run the _retry_request() in a context manager that will close the
+        # generator when the context is exited, ensuring the request and
+        # connection is closed when done.
+        async with aclosing(
+            self._retry_request(
+                full_url,
+                method=method,
+                retries=API_RETRIES,
+                **kwargs,
             )
+        ) as ctx:
+            # Each iteration is a new request. resp is the response object, while
+            # log_exc is a callback that will log the exception if the request
+            # fails.
+            async for resp, log_exc in ctx:
+                if resp.status == 401:  # Unauthorized
+                    await self._refresh_token()
+                    kwargs["headers"]["Authorization"] = f"Bearer {self._access_token}"
+                    continue  # Retry request
+
+                elif resp.status == 204:  # No content
+                    content = await resp.read()
+                    return content
+
+                elif resp.status == 200:  # OK
+                    # Read the JSON payload
+                    try:
+                        json_result = await resp.json(content_type=None)
+                    except json.JSONDecodeError as err:
+                        raise log_exc(
+                            RequestDataError(f"Failed to decode json: {err}"),
+                        ) from err
+
+                    # Validate the incoming json data
+                    try:
+                        validate(json_result, url=url)
+                    except pydantic.ValidationError as err:
+                        raise log_exc(
+                            RequestDataError(f"Failed to validate data: {err}"),
+                        ) from err
+
+                    return json_result
+
+                raise log_exc(
+                    RequestError(
+                        f"{method.upper()} request to {full_url} failed with status {resp.status}: {resp}",
+                        resp.status,
+                    )
+                )
 
     #   API METHODS DONE
     # =======================================================================
