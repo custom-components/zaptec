@@ -48,12 +48,11 @@ class ZaptecAvailableCurrentNumber(ZaptecNumber):
     async def async_set_native_value(self, value: float) -> None:
         """Update to Zaptec."""
         _LOGGER.debug(
-            "Setting %s.%s to <%s> %s   (in %s)",
-            self.__class__.__qualname__,
-            self.key,
+            "Set %s to <%s> %s in %s",
+            self.entity_id,
             type(value).__qualname__,
             value,
-            self.zaptec_obj.id,
+            self.zaptec_obj.qual_id,
         )
 
         try:

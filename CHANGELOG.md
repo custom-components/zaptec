@@ -1,12 +1,21 @@
 # Changelog
 
-## 0.7.1a3
+## 0.7.1a4
 
 * Fixed issues and improved diagnostics download
-* Added new charger sensor "Humidity", "Temperature (internal)" and
-  "Allocated charge current"
+* Added new charger sensor "Humidity", "Temperature (internal)",
+  "Allocated charge current", "Authentication Type"
 * Added new installer sensor "Max Current"
 * Fixed API request cleanups
+* Cleaned debug output
+* Cleanup of translations, more consistent usage of "Authorization"
+* Change "Authorization Requred" switch to binary sensor. It is better to
+  use Zaptec Portal for these types of adjustments
+* Increase poll update delay slightly to ensure Zaptec Cloud data is updated
+  by the time the next poll is run
+* Change Circuit to use "active" (was "is_active")
+* API: Added global var ZCONST for a dict-like object for accessing constants.
+  This cleans up ATTR_TYPES logic considerably.
 
 ## 0.7.0
 

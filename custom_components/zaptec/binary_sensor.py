@@ -17,7 +17,6 @@ from homeassistant.helpers.entity import EntityDescription
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import ZaptecBaseEntity, ZaptecUpdateCoordinator
-from .api import Account
 from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
@@ -61,19 +60,28 @@ class ZapBinarySensorEntityDescription(BinarySensorEntityDescription):
 INSTALLATION_ENTITIES: list[EntityDescription] = [
     ZapBinarySensorEntityDescription(
         key="active",
-        name="Installation",
+        name="Installation",  # Special case, no translation
         device_class=BinarySensorDeviceClass.CONNECTIVITY,  # False=disconnected, True=connected
         entity_category=const.EntityCategory.DIAGNOSTIC,
         icon="mdi:home-lightning-bolt-outline",
         has_entity_name=False,
         cls=ZaptecBinarySensorWithAttrs,
     ),
+    ZapBinarySensorEntityDescription(
+        # The Zaptec API is not consistent with the naming of the usage of
+        # authorization and authentication. The Zaptec Portal seems to use
+        # "authorisation" consistently.
+        key="is_required_authentication",
+        translation_key="authorization_required",
+        entity_category=const.EntityCategory.DIAGNOSTIC,
+        icon="mdi:lock",
+    ),
 ]
 
 CIRCUIT_ENTITIES: list[EntityDescription] = [
     ZapBinarySensorEntityDescription(
-        key="is_active",
-        name="Circuit",
+        key="active",
+        name="Circuit",  # Special case, no translation
         device_class=BinarySensorDeviceClass.CONNECTIVITY,  # False=disconnected, True=connected
         entity_category=const.EntityCategory.DIAGNOSTIC,
         icon="mdi:orbit",
@@ -85,7 +93,7 @@ CIRCUIT_ENTITIES: list[EntityDescription] = [
 CHARGER_ENTITIES: list[EntityDescription] = [
     ZapBinarySensorEntityDescription(
         key="active",
-        name="Charger",
+        name="Charger",  # Special case, no translation
         device_class=BinarySensorDeviceClass.CONNECTIVITY,  # False=disconnected, True=connected
         entity_category=const.EntityCategory.DIAGNOSTIC,
         icon="mdi:ev-station",
@@ -94,7 +102,7 @@ CHARGER_ENTITIES: list[EntityDescription] = [
     ),
     ZapBinarySensorEntityDescription(
         key="is_authorization_required",
-        translation_key="is_authorization_required",
+        translation_key="authorization_required",
         entity_category=const.EntityCategory.DIAGNOSTIC,
         icon="mdi:lock",
     ),

@@ -18,8 +18,8 @@ from homeassistant.helpers.entity import EntityDescription
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import ZaptecBaseEntity, ZaptecUpdateCoordinator
-from .api import Account
-from .const import *
+from .api import ZCONST
+from .const import DOMAIN
 
 # pylint: disable=missing-function-docstring
 
@@ -39,11 +39,20 @@ class ZaptecSensor(ZaptecBaseEntity, SensorEntity):
 
 
 class ZaptecChargeSensor(ZaptecSensor):
+    # See ZCONST.charger_operation_modes for possible values
+    CHARGE_MODE_MAP = {
+        "Unknown": ["Unknown", "mdi:help-rhombus-outline"],
+        "Disconnected": ["Disconnected", "mdi:power-plug-off"],
+        "Connected_Requesting": ["Waiting", "mdi:timer-sand"],
+        "Connected_Charging": ["Charging", "mdi:lightning-bolt"],
+        "Connected_Finished": ["Charge done", "mdi:battery-charging-100"],
+    }
+
     @callback
     def _update_from_zaptec(self) -> None:
         try:
             state = self._get_zaptec_value()
-            mode = CHARGE_MODE_MAP.get(state, CHARGE_MODE_MAP["Unknown"])
+            mode = self.CHARGE_MODE_MAP.get(state, self.CHARGE_MODE_MAP["Unknown"])
             self._attr_native_value = mode[0]
             self._attr_icon = mode[1]
             self._attr_available = True
@@ -90,6 +99,14 @@ INSTALLATION_ENTITIES: list[EntityDescription] = [
         icon="mdi:current-ac",
         native_unit_of_measurement=const.UnitOfElectricCurrent.AMPERE,
     ),
+    ZapSensorEntityDescription(
+        key="authentication_type",
+        translation_key="authentication_type",
+        device_class=SensorDeviceClass.ENUM,
+        entity_category=const.EntityCategory.DIAGNOSTIC,
+        options=[x for x in ZCONST.installation_authentication_type],
+        icon="mdi:key-change",
+    ),
 ]
 
 CIRCUIT_ENTITIES: list[EntityDescription] = [
@@ -108,7 +125,7 @@ CHARGER_ENTITIES: list[EntityDescription] = [
         key="operating_mode",
         translation_key="operating_mode",
         device_class=SensorDeviceClass.ENUM,
-        options=[x[0] for x in CHARGE_MODE_MAP.values()],
+        options=[x[0] for x in ZaptecChargeSensor.CHARGE_MODE_MAP.values()],
         icon="mdi:ev-station",
         cls=ZaptecChargeSensor,
     ),

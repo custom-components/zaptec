@@ -61,19 +61,19 @@ class Redactor:
 
     # Never redact these words
     NEVER_REDACT = [
-        true,
-        false,
+        True,
+        False,
         "true",
         "false",
         "0",
         "0.",
         "0.0",
         0,
-        0.,
+        0.0,
         "1",
         "1.",
         1,
-        1.,
+        1.0,
     ]
 
     # Keys that will be looked up into the observer id dict
@@ -245,8 +245,8 @@ async def async_get_device_diagnostics(
         #
         def addmap(k, v):
             obj = {
-                '__key': k,
-                '__type': v.__class__.__name__,
+                "__key": k,
+                "qual_id": v.qual_id,
             }
             obj.update(v._attrs)
             return obj
@@ -254,6 +254,17 @@ async def async_get_device_diagnostics(
         out.setdefault(
             "maps",
             [red.redact(addmap(k, v), ctx="maps") for k, v in acc.map.items()],
+        )
+
+        # Get the entity map
+        out.setdefault(
+            "entity_map",
+            {
+                red.redact(k, ctx="entity_map"): red.redact(
+                    {a: b.entity_id for a, b in v.items()}
+                )
+                for k, v in coordinator.entity_maps.items()
+            },
         )
 
     except Exception as err:
@@ -323,8 +334,12 @@ if __name__ == "__main__":
             @dataclass
             class FakeCoordinator:
                 account: Account
+                entity_maps: dict[str, dict[str, Any]]
 
-            coordinator = FakeCoordinator(account=acc)
+            coordinator = FakeCoordinator(
+                account=acc,
+                entity_maps={},
+            )
             config = FakeConfig(entry_id="")
             hass = FakeHass(data={DOMAIN: {config.entry_id: coordinator}})
 
