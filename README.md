@@ -244,6 +244,9 @@ logger:
     custom_components.zaptec: debug
 ```
 
+**:warning: IMPORTANT!** The debug logs will contain identifiable information about your Zaptec setup such as login and password. Do not share logs without
+filtering them.
+
 **:information_source: NOTE!** The Zaptec integration logs massive amounts in debug. This is nice for finding errors, but it will generate large amount of
 data if left enabled for long. Do not use in production setups.
 
