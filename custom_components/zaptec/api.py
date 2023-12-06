@@ -5,10 +5,11 @@ import asyncio
 import json
 import logging
 from abc import ABC, abstractmethod
+from collections import UserDict
 from collections.abc import Iterable
 from concurrent.futures import CancelledError
 from contextlib import aclosing
-from typing import Any, AsyncGenerator, Callable, Protocol
+from typing import Any, AsyncGenerator, Callable, Protocol, cast
 
 import aiohttp
 import pydantic
@@ -82,6 +83,25 @@ class RequestDataError(ZaptecApiError):
 
 
 #
+# Helper wrapper for reading constants from the API
+#
+class ZConst(UserDict):
+    """Zaptec constants wrapper class"""
+
+    @property
+    def charger_operation_modes(self):
+        return self.get("ChargerOperationModes", {})
+
+    @property
+    def installation_authentication_type(self):
+        return self.get("InstallationAuthenticationType", {})
+
+
+# Global var for the API constants from Zaptec
+ZCONST: ZConst = ZConst()
+
+
+#
 # Attribute type converters
 #
 def type_ocmf(data):
@@ -100,6 +120,18 @@ def type_completed_session(data):
     if "SignedSession" in data:
         data["SignedSession"] = type_ocmf(data["SignedSession"])
     return data
+
+
+def type_operation_mode(v):
+    """Convert the operation mode to a string"""
+    modes = {str(v): k for k, v in ZCONST.charger_operation_modes.items()}
+    return modes.get(str(v), str(v))
+
+
+def type_authentication_type(v):
+    """Convert the authentication type to a string"""
+    modes = {str(v): k for k, v in ZCONST.installation_authentication_type.items()}
+    return modes.get(str(v), str(v))
 
 
 class ZaptecBase(ABC):
@@ -137,15 +169,18 @@ class ZaptecBase(ABC):
                 new_v = v
             new_vt = type(new_v).__qualname__
             if new_key not in self._attrs:
-                qn = self.__class__.__qualname__
                 _LOGGER.debug(
-                    ">>>   Adding %s.%s (%s)  =  <%s> %s", qn, new_key, k, new_vt, new_v
+                    ">>>   Adding %s.%s (%s)  =  <%s> %s",
+                    self.qual_id,
+                    new_key,
+                    k,
+                    new_vt,
+                    new_v,
                 )
             elif self._attrs[new_key] != new_v:
-                qn = self.__class__.__qualname__
                 _LOGGER.debug(
                     ">>>   Updating %s.%s (%s)  =  <%s> %s  (was %s)",
-                    qn,
+                    self.qual_id,
                     new_key,
                     k,
                     new_vt,
@@ -165,6 +200,13 @@ class ZaptecBase(ABC):
             return self._attrs[to_under(key)]
         else:
             return self._attrs.get(to_under(key), default)
+
+    @property
+    def qual_id(self):
+        qn = self.__class__.__qualname__
+        if "id" not in self._attrs:
+            return qn
+        return f"{qn}[{self.id[-6:]}]"
 
     def asdict(self):
         """Return the attributes as a dict"""
@@ -187,6 +229,7 @@ class Installation(ZaptecBase):
     # Type conversions for the named attributes
     ATTR_TYPES = {
         "active": bool,
+        "authentication_type": type_authentication_type,
     }
 
     def __init__(self, data, account):
@@ -227,7 +270,7 @@ class Installation(ZaptecBase):
 
     async def state(self):
         _LOGGER.debug(
-            "Polling state for %s installation (%s)", self.id, self._attrs.get("name")
+            "Polling state for %s (%s)", self.qual_id, self._attrs.get("name")
         )
         data = await self.installation_info()
         self.set_attributes(data)
@@ -417,6 +460,10 @@ class Installation(ZaptecBase):
     async def set_authenication_required(self, required: bool):
         """Set if authorization is required for charging"""
 
+        # The naming of this function is ambigous. The Zaptec API is inconsistent
+        # on its use of the terms authorization and authentication. In the
+        # GUI this setting is termed "authorisation".
+
         # Undocumented feature, but the WEB API uses it. It fetches the
         # installation data and updates IsAuthorizationRequired field
         data = {
@@ -436,8 +483,7 @@ class Circuit(ZaptecBase):
 
     # Type conversions for the named attributes
     ATTR_TYPES = {
-        "is_active": bool,
-        "is_authorisation_required": bool,
+        "active": bool,
     }
 
     def __init__(
@@ -462,7 +508,7 @@ class Circuit(ZaptecBase):
 
     async def state(self):
         _LOGGER.debug(
-            "Polling state for %s cicuit (%s)", self.id, self._attrs.get("name")
+            "Polling state for %s (%s)", self.qual_id, self._attrs.get("name")
         )
         data = await self.circuit_info()
         self.set_attributes(data)
@@ -483,9 +529,11 @@ class Charger(ZaptecBase):
     # Type conversions for the named attributes
     ATTR_TYPES = {
         "active": bool,
+        "authentication_required": lambda x: x in TRUTHY,
         "charge_current_installation_max_limit": float,
         "charger_max_current": float,
         "charger_min_current": float,
+        "charger_operation_mode": type_operation_mode,
         "completed_session": type_completed_session,
         "current_phase1": float,
         "current_phase2": float,
@@ -493,6 +541,7 @@ class Charger(ZaptecBase):
         "is_authorization_required": lambda x: x in TRUTHY,
         "is_online": lambda x: x in TRUTHY,
         "permanent_cable_lock": lambda x: x in TRUTHY,
+        "operating_mode": type_operation_mode,
         "signed_meter_value": type_ocmf,
         "total_charge_power": float,
         "voltage_phase1": float,
@@ -507,16 +556,6 @@ class Charger(ZaptecBase):
 
         self.circuit = circuit
 
-        # Append the attr types that depends on self
-        attr_types = self.ATTR_TYPES.copy()
-        attr_types.update(
-            {
-                "operating_mode": self.type_operation_mode,
-                "charger_operation_mode": self.type_operation_mode,
-            }
-        )
-        self.ATTR_TYPES = attr_types
-
     async def build(self) -> None:
         """Build the object"""
 
@@ -526,7 +565,7 @@ class Charger(ZaptecBase):
     async def state(self):
         """Update the charger state"""
         _LOGGER.debug(
-            "Polling state for %s charger (%s)", self.id, self._attrs.get("name")
+            "Polling state for %s (%s)", self.qual_id, self._attrs.get("name")
         )
 
         try:
@@ -602,12 +641,6 @@ class Charger(ZaptecBase):
         # FIXME: Missing validator (see validate)
         return data
 
-    def type_operation_mode(self, v):
-        modes = {
-            str(v): k for k, v in self._account._const["ChargerOperationModes"].items()
-        }
-        return modes.get(str(v), str(v))
-
     # -----------------
     # API methods
     # -----------------
@@ -622,7 +655,7 @@ class Charger(ZaptecBase):
         if command == "authorize_charge":
             return await self.authorize_charge()
 
-        # Fetching the name from the const is perhaps not a good idea
+        # Fetching the name from the ZCONST is perhaps not a good idea
         # if Zaptec is changing them.
         cmdid = self._account._cmd_ids.get(command)
         if cmdid is None:
@@ -693,7 +726,6 @@ class Account:
         self.installations: list[Installation] = []
         self.stand_alone_chargers: list[Charger] = []
         self.map: dict[str, ZaptecBase] = {}
-        self._const = {}
         self._obs_ids = {}
         self._set_ids = {}
         self._cmd_ids = {}
@@ -997,10 +1029,12 @@ class Account:
 
         self.stand_alone_chargers = so_chargers
 
-        if not self._const:
+        global ZCONST
+        if not ZCONST:
             # Get the API constants
-            self._const = await self._request("constants")
+            ZCONST = ZConst(cast(dict, await self._request("constants")))
 
+        if not self._cmd_ids:
             # Find the chargers device types
             device_types = set(
                 chg.device_type for chg in self.map.values() if isinstance(chg, Charger)
@@ -1008,14 +1042,10 @@ class Account:
 
             # Define the remaps
             self._obs_ids = Account._get_remap(
-                self._const, ["Observations", "ObservationIds"], device_types
+                ["Observations", "ObservationIds"], device_types
             )
-            self._set_ids = Account._get_remap(
-                self._const, ["Settings", "SettingIds"], device_types
-            )
-            self._cmd_ids = Account._get_remap(
-                self._const, ["Commands", "CommandIds"], device_types
-            )
+            self._set_ids = Account._get_remap(["Settings", "SettingIds"], device_types)
+            self._cmd_ids = Account._get_remap(["Commands", "CommandIds"], device_types)
 
             # Commands can also be specified as lower case strings
             self._cmd_ids.update(
@@ -1049,16 +1079,16 @@ class Account:
         return [v for v in self.map.values() if isinstance(v, Charger)]
 
     @staticmethod
-    def _get_remap(const, wanted, device_types=None) -> dict:
-        """Parse the given zaptec constants record `const` and generate
+    def _get_remap(wanted, device_types=None) -> dict:
+        """Parse the given zaptec constants record `CONST` and generate
         a remap dict for the given `wanted` keys. If `device_types` is
         specified, the entries for these device schemas will be merged
         with the main remap dict.
         Example:
-            _get_remap(const, ["Observations", "ObservationIds"], [4])
+            _get_remap(["Observations", "ObservationIds"], [4])
         """
         ids = {}
-        for k, v in const.items():
+        for k, v in ZCONST.items():
             if k in wanted:
                 ids.update(v)
 
@@ -1122,7 +1152,7 @@ if __name__ == "__main__":
 
             # # Save the constants
             # with open("constant.json", "w") as outfile:
-            #     json.dump(acc._const, outfile, indent=2)
+            #     json.dump(dict(ZCONST), outfile, indent=2)
 
             # Update the state to get all the attributes.
             for obj in acc.map.values():

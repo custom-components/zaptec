@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 NAME = "zaptec"
-VERSION = "0.7.1a3"
+VERSION = "0.7.1a4"
 ISSUEURL = "https://github.com/custom-components/zaptec/issues"
 
 DOMAIN = "zaptec"
@@ -18,14 +18,6 @@ If you have any issues with this you need to open an issue here:
 -------------------------------------------------------------------
 """
 
-CHARGE_MODE_MAP = {
-    "Unknown": ["Unknown", "mdi:help-rhombus-outline"],
-    "Disconnected": ["Disconnected", "mdi:power-plug-off"],
-    "Connected_Requesting": ["Waiting", "mdi:timer-sand"],
-    "Connected_Charging": ["Charging", "mdi:lightning-bolt"],
-    "Connected_Finished": ["Charge done", "mdi:battery-charging-100"],
-}
-
 TOKEN_URL = "https://api.zaptec.com/oauth/token"
 API_URL = "https://api.zaptec.com/api/"
 CONST_URL = "https://api.zaptec.com/api/constants"
@@ -35,7 +27,9 @@ API_TIMEOUT = 10
 
 DEFAULT_SCAN_INTERVAL = 60
 
-REQUEST_REFRESH_DELAY = 0.3
+# This sets the delay after doing actions and the poll of updated values.
+# It was 0.3 and evidently that is a bit too fast for Zaptec cloud to handle.
+REQUEST_REFRESH_DELAY = 1
 
 CONF_MANUAL_SELECT = "manual_select"
 CONF_CHARGERS = "chargers"

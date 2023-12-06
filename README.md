@@ -226,6 +226,28 @@ not contain any personal information. Please double check that the file
 doesn't contain any personal information before sharing.
 
 
+## Debugging
+
+Debug log for Zaptec can be enabled by going to **Settings -> Devices & Services
+-> Integration (pane) -> Zaptec EV Charger -> Enable debug logging**.
+
+The most interesting stuff happens when the integration is started, so in the
+same view press `...` under *Integration entries* and press "reload". When the
+button *Enable debug logging* is turned off the browser will download the
+debug logs.
+
+Alternatively, debug can be enabled by manually adding the following to `configuration.yaml`:
+
+```yaml
+logger:
+  logs:
+    custom_components.zaptec: debug
+```
+
+**:information_source: NOTE!** The Zaptec integration logs massive amounts in debug. This is nice for finding errors, but it will generate large amount of
+data if left enabled for long. Do not use in production setups.
+
+
 [hellowlol-buymecoffee]: https://www.buymeacoffee.com/hellowlol1
 [sveinse-buymecoffee]: https://www.buymeacoffee.com/sveinse
 [buymecoffeebadge]: https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png

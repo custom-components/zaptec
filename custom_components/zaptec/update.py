@@ -17,7 +17,7 @@ from homeassistant.helpers.entity import EntityDescription
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import ZaptecBaseEntity, ZaptecUpdateCoordinator
-from .api import Account, Charger
+from .api import Charger
 from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
@@ -43,10 +43,9 @@ class ZaptecUpdate(ZaptecBaseEntity, UpdateEntity):
 
     async def async_install(self, version, backup):
         _LOGGER.debug(
-            "Updating firmware %s.%s  (in %s)",
-            self.__class__.__qualname__,
-            self.key,
-            self.zaptec_obj.id,
+            "Updating firmware %s of %s",
+            self.entity_id,
+            self.zaptec_obj.qual_id,
         )
 
         try:
@@ -69,10 +68,10 @@ CIRCUIT_ENTITIES: list[EntityDescription] = []
 CHARGER_ENTITIES: list[EntityDescription] = [
     ZapUpdateEntityDescription(
         key="firmware_update",
-        translation_key="firmware_update_to_date",
+        translation_key="firmware_update",
         device_class=UpdateDeviceClass.FIRMWARE,
         entity_category=const.EntityCategory.DIAGNOSTIC,
-        # icon="mdi:lock",
+        # icon="mdi:lock",  # FIXME: Find how icons work for firmware
     ),
 ]
 

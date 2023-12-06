@@ -17,7 +17,7 @@ from homeassistant.helpers.entity import EntityDescription
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import ZaptecBaseEntity, ZaptecUpdateCoordinator
-from .api import Account, Charger
+from .api import Charger
 from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
@@ -29,10 +29,9 @@ class ZaptecButton(ZaptecBaseEntity, ButtonEntity):
     async def async_press(self) -> None:
         """Press the button."""
         _LOGGER.debug(
-            "Press %s.%s   (in %s)",
-            self.__class__.__qualname__,
-            self.key,
-            self.zaptec_obj.id,
+            "Press button of %s in %s",
+            self.entity_id,
+            self.zaptec_obj.qual_id,
         )
 
         try:

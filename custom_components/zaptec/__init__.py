@@ -85,6 +85,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Setup all platforms
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     entry.async_on_unload(entry.add_update_listener(async_reload_entry))
+
+    # Dump the full entity map to the debug log
+    coordinator.log_entity_map()
+
     return True
 
 
@@ -113,6 +117,7 @@ async def async_reload_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
 class ZaptecUpdateCoordinator(DataUpdateCoordinator[None]):
     account: Account
     config_entry: ConfigEntry
+    entity_maps: dict[str, dict[str, ZaptecBaseEntity]]
 
     def __init__(self, hass: HomeAssistant, *, entry: ConfigEntry) -> None:
         """Initialize account-wide Zaptec data updater."""
@@ -140,6 +145,27 @@ class ZaptecUpdateCoordinator(DataUpdateCoordinator[None]):
             ),
         )
 
+        # Map the entities to the Zaptec object IDs
+        self.entity_maps = {}
+
+    def register_entity(self, entity: ZaptecBaseEntity) -> None:
+        """Register a new entity."""
+        key = entity.zaptec_obj.id
+        entitymap = self.entity_maps.setdefault(key, {})
+        entitymap[entity.key] = entity
+
+    def log_entity_map(self) -> None:
+        """Log all registered entities."""
+        _LOGGER.debug("Entity map:")
+        for apiid, entitymap in self.entity_maps.items():
+            zap_obj = self.account.map.get(apiid)
+            if zap_obj:
+                _LOGGER.debug("    %s  (%s, %s)", apiid, zap_obj.qual_id, zap_obj.name)
+            else:
+                _LOGGER.debug("    %s", apiid)
+            for entity in sorted(entitymap.values(), key=lambda x: x.key):
+                _LOGGER.debug("        %s  ->  %s", entity.key, entity.entity_id)
+
     async def cancel_streams(self):
         await asyncio.gather(*(i.cancel_stream() for i in self.account.installations))
 
@@ -149,6 +175,12 @@ class ZaptecUpdateCoordinator(DataUpdateCoordinator[None]):
         are updated in-place prior to this callback being called.
         """
         self.async_update_listeners()
+
+        # FIXME: Seems its needed to poll for updates, however this should
+        # not be called every time a stream update is received. It should
+        # update immediately and then throttle the next updates.
+        #
+        # await self.async_request_refresh()
 
     async def _async_update_data(self) -> None:
         """Fetch data from Zaptec."""
@@ -243,6 +275,20 @@ class ZaptecBaseEntity(CoordinatorEntity[ZaptecUpdateCoordinator]):
         custom light-weight init in the inheriting class.
         """
 
+    async def async_added_to_hass(self) -> None:
+        """Callback when entity is registered in HA"""
+        await super().async_added_to_hass()
+
+        # Register the entity with the coordinator
+        self.coordinator.register_entity(self)
+
+        # Log the add of the entity
+        _LOGGER.debug(
+            "    Added %s from %s",
+            self.entity_id,
+            self.zaptec_obj.qual_id,
+        )
+
     @callback
     def _handle_coordinator_update(self) -> None:
         try:
@@ -292,24 +338,20 @@ class ZaptecBaseEntity(CoordinatorEntity[ZaptecUpdateCoordinator]):
             self._prev_value = value
             # Only logs when the value changes
             _LOGGER.debug(
-                "    %s.%s  =  <%s> %s   (in %s %s)",
-                self.__class__.__qualname__,
-                self.key,
+                "    %s  =  <%s> %s   from %s",
+                self.entity_id,
                 type(value).__qualname__,
                 value,
-                type(self.zaptec_obj).__qualname__,
-                self.zaptec_obj.name,
+                self.zaptec_obj.qual_id,
             )
 
     @callback
     def _log_unavailable(self):
         """Helper to log when unavailable."""
         _LOGGER.debug(
-            "    %s.%s  =  UNAVAILABLE   (in %s %s)",
-            self.__class__.__qualname__,
-            self.key,
-            type(self.zaptec_obj).__qualname__,
-            self.zaptec_obj.name,
+            "    %s  =  UNAVAILABLE   in %s",
+            self.entity_id,
+            self.zaptec_obj.qual_id,
         )
 
     @property
@@ -347,15 +389,6 @@ class ZaptecBaseEntity(CoordinatorEntity[ZaptecUpdateCoordinator]):
             # Use provided class if it exists, otherwise use the class this
             # function was called from
             klass: type[ZaptecBaseEntity] = getattr(description, "cls", cls) or cls
-
-            # Create the entity object
-            _LOGGER.debug(
-                "Adding %s.%s   (in %s %s)",
-                klass.__qualname__,
-                description.key,
-                type(zaptec_obj).__qualname__,
-                zaptec_obj.name,
-            )
             entity = klass(coordinator, zaptec_obj, description, dev_info)
             entities.append(entity)
 
