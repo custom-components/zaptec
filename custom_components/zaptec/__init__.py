@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from copy import copy
 from datetime import timedelta
 from typing import Any
 
@@ -389,7 +390,7 @@ class ZaptecBaseEntity(CoordinatorEntity[ZaptecUpdateCoordinator]):
             # Use provided class if it exists, otherwise use the class this
             # function was called from
             klass: type[ZaptecBaseEntity] = getattr(description, "cls", cls) or cls
-            entity = klass(coordinator, zaptec_obj, description, dev_info)
+            entity = klass(coordinator, zaptec_obj, copy(description), dev_info)
             entities.append(entity)
 
         return entities

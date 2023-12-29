@@ -189,6 +189,10 @@ _"Deauthorize charging"_ is pressed.
 **:information_source: INFO:** Please note that Zaptec unlocks the cable when
 charging is paused unless it is permanently locked.
 
+**:information_source: INFO:** Charge authorization from HA only works when the
+installation is set with *Authentication Type* set to **Native authentication**
+in Zaptec portal.
+
 
 ## Templates
 

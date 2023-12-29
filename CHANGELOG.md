@@ -1,11 +1,13 @@
 # Changelog
 
-## 0.7.1a4
+## 0.7.1a5
 
+* Fixed issue with data leaking over with multiple chargers
 * Fixed issues and improved diagnostics download
 * Added new charger sensor "Humidity", "Temperature (internal)",
   "Allocated charge current", "Authentication Type"
 * Added new installer sensor "Max Current"
+* Added statistics attribute for each entity that measures something
 * Fixed API request cleanups
 * Cleaned debug output
 * Cleanup of translations, more consistent usage of "Authorization"
