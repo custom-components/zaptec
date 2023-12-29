@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.7.1a5
+## 0.7.1
 
 * Fixed issue with data leaking over with multiple chargers
 * Fixed issues and improved diagnostics download
