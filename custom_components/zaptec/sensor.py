@@ -76,6 +76,7 @@ INSTALLATION_ENTITIES: list[EntityDescription] = [
         device_class=SensorDeviceClass.CURRENT,
         icon="mdi:current-ac",
         native_unit_of_measurement=const.UnitOfElectricCurrent.AMPERE,
+        state_class=SensorStateClass.MEASUREMENT,
     ),
     ZapSensorEntityDescription(
         key="available_current_phase2",
@@ -83,6 +84,7 @@ INSTALLATION_ENTITIES: list[EntityDescription] = [
         device_class=SensorDeviceClass.CURRENT,
         icon="mdi:current-ac",
         native_unit_of_measurement=const.UnitOfElectricCurrent.AMPERE,
+        state_class=SensorStateClass.MEASUREMENT,
     ),
     ZapSensorEntityDescription(
         key="available_current_phase3",
@@ -90,6 +92,7 @@ INSTALLATION_ENTITIES: list[EntityDescription] = [
         device_class=SensorDeviceClass.CURRENT,
         icon="mdi:current-ac",
         native_unit_of_measurement=const.UnitOfElectricCurrent.AMPERE,
+        state_class=SensorStateClass.MEASUREMENT,
     ),
     ZapSensorEntityDescription(
         key="max_current",
@@ -98,6 +101,7 @@ INSTALLATION_ENTITIES: list[EntityDescription] = [
         entity_category=const.EntityCategory.DIAGNOSTIC,
         icon="mdi:current-ac",
         native_unit_of_measurement=const.UnitOfElectricCurrent.AMPERE,
+        state_class=SensorStateClass.MEASUREMENT,
     ),
     ZapSensorEntityDescription(
         key="authentication_type",
@@ -106,6 +110,7 @@ INSTALLATION_ENTITIES: list[EntityDescription] = [
         entity_category=const.EntityCategory.DIAGNOSTIC,
         options=[x for x in ZCONST.installation_authentication_type],
         icon="mdi:key-change",
+        # No state class as its not a numeric value
     ),
 ]
 
@@ -117,6 +122,7 @@ CIRCUIT_ENTITIES: list[EntityDescription] = [
         entity_category=const.EntityCategory.DIAGNOSTIC,
         icon="mdi:current-ac",
         native_unit_of_measurement=const.UnitOfElectricCurrent.AMPERE,
+        state_class=SensorStateClass.MEASUREMENT,
     ),
 ]
 
@@ -128,6 +134,7 @@ CHARGER_ENTITIES: list[EntityDescription] = [
         options=[x[0] for x in ZaptecChargeSensor.CHARGE_MODE_MAP.values()],
         icon="mdi:ev-station",
         cls=ZaptecChargeSensor,
+        # No state class as its not a numeric value
     ),
     ZapSensorEntityDescription(
         key="current_phase1",
@@ -135,6 +142,7 @@ CHARGER_ENTITIES: list[EntityDescription] = [
         device_class=SensorDeviceClass.CURRENT,
         icon="mdi:current-ac",
         native_unit_of_measurement=const.UnitOfElectricCurrent.AMPERE,
+        state_class=SensorStateClass.MEASUREMENT,
     ),
     ZapSensorEntityDescription(
         key="current_phase2",
@@ -142,6 +150,7 @@ CHARGER_ENTITIES: list[EntityDescription] = [
         device_class=SensorDeviceClass.CURRENT,
         icon="mdi:current-ac",
         native_unit_of_measurement=const.UnitOfElectricCurrent.AMPERE,
+        state_class=SensorStateClass.MEASUREMENT,
     ),
     ZapSensorEntityDescription(
         key="current_phase3",
@@ -149,6 +158,7 @@ CHARGER_ENTITIES: list[EntityDescription] = [
         device_class=SensorDeviceClass.CURRENT,
         icon="mdi:current-ac",
         native_unit_of_measurement=const.UnitOfElectricCurrent.AMPERE,
+        state_class=SensorStateClass.MEASUREMENT,
     ),
     ZapSensorEntityDescription(
         key="voltage_phase1",
@@ -156,6 +166,7 @@ CHARGER_ENTITIES: list[EntityDescription] = [
         device_class=SensorDeviceClass.VOLTAGE,
         icon="mdi:sine-wave",
         native_unit_of_measurement=const.UnitOfElectricPotential.VOLT,
+        state_class=SensorStateClass.MEASUREMENT,
     ),
     ZapSensorEntityDescription(
         key="voltage_phase2",
@@ -163,6 +174,7 @@ CHARGER_ENTITIES: list[EntityDescription] = [
         device_class=SensorDeviceClass.VOLTAGE,
         icon="mdi:sine-wave",
         native_unit_of_measurement=const.UnitOfElectricPotential.VOLT,
+        state_class=SensorStateClass.MEASUREMENT,
     ),
     ZapSensorEntityDescription(
         key="voltage_phase3",
@@ -170,6 +182,7 @@ CHARGER_ENTITIES: list[EntityDescription] = [
         device_class=SensorDeviceClass.VOLTAGE,
         icon="mdi:sine-wave",
         native_unit_of_measurement=const.UnitOfElectricPotential.VOLT,
+        state_class=SensorStateClass.MEASUREMENT,
     ),
     ZapSensorEntityDescription(
         key="total_charge_power",
@@ -177,6 +190,7 @@ CHARGER_ENTITIES: list[EntityDescription] = [
         device_class=SensorDeviceClass.POWER,
         icon="mdi:flash",
         native_unit_of_measurement=const.UnitOfPower.WATT,
+        state_class=SensorStateClass.MEASUREMENT,
     ),
     ZapSensorEntityDescription(
         key="total_charge_power_session",
@@ -200,6 +214,7 @@ CHARGER_ENTITIES: list[EntityDescription] = [
         device_class=SensorDeviceClass.ENERGY,
         icon="mdi:counter",
         native_unit_of_measurement=const.UnitOfEnergy.KILO_WATT_HOUR,
+        state_class=SensorStateClass.MEASUREMENT,
     ),
     ZapSensorEntityDescription(
         key="humidity",
@@ -208,6 +223,7 @@ CHARGER_ENTITIES: list[EntityDescription] = [
         icon="mdi:water-percent",
         native_unit_of_measurement=const.PERCENTAGE,
         entity_category=const.EntityCategory.DIAGNOSTIC,
+        state_class=SensorStateClass.MEASUREMENT,
     ),
     ZapSensorEntityDescription(
         key="temperature_internal5",
@@ -216,6 +232,7 @@ CHARGER_ENTITIES: list[EntityDescription] = [
         icon="mdi:temperature-celsius",
         native_unit_of_measurement=const.TEMP_CELSIUS,
         entity_category=const.EntityCategory.DIAGNOSTIC,
+        state_class=SensorStateClass.MEASUREMENT,
     ),
     ZapSensorEntityDescription(
         key="charge_current_set",
@@ -223,6 +240,7 @@ CHARGER_ENTITIES: list[EntityDescription] = [
         device_class=SensorDeviceClass.CURRENT,
         icon="mdi:current-ac",
         native_unit_of_measurement=const.UnitOfElectricCurrent.AMPERE,
+        state_class=SensorStateClass.MEASUREMENT,
     ),
 ]
 

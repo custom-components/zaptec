@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import traceback
-from copy import deepcopy
 from typing import Any, TypeVar, cast
 
 # to Support running this as a script.
@@ -61,6 +60,7 @@ class Redactor:
 
     # Never redact these words
     NEVER_REDACT = [
+        None,
         True,
         False,
         "true",
@@ -74,6 +74,7 @@ class Redactor:
         "1.",
         1,
         1.0,
+        "",
     ]
 
     # Keys that will be looked up into the observer id dict
@@ -92,6 +93,17 @@ class Redactor:
         self.redacts = {}
         self.redact_info = {}
 
+    def add_redact(self, obj, ctx=None, key=None, redact=None) -> str:
+        """Add a new redaction to the list."""
+        if not redact:
+            redact = f"<--Redact #{len(self.redacts) + 1}-->"
+        self.redacts[obj] = redact
+        self.redact_info[redact] = {  # For statistics only
+            "text": obj,
+            "from": f"{key} in {ctx}" if key else ctx,
+        }
+        return redact
+
     def redact(self, obj: T, ctx=None, key=None, secondpass=False) -> T:
         """Redact the object if it is present in the redacted dict.
         A new redaction is created if make_new is not None. ctx is
@@ -101,34 +113,14 @@ class Redactor:
         if not self.do_redact:
             return obj
 
-        if isinstance(obj, str):
-            # Check if new redaction is needed
-            if key and key in self.REDACT_KEYS and obj not in self.NEVER_REDACT:
-                red = f"<--Redact #{len(self.redacts) + 1}-->"
-                self.redacts[obj] = red
-                self.redact_info[red] = {  # For statistics only
-                    "text": obj,
-                    "from": f"{key} in {ctx}",
-                }
-                return cast(T, red)
-
-            # Check if the string is already redacted
-            if obj in self.redacts:
-                return self.redacts[obj]
-
-            # Check if the string contains a redacted string
-            for k, v in self.redacts.items():
-                if k in obj:
-                    obj = obj.replace(k, v)
-
-        elif isinstance(obj, (tuple, list)):
+        if isinstance(obj, (tuple, list)):
             # Redact each element in the list
             return cast(
                 T,
                 [self.redact(k, ctx=ctx, key=key, secondpass=secondpass) for k in obj],
             )
 
-        elif isinstance(obj, dict):
+        if isinstance(obj, dict):
             # Redact each value in the dict. Unless secondpass is set, the keys
             # are checked if they are in the REDACT_KEYS list.
             return cast(
@@ -143,6 +135,20 @@ class Redactor:
                     for k, v in obj.items()
                 },
             )
+
+        # Check if the object is already redacted
+        if obj in self.redacts:
+            return self.redacts[obj]
+
+        # Check if new redaction is needed
+        if key and key in self.REDACT_KEYS and obj not in self.NEVER_REDACT:
+            return cast(T, self.add_redact(obj, ctx=ctx, key=key))
+
+        # Check if the string contains a redacted string
+        if isinstance(obj, str):
+            for k, v in self.redacts.items():
+                if isinstance(k, str) and k in obj:
+                    obj = obj.replace(k, v)
 
         return obj
 
@@ -170,15 +176,35 @@ async def async_get_device_diagnostics(
     """Return diagnostics for a device."""
 
     out = {}
-    api = out.setdefault("api", {})
-    red = None
+    coordinator: ZaptecUpdateCoordinator = hass.data[DOMAIN][config_entry.entry_id]
+    acc: Account = coordinator.account
 
+    # Helper to redact the output data
+    red = Redactor(DO_REDACT, acc._obs_ids)
+
+    def add_failure(out, err):
+        out.setdefault("failures", []).append(
+            {
+                "exception": type(err).__name__,
+                "err": str(err),
+                "tb": list(traceback.format_exc().splitlines()),
+            }
+        )
+
+    #
+    #  PRE SEED OBJECT IDS FOR REDACTION
+    #
     try:
-        coordinator: ZaptecUpdateCoordinator = hass.data[DOMAIN][config_entry.entry_id]
-        acc: Account = coordinator.account
+        for id, obj in acc.map.items():
+            red.add_redact(id, ctx="preseed", redact=f"<--{obj.qual_id}-->")
+    except Exception as err:
+        add_failure(out, err)
 
-        # Helper to redact the output data
-        red = Redactor(DO_REDACT, acc._obs_ids)
+    #
+    #  API FETCHING
+    #
+    try:
+        api = out.setdefault("api", {})
 
         async def req(url):
             try:
@@ -198,9 +224,6 @@ async def async_get_device_diagnostics(
         def add(url, obj, ctx=None):
             api[red.redact(url, ctx=ctx)] = red.redact(obj, ctx=ctx)
 
-        #
-        #  API FETCHING
-        #
         data = await req(url := "installation")
         installation_ids = [inst["Id"] for inst in data.get("Data", [])]
         add(url, data, ctx="installation")
@@ -240,9 +263,14 @@ async def async_get_device_diagnostics(
             red.redact_statelist(data.values(), ctx="settings")
             add(url, data, ctx="settings")
 
-        #
-        #  MAPPINGS
-        #
+    except Exception as err:
+        add_failure(out, err)
+
+    #
+    #  MAPPINGS
+    #
+    try:
+
         def addmap(k, v):
             obj = {
                 "__key": k,
@@ -255,46 +283,56 @@ async def async_get_device_diagnostics(
             "maps",
             [red.redact(addmap(k, v), ctx="maps") for k, v in acc.map.items()],
         )
+    except Exception as err:
+        add_failure(out, err)
 
-        # Get the entity map
+    #
+    #  ENTITY MAP
+    #
+    try:
+
+        def add_key(k):
+            v = acc.map.get(k)
+            if v is None:
+                return k
+            return v.qual_id
+
+        def entity_info(entity):
+            return {
+                "entity_id": entity.entity_id,
+                "name": entity.name,
+                "unique_id": entity.unique_id,
+            }
+
         out.setdefault(
             "entity_map",
             {
-                red.redact(k, ctx="entity_map"): red.redact(
-                    {a: b.entity_id for a, b in v.items()}
+                red.redact(add_key(k), ctx="entity_map"): red.redact(
+                    {a: entity_info(b) for a, b in v.items()}
                 )
                 for k, v in coordinator.entity_maps.items()
             },
         )
-
     except Exception as err:
-        out.setdefault("failures", []).append(
-            {
-                "exception": type(err).__name__,
-                "err": str(err),
-                "tb": list(traceback.format_exc().splitlines()),
-            }
-        )
+        add_failure(out, err)
 
+    #
+    #  2ND PASS
+    #
     try:
-        if red:
-            # 2nd pass to replace any newer redacted text within the output.
-            out = red.redact(out, secondpass=True)
-
-            #
-            #  REDACTED DATA
-            #
-            if INCLUDE_REDACTS:
-                out.setdefault("redacts", red.redact_info)
-
+        # 2nd pass to replace any newer redacted text within the output.
+        out = red.redact(out, secondpass=True)
     except Exception as err:
-        out.setdefault("failures", []).append(
-            {
-                "exception": type(err).__name__,
-                "err": str(err),
-                "tb": list(traceback.format_exc().splitlines()),
-            }
-        )
+        add_failure(out, err)
+
+    #
+    #  REDACTED DATA
+    #
+    try:
+        if INCLUDE_REDACTS:
+            out.setdefault("redacts", red.redact_info)
+    except Exception as err:
+        add_failure(out, err)
 
     return out
 
