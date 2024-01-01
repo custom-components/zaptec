@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.7.2b1
+
+* Added new installation sensors "Installation type", "Network type"
+* Added new charger sensor "Device type"
+* Added new service call "send_command" for sending any commands to the
+  charger
+* Fix error handling of service calls
+* API: Moved ZConst() class into zconst.py and let this class handle all
+  related to constants and types. Rewrite how this class is initalized from
+  Account.build(). Move Account._obs_ids, ._set_ids and ._cmd_ids into
+  attributes in ZConst().
+* API: Add interpreted type to Installation attributes "current_user_role",
+  "installation_type", "network_type"
+* API: Add interpreted type to Charger attributes "authentication_type",
+  "current_user_role", "device_type", "network_type"
+* API: Add support for numeric charger commands
+* API: Move Account._state_to_attrs() into ZaptecBase.state_to_attrs()
+
 ## 0.7.1
 
 * Fixed issue with data leaking over with multiple chargers

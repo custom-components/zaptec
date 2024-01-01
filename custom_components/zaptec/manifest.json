@@ -10,5 +10,5 @@
   ],
   "iot_class": "cloud_polling",
   "requirements": ["azure-servicebus", "pydantic"],
-  "version": "0.7.1"
+  "version": "0.7.2b1"
 }
