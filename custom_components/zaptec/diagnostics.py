@@ -11,7 +11,7 @@ if __name__ != "__main__":
     from homeassistant.helpers.device_registry import DeviceEntry
 
 from . import ZaptecUpdateCoordinator
-from .api import Account
+from .api import ZCONST, Account
 from .const import DOMAIN
 
 T = TypeVar("T")
@@ -180,7 +180,7 @@ async def async_get_device_diagnostics(
     acc: Account = coordinator.account
 
     # Helper to redact the output data
-    red = Redactor(DO_REDACT, acc._obs_ids)
+    red = Redactor(DO_REDACT, ZCONST.observations)
 
     def add_failure(out, err):
         out.setdefault("failures", []).append(

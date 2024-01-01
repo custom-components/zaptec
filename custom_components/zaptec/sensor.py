@@ -108,8 +108,26 @@ INSTALLATION_ENTITIES: list[EntityDescription] = [
         translation_key="authentication_type",
         device_class=SensorDeviceClass.ENUM,
         entity_category=const.EntityCategory.DIAGNOSTIC,
-        options=[x for x in ZCONST.installation_authentication_type],
+        options=ZCONST.installation_authentication_type_list,
         icon="mdi:key-change",
+        # No state class as its not a numeric value
+    ),
+    ZapSensorEntityDescription(
+        key="installation_type",
+        translation_key="installation_type",
+        device_class=SensorDeviceClass.ENUM,
+        entity_category=const.EntityCategory.DIAGNOSTIC,
+        options=ZCONST.installation_types_list,
+        icon="mdi:shape-outline",
+        # No state class as its not a numeric value
+    ),
+    ZapSensorEntityDescription(
+        key="network_type",
+        translation_key="network_type",
+        device_class=SensorDeviceClass.ENUM,
+        entity_category=const.EntityCategory.DIAGNOSTIC,
+        options=ZCONST.network_types_list,
+        icon="mdi:waves-arrow-up",
         # No state class as its not a numeric value
     ),
 ]
@@ -241,6 +259,15 @@ CHARGER_ENTITIES: list[EntityDescription] = [
         icon="mdi:current-ac",
         native_unit_of_measurement=const.UnitOfElectricCurrent.AMPERE,
         state_class=SensorStateClass.MEASUREMENT,
+    ),
+    ZapSensorEntityDescription(
+        key="device_type",
+        translation_key="device_type",
+        device_class=SensorDeviceClass.ENUM,
+        entity_category=const.EntityCategory.DIAGNOSTIC,
+        options=ZCONST.device_types_list,
+        icon="mdi:shape-outline",
+        # No state class as its not a numeric value
     ),
 ]
 

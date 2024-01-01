@@ -132,3 +132,21 @@ limit_current:
         number:
           min: 0
           max: 32
+
+send_command:
+  name: Send command
+  description: >-
+    Send command to the charger. Select charger device(s) or specify the
+    charger_id directly.
+  fields:
+    device_id:
+      description: Select charger device
+      selector:
+        device:
+          integration: zaptec
+    charger_id:
+      description: Charger identifier
+      example: 00000000-1111-2222-3333-444444444444
+    command:
+      description: Charger command. Either string or integer.
+      example: "StopChargingFinal"

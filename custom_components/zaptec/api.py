@@ -17,6 +17,7 @@ import pydantic
 from .const import API_RETRIES, API_TIMEOUT, API_URL, MISSING, TOKEN_URL, TRUTHY
 from .misc import mc_nbfx_decoder, to_under
 from .validate import validate
+from .zconst import ZConst
 
 """
 stuff are missing from the api docs compared to what the portal uses.
@@ -29,6 +30,17 @@ signalr is used by the website.
 
 # pylint: disable=missing-function-docstring
 
+_LOGGER = logging.getLogger(__name__)
+
+# Set to True to debug log all API calls
+DEBUG_API_CALLS = False
+
+# Set to True to debug log all API errors
+DEBUG_API_ERRORS = True
+
+# Global var for the API constants from Zaptec
+ZCONST: ZConst = ZConst()
+
 # Type definitions
 TValue = str | int | float | bool
 TDict = dict[str, TValue]
@@ -39,15 +51,6 @@ class TLogExc(Protocol):
 
     def __call__(self, exc: Exception) -> Exception:
         ...
-
-
-_LOGGER = logging.getLogger(__name__)
-
-# Set to True to debug log all API calls
-DEBUG_API_CALLS = False
-
-# Set to True to debug log all API errors
-DEBUG_API_ERRORS = True
 
 
 class ZaptecApiError(Exception):
@@ -82,58 +85,6 @@ class RequestDataError(ZaptecApiError):
     """Data is not valid"""
 
 
-#
-# Helper wrapper for reading constants from the API
-#
-class ZConst(UserDict):
-    """Zaptec constants wrapper class"""
-
-    @property
-    def charger_operation_modes(self):
-        return self.get("ChargerOperationModes", {})
-
-    @property
-    def installation_authentication_type(self):
-        return self.get("InstallationAuthenticationType", {})
-
-
-# Global var for the API constants from Zaptec
-ZCONST: ZConst = ZConst()
-
-
-#
-# Attribute type converters
-#
-def type_ocmf(data):
-    """Open Charge Metering Format (OCMF) type"""
-    # https://github.com/SAFE-eV/OCMF-Open-Charge-Metering-Format/blob/master/OCMF-en.md
-    sects = data.split("|")
-    if len(sects) not in (2, 3) or sects[0] != "OCMF":
-        raise ValueError(f"Invalid OCMF data: {data}")
-    data = json.loads(sects[1])
-    return data
-
-
-def type_completed_session(data):
-    """Convert the CompletedSession to a dict"""
-    data = json.loads(data)
-    if "SignedSession" in data:
-        data["SignedSession"] = type_ocmf(data["SignedSession"])
-    return data
-
-
-def type_operation_mode(v):
-    """Convert the operation mode to a string"""
-    modes = {str(v): k for k, v in ZCONST.charger_operation_modes.items()}
-    return modes.get(str(v), str(v))
-
-
-def type_authentication_type(v):
-    """Convert the authentication type to a string"""
-    modes = {str(v): k for k, v in ZCONST.installation_authentication_type.items()}
-    return modes.get(str(v), str(v))
-
-
 class ZaptecBase(ABC):
     """Base class for Zaptec objects"""
 
@@ -156,7 +107,9 @@ class ZaptecBase(ABC):
             # Cast the value to the correct type
             new_key = to_under(k)
             try:
-                new_v = self.ATTR_TYPES.get(new_key, lambda x: x)(v)
+                # Get the type conversion function and apply it
+                type_fn = self.ATTR_TYPES.get(new_key, lambda x: x)
+                new_v = type_fn(v)
             except Exception as err:
                 _LOGGER.error(
                     "Failed to convert attribute %s (%s) value <%s> %s: %s",
@@ -220,16 +173,43 @@ class ZaptecBase(ABC):
     async def state(self) -> None:
         """Update the state of the object"""
 
+    @staticmethod
+    def state_to_attrs(
+        data: Iterable[dict[str, str]], key: str, keydict: dict[str, str]
+    ):
+        """Convert a list of state data into a dict of attributes. `key`
+        is the key that specifies the attribute name. `keydict` is a
+        dict that maps the key value to an attribute name.
+        """
+        out = {}
+        for item in data:
+            skey = item.get(key)
+            if skey is None:
+                _LOGGER.debug("Missing key %s in %s", key, item)
+                continue
+            value = item.get("Value", item.get("ValueAsString", MISSING))
+            if value is not MISSING:
+                kv = keydict.get(skey, f"{key} {skey}")
+                if kv in out:
+                    _LOGGER.debug(
+                        "Duplicate key %s. Is '%s', new '%s'", kv, out[kv], value
+                    )
+                out[kv] = value
+        return out
+
 
 class Installation(ZaptecBase):
     """Represents an installation"""
 
     circuits: list[Circuit]
 
-    # Type conversions for the named attributes
+    # Type conversions for the named attributes (keep sorted)
     ATTR_TYPES = {
         "active": bool,
-        "authentication_type": type_authentication_type,
+        "authentication_type": ZCONST.type_authentication_type,
+        "current_user_roles": ZCONST.type_user_roles,
+        "installation_type": ZCONST.type_installation_type,
+        "network_type": ZCONST.type_network_type,
     }
 
     def __init__(self, data, account):
@@ -361,7 +341,7 @@ class Installation(ZaptecBase):
                             if "StateId" in json_log:
                                 json_log[
                                     "StateId"
-                                ] = f"{json_log['StateId']} ({self._account._obs_ids.get(json_log['StateId'])})"
+                                ] = f"{json_log['StateId']} ({ZCONST.observations.get(json_log['StateId'])})"
                             _LOGGER.debug("---   Subscription: %s", json_log)
 
                             # Send result to account that will update the objects
@@ -481,7 +461,7 @@ class Circuit(ZaptecBase):
 
     chargers: list["Charger"]
 
-    # Type conversions for the named attributes
+    # Type conversions for the named attributes (keep sorted)
     ATTR_TYPES = {
         "active": bool,
     }
@@ -526,23 +506,27 @@ class Circuit(ZaptecBase):
 class Charger(ZaptecBase):
     """Represents a charger"""
 
-    # Type conversions for the named attributes
+    # Type conversions for the named attributes (keep sorted)
     ATTR_TYPES = {
         "active": bool,
         "authentication_required": lambda x: x in TRUTHY,
+        "authentication_type": ZCONST.type_authentication_type,
         "charge_current_installation_max_limit": float,
         "charger_max_current": float,
         "charger_min_current": float,
-        "charger_operation_mode": type_operation_mode,
-        "completed_session": type_completed_session,
+        "charger_operation_mode": ZCONST.type_charger_operation_mode,
+        "completed_session": ZCONST.type_completed_session,
         "current_phase1": float,
         "current_phase2": float,
         "current_phase3": float,
+        "current_user_roles": ZCONST.type_user_roles,
+        "device_type": ZCONST.type_device_type,
         "is_authorization_required": lambda x: x in TRUTHY,
         "is_online": lambda x: x in TRUTHY,
+        "network_type": ZCONST.type_network_type,
+        "operating_mode": ZCONST.type_charger_operation_mode,
         "permanent_cable_lock": lambda x: x in TRUTHY,
-        "operating_mode": type_operation_mode,
-        "signed_meter_value": type_ocmf,
+        "signed_meter_value": ZCONST.type_ocmf,
         "total_charge_power": float,
         "voltage_phase1": float,
         "voltage_phase2": float,
@@ -588,7 +572,7 @@ class Charger(ZaptecBase):
         # Get the state from the charger
         try:
             state = await self._account._request(f"chargers/{self.id}/state")
-            data = Account._state_to_attrs(state, "StateId", self._account._obs_ids)
+            data = self.state_to_attrs(state, "StateId", ZCONST.observations)
             self.set_attributes(data)
         except RequestError as err:
             if err.error_code != 403:
@@ -603,9 +587,7 @@ class Charger(ZaptecBase):
         # Fetch some additional attributes from settings
         try:
             settings = await self._account._request(f"chargers/{self.id}/settings")
-            data = Account._state_to_attrs(
-                settings.values(), "SettingId", self._account._set_ids
-            )
+            data = self.state_to_attrs(settings.values(), "SettingId", ZCONST.settings)
             self.set_attributes(data)
         except RequestError as err:
             if err.error_code != 403:
@@ -649,7 +631,7 @@ class Charger(ZaptecBase):
         data = await self._account._request(f"chargers/{self.id}")
         return data
 
-    async def command(self, command: str):
+    async def command(self, command: str | int):
         """Send a command to the charger"""
 
         if command == "authorize_charge":
@@ -657,9 +639,15 @@ class Charger(ZaptecBase):
 
         # Fetching the name from the ZCONST is perhaps not a good idea
         # if Zaptec is changing them.
-        cmdid = self._account._cmd_ids.get(command)
-        if cmdid is None:
-            raise ValueError(f"Unknown command {command}")
+        if command not in ZCONST.commands:
+            raise ValueError(f"Unknown command '{command}'")
+
+        if isinstance(command, int):
+            # If int, look up the command name
+            cmdid = command
+            command = ZCONST.commands.get(command)
+        else:
+            cmdid = ZCONST.commands.get(command)
 
         _LOGGER.debug("Command %s (%s)", command, cmdid)
         data = await self._account._request(
@@ -670,8 +658,9 @@ class Charger(ZaptecBase):
     async def set_settings(self, settings: dict[str, Any]):
         """Set settings on the charger"""
 
-        set_ids = self._account._set_ids
-        values = [{"id": set_ids.get(k), "value": v} for k, v in settings.items()]
+        values = [
+            {"id": ZCONST.settings.get(k), "value": v} for k, v in settings.items()
+        ]
 
         if any(d for d in values if d["id"] is None):
             raise ValueError(f"Unknown setting '{settings}'")
@@ -726,9 +715,6 @@ class Account:
         self.installations: list[Installation] = []
         self.stand_alone_chargers: list[Charger] = []
         self.map: dict[str, ZaptecBase] = {}
-        self._obs_ids = {}
-        self._set_ids = {}
-        self._cmd_ids = {}
         self.is_built = False
         self._timeout = aiohttp.ClientTimeout(total=API_TIMEOUT)
 
@@ -999,6 +985,11 @@ class Account:
         """Make the python interface."""
         _LOGGER.debug("Discover and build hierarchy")
 
+        # Get the API constants
+        const = await self._request("constants")
+        ZCONST.clear()
+        ZCONST.update(const)
+
         # Get list of installations
         installations = await self._request("installation")
 
@@ -1029,28 +1020,14 @@ class Account:
 
         self.stand_alone_chargers = so_chargers
 
-        global ZCONST
-        if not ZCONST:
-            # Get the API constants
-            ZCONST = ZConst(cast(dict, await self._request("constants")))
+        # Find the charger device types
+        device_types = set(
+            chg.device_type for chg in self.map.values() if isinstance(chg, Charger)
+        )
 
-        if not self._cmd_ids:
-            # Find the chargers device types
-            device_types = set(
-                chg.device_type for chg in self.map.values() if isinstance(chg, Charger)
-            )
-
-            # Define the remaps
-            self._obs_ids = Account._get_remap(
-                ["Observations", "ObservationIds"], device_types
-            )
-            self._set_ids = Account._get_remap(["Settings", "SettingIds"], device_types)
-            self._cmd_ids = Account._get_remap(["Commands", "CommandIds"], device_types)
-
-            # Commands can also be specified as lower case strings
-            self._cmd_ids.update(
-                {to_under(k): v for k, v in self._cmd_ids.items() if isinstance(k, str)}
-            )
+        # Update the observation, settings and commands ids based on the
+        # discovered device types.
+        ZCONST.update_ids_from_schema(device_types)
 
         self.is_built = True
 
@@ -1067,7 +1044,7 @@ class Account:
         if cls_id is not None:
             klass = self.map.get(cls_id)
             if klass:
-                d = Account._state_to_attrs([data], "StateId", self._obs_ids)
+                d = ZaptecBase.state_to_attrs([data], "StateId", ZCONST.observations)
                 klass.set_attributes(d)
             else:
                 _LOGGER.warning("Got update for unknown charger id %s", cls_id)
@@ -1077,57 +1054,6 @@ class Account:
     def get_chargers(self):
         """Return a list of all chargers"""
         return [v for v in self.map.values() if isinstance(v, Charger)]
-
-    @staticmethod
-    def _get_remap(wanted, device_types=None) -> dict:
-        """Parse the given zaptec constants record `CONST` and generate
-        a remap dict for the given `wanted` keys. If `device_types` is
-        specified, the entries for these device schemas will be merged
-        with the main remap dict.
-        Example:
-            _get_remap(["Observations", "ObservationIds"], [4])
-        """
-        ids = {}
-        for k, v in ZCONST.items():
-            if k in wanted:
-                ids.update(v)
-
-            if device_types and k == "Schema":
-                for schema in v.values():
-                    for want in wanted:
-                        v2 = schema.get(want)
-                        if v2 is None:
-                            continue
-                        if schema.get("DeviceType") in device_types:
-                            ids.update(v2)
-
-        # make the reverse lookup
-        ids.update({v: k for k, v in ids.items()})
-        return ids
-
-    @staticmethod
-    def _state_to_attrs(
-        data: Iterable[dict[str, str]], key: str, keydict: dict[str, str]
-    ):
-        """Convert a list of state data into a dict of attributes. `key`
-        is the key that specifies the attribute name. `keydict` is a
-        dict that maps the key value to an attribute name.
-        """
-        out = {}
-        for item in data:
-            skey = item.get(key)
-            if skey is None:
-                _LOGGER.debug("Missing key %s in %s", key, item)
-                continue
-            value = item.get("Value", item.get("ValueAsString", MISSING))
-            if value is not MISSING:
-                kv = keydict.get(skey, f"{key} {skey}")
-                if kv in out:
-                    _LOGGER.debug(
-                        "Duplicate key %s. Is '%s', new '%s'", kv, out[kv], value
-                    )
-                out[kv] = value
-        return out
 
 
 if __name__ == "__main__":
