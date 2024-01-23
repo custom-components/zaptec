@@ -180,7 +180,7 @@ The automation created with the blueprint manages current limiting only. It will
 the charger status and sets the current accordingly. If charging is enabled and 
 possible it will manage the limit. It will _not_ maintain the charging nor scheduling.
 
-How setup the automation, how logic works and what all settings mean is documented in the [blueprint readme](https://github.com/svenakela/ha/blob/main/zaptec/README.md). 
+How to setup the automation, how logic works and what all settings mean is documented in the [blueprint readme](https://github.com/svenakela/ha/blob/main/zaptec/README.md). 
 
 The blueprint can be installed manually but also One Click installed:
 
