@@ -162,19 +162,6 @@ changing this value will affect all.
 changes to the available charge current. Zaptec recommends not changing the
 values more often than 15 minutes.
 
-## Charger load balancing
-
-By using the [Zaptec Load Balancing](https://github.com/svenakela/ha/tree/main/zaptec) 
-blueprint you'll get automatic load balancing for for your charger (i.e. the 
-charger limit is updated constantly to avoid fuse overload).
-
-The blueprint can be installed manually but also One Click installed:
-[![](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https://github.com/svenakela/ha/blob/main/zaptec/charger-balancing-blueprint.yaml)
-
-To be able to automatically load balance your charger you need an extra current 
-meter device. Modern power meters can either do it directly or they provide a 
-P1/HAN port for an external device 
-
 
 #### 3 phase current adjustment
 
@@ -267,6 +254,22 @@ filtering them.
 
 **:information_source: NOTE!** The Zaptec integration logs massive amounts in debug. This is nice for finding errors, but it will generate large amount of
 data if left enabled for long. Do not use in production setups.
+
+## Using the integration
+
+### Load balancing your charger
+
+By using the [Zaptec Load Balancing](https://github.com/svenakela/ha/tree/main/zaptec) 
+blueprint you'll get automatic load balancing for your charger (i.e. the charger 
+limit is updated constantly to avoid fuse overload).
+
+The automation created with the blueprint manages current limiting. If charging is enabled 
+and possible without tripping fuses it will manage the limit over the charging session.
+
+How to setup the automation, how the logic works and what all settings mean is documented 
+in the [blueprint readme](https://github.com/svenakela/ha/blob/main/zaptec/README.md). 
+
+
 
 
 [hellowlol-buymecoffee]: https://www.buymeacoffee.com/hellowlol1
