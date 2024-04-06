@@ -248,7 +248,7 @@ CHARGER_ENTITIES: list[EntityDescription] = [
         translation_key="temperature_internal5",
         device_class=SensorDeviceClass.TEMPERATURE,
         icon="mdi:temperature-celsius",
-        native_unit_of_measurement=const.TEMP_CELSIUS,
+        native_unit_of_measurement=const.UnitOfTemperature.CELSIUS,
         entity_category=const.EntityCategory.DIAGNOSTIC,
         state_class=SensorStateClass.MEASUREMENT,
     ),
