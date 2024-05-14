@@ -148,5 +148,5 @@ class ZConst(UserDict):
         val = int(v)
         if not val:
             return "None"
-        roles = set(k for k, v in self.get("UserRoles", {}).items() if v & val)
+        roles = set(k for k, v in self.get("UserRoles", {}).items() if v & val == v)
         return ", ".join(roles)

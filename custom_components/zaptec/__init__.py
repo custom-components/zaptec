@@ -17,6 +17,7 @@ from homeassistant.const import (
 )
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
+from homeassistant.helpers import device_registry as dr, entity_registry as er
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.debounce import Debouncer
 from homeassistant.helpers.entity import DeviceInfo, EntityDescription
@@ -89,6 +90,20 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     # Dump the full entity map to the debug log
     coordinator.log_entity_map()
+
+    # Clean up unused device entries with no entities
+    device_registry = dr.async_get(hass)
+    entity_registry = er.async_get(hass)
+
+    device_entries = dr.async_entries_for_config_entry(
+        device_registry, config_entry_id=entry.entry_id
+    )
+    for dev in device_entries:
+        dev_entities = er.async_entries_for_device(
+            entity_registry, dev.id, include_disabled_entities=True
+        )
+        if not dev_entities:
+            device_registry.async_remove_device(dev.id)
 
     return True
 

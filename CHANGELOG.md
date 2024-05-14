@@ -2,6 +2,8 @@
 
 ## 0.7.2b1
 
+* Delete old stale devices, #89
+* Changed "total_charger_power_session" to TOTAL, #87
 * Added new installation sensors "Installation type", "Network type"
 * Added new charger sensor "Device type"
 * Added new service call "send_command" for sending any commands to the
