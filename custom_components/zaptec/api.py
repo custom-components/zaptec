@@ -36,7 +36,9 @@ _LOGGER = logging.getLogger(__name__)
 DEBUG_API_CALLS = False
 
 # Set to True to debug log all API errors
-DEBUG_API_ERRORS = True
+# Setting this to False because the error messages are very verbose and will
+# flood the log in Home Assistant.
+DEBUG_API_ERRORS = False
 
 # Global var for the API constants from Zaptec
 ZCONST: ZConst = ZConst()
@@ -786,10 +788,12 @@ class Account:
                         f"Failed to authenticate. Got status {resp.status}"
                     )
         except asyncio.TimeoutError as err:
-            _LOGGER.error("Authentication timeout")
+            if DEBUG_API_ERRORS:
+                _LOGGER.error("Authentication timeout")
             raise RequestTimeoutError("Authenticaton timed out") from err
         except aiohttp.ClientConnectionError as err:
-            _LOGGER.error("Authentication request failed: %s", err)
+            if DEBUG_API_ERRORS:
+                _LOGGER.error("Authentication request failed: %s", err)
             raise RequestConnectionError("Authentication request failed") from err
 
     async def _retry_request(
