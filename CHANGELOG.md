@@ -2,6 +2,7 @@
 
 ## 0.7.2b1
 
+* Add retry on 500 server errors from Zaptec cloud, #90
 * Reduce the amount of logging from the API, #90
 * Delete old stale devices, #89
 * Changed "total_charger_power_session" to TOTAL, #87
