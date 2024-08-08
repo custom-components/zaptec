@@ -984,12 +984,18 @@ class Account:
 
                     return json_result
 
-                raise log_exc(
-                    RequestError(
+                error = RequestError(
                         f"{method.upper()} request to {full_url} failed with status {resp.status}: {resp}",
                         resp.status,
-                    )
                 )
+
+                if resp.status == 500:  # Internal server error
+                    # Zaptec cloud often delivers this error code.
+                    log_exc(error)  # Error is not raised, this for logging
+                    continue  # Retry request
+
+                # All other error codes will be raised
+                raise log_exc(error)
 
     #   API METHODS DONE
     # =======================================================================
