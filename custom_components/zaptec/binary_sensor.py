@@ -63,7 +63,7 @@ INSTALLATION_ENTITIES: list[EntityDescription] = [
         name="Installation",  # Special case, no translation
         device_class=BinarySensorDeviceClass.CONNECTIVITY,  # False=disconnected, True=connected
         entity_category=const.EntityCategory.DIAGNOSTIC,
-        icon="mdi:home-lightning-bolt-outline",
+        icon="mdi:cloud",
         has_entity_name=False,
         cls=ZaptecBinarySensorWithAttrs,
     ),
@@ -84,7 +84,7 @@ CIRCUIT_ENTITIES: list[EntityDescription] = [
         name="Circuit",  # Special case, no translation
         device_class=BinarySensorDeviceClass.CONNECTIVITY,  # False=disconnected, True=connected
         entity_category=const.EntityCategory.DIAGNOSTIC,
-        icon="mdi:orbit",
+        icon="mdi:cloud",
         has_entity_name=False,
         cls=ZaptecBinarySensorWithAttrs,
     ),
@@ -96,9 +96,17 @@ CHARGER_ENTITIES: list[EntityDescription] = [
         name="Charger",  # Special case, no translation
         device_class=BinarySensorDeviceClass.CONNECTIVITY,  # False=disconnected, True=connected
         entity_category=const.EntityCategory.DIAGNOSTIC,
-        icon="mdi:ev-station",
+        icon="mdi:cloud",
         has_entity_name=False,
         cls=ZaptecBinarySensorWithAttrs,
+    ),
+    ZapBinarySensorEntityDescription(
+        key="is_online",
+        translation_key="online",
+        device_class=BinarySensorDeviceClass.CONNECTIVITY,  # False=disconnected, True=connected
+        entity_category=const.EntityCategory.DIAGNOSTIC,
+        icon="mdi:ev-station",
+        cls=ZaptecBinarySensor,
     ),
     ZapBinarySensorEntityDescription(
         key="is_authorization_required",

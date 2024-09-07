@@ -69,6 +69,7 @@
                     "on": "Required"
                 }
             },
+            "online": { "name": "Online" },
             "permanent_cable_lock": { "name": "Permanent cable lock" }
         },
         "button": {
