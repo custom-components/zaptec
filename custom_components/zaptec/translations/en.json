@@ -47,7 +47,7 @@
             "charger_operation_mode": {
                 "name": "Charger operation mode",
                 "state": {
-                    "Unknown": "Uknown",
+                    "Unknown": "Unknown",
                     "Disconnected": "Disconnected",
                     "Connected_Requesting": "Connected (Requesting)",
                     "Connected_Charging": "Charging",
@@ -70,7 +70,7 @@
             "network_type": { 
                 "name": "Network type",
                 "state": {
-                    "Unknown": "Uknown",
+                    "Unknown": "Unknown",
                     "IT_1_Phase": "IT 1 Phase",
                     "IT_3_Phase": "IT 3 Phase",
                     "TN_1_Phase": "TN 1 Phase",
@@ -80,11 +80,11 @@
             "operating_mode": {
                 "name": "Charger mode",
                 "state": {
-                    "Unknown": "Uknown",
+                    "Unknown": "Unknown",
                     "Disconnected": "Disconnected",
-                    "Connected_Requesting": "Connected (Requesting)",
-                    "Connected_Charging": "Charging",
-                    "Connected_Finished": "Finished"
+                    "Waiting": "Waiting",
+                    "Charging": "Charging",
+                    "Charge done": "Charge done"
                 }
             },
             "signed_meter_value": { "name": "Energy meter"},
