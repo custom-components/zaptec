@@ -2,6 +2,8 @@
 
 ## 0.7.2b1
 
+* Remove large and noisy charger states containg test or production data.
+  Helps to reduce the entity attribute <16kb. #88
 * Add "online" binary entity in charger, #114
 * Reduce the amount of logging from the API, #90
 * Delete old stale devices, #89

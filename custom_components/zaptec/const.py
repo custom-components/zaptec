@@ -44,3 +44,11 @@ MISSING = Missing()
 
 TRUTHY = ["true", "1", "on", "yes", 1, True]
 FALSY = ["false", "0", "off", "no", 0, False]
+
+# Charger state attributes that should be excluded from being set as sensor
+# attributes. Use strings.
+CHARGER_EXCLUDES = {
+    "854",  # PilotTestResults
+    "900",  # ProductionTestResults
+    "980",  # MIDCalibration
+}
