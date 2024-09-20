@@ -1045,15 +1045,19 @@ class Account:
         """update for the stream. Note build has to called first."""
 
         cls_id = data.pop("ChargerId", None)
-        if cls_id is not None:
-            klass = self.map.get(cls_id)
-            if klass:
-                d = ZaptecBase.state_to_attrs([data], "StateId", ZCONST.observations)
-                klass.set_attributes(d)
-            else:
-                _LOGGER.warning("Got update for unknown charger id %s", cls_id)
-        else:
+        if cls_id == "00000000-0000-0000-0000-000000000000":
+            _LOGGER.debug("Ignoring charger with id 00000000-0000-0000-0000-000000000000")
+            return
+        elif cls_id is None:
             _LOGGER.warning("Unknown update message %s", data)
+            return
+
+        klass = self.map.get(cls_id)
+        if klass:
+            d = ZaptecBase.state_to_attrs([data], "StateId", ZCONST.observations)
+            klass.set_attributes(d)
+        else:
+            _LOGGER.warning("Got update for unknown charger id %s", cls_id)
 
     def get_chargers(self):
         """Return a list of all chargers"""
@@ -1080,9 +1084,9 @@ if __name__ == "__main__":
             # Builds the interface.
             await acc.build()
 
-            # # Save the constants
-            # with open("constant.json", "w") as outfile:
-            #     json.dump(dict(ZCONST), outfile, indent=2)
+            # Save the constant
+            with open("constant.json", "w") as outfile:
+                json.dump(dict(ZCONST), outfile, indent=2)
 
             # Update the state to get all the attributes.
             for obj in acc.map.values():
