@@ -2,6 +2,8 @@
 
 ## 0.7.2b1
 
+* Remove large and noisy charger states containg test or production data.
+  Helps to reduce the entity attribute <16kb. #88
 * Ignore updates with chargerid 000000...000, #84
 * Add "online" binary entity in charger, #114
 * Reduce the amount of logging from the API, #90

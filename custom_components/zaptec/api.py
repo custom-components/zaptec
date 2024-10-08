@@ -14,7 +14,9 @@ from typing import Any, AsyncGenerator, Callable, Protocol, cast
 import aiohttp
 import pydantic
 
-from .const import API_RETRIES, API_TIMEOUT, API_URL, MISSING, TOKEN_URL, TRUTHY
+from .const import (
+    API_RETRIES, API_TIMEOUT, API_URL, MISSING, TOKEN_URL, TRUTHY,
+    CHARGER_EXCLUDES)
 from .misc import mc_nbfx_decoder, to_under
 from .validate import validate
 from .zconst import ZConst
@@ -177,7 +179,10 @@ class ZaptecBase(ABC):
 
     @staticmethod
     def state_to_attrs(
-        data: Iterable[dict[str, str]], key: str, keydict: dict[str, str]
+        data: Iterable[dict[str, str]],
+        key: str,
+        keydict: dict[str, str],
+        excludes: set[str] = set(), 
     ):
         """Convert a list of state data into a dict of attributes. `key`
         is the key that specifies the attribute name. `keydict` is a
@@ -188,6 +193,9 @@ class ZaptecBase(ABC):
             skey = item.get(key)
             if skey is None:
                 _LOGGER.debug("Missing key %s in %s", key, item)
+                continue
+            if str(skey) in excludes:
+                _LOGGER.debug("Excluding key %s entry: %s", skey, item)
                 continue
             value = item.get("Value", item.get("ValueAsString", MISSING))
             if value is not MISSING:
@@ -574,7 +582,8 @@ class Charger(ZaptecBase):
         # Get the state from the charger
         try:
             state = await self._account._request(f"chargers/{self.id}/state")
-            data = self.state_to_attrs(state, "StateId", ZCONST.observations)
+            data = self.state_to_attrs(state, "StateId", ZCONST.observations,
+                                       excludes=CHARGER_EXCLUDES)
             self.set_attributes(data)
         except RequestError as err:
             if err.error_code != 403:
