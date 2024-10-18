@@ -4,6 +4,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import random
 from abc import ABC, abstractmethod
 from collections import UserDict
 from collections.abc import Iterable
@@ -15,8 +16,8 @@ import aiohttp
 import pydantic
 
 from .const import (
-    API_RETRIES, API_TIMEOUT, API_URL, MISSING, TOKEN_URL, TRUTHY,
-    CHARGER_EXCLUDES)
+    API_RETRIES, API_RETRY_FACTOR, API_RETRY_JITTER, API_RETRY_MAXTIME,
+    API_TIMEOUT, API_URL, MISSING, TOKEN_URL, TRUTHY, CHARGER_EXCLUDES)
 from .misc import mc_nbfx_decoder, to_under
 from .validate import validate
 from .zconst import ZConst
@@ -447,7 +448,7 @@ class Installation(ZaptecBase):
         )
         return data
 
-    async def set_authenication_required(self, required: bool):
+    async def set_authentication_required(self, required: bool):
         """Set if authorization is required for charging"""
 
         # The naming of this function is ambigous. The Zaptec API is inconsistent
@@ -715,7 +716,9 @@ class Account:
     """This class represent an zaptec account"""
 
     def __init__(
-        self, username: str, password: str, client: aiohttp.ClientSession | None = None
+        self, username: str, password: str, *, 
+        client: aiohttp.ClientSession | None = None,
+        max_time: float = API_RETRY_MAXTIME,
     ) -> None:
         _LOGGER.debug("Account init")
         self._username = username
@@ -728,6 +731,7 @@ class Account:
         self.map: dict[str, ZaptecBase] = {}
         self.is_built = False
         self._timeout = aiohttp.ClientTimeout(total=API_TIMEOUT)
+        self._max_time = max_time
 
     def register(self, id: str, data: ZaptecBase):
         """Register an object data with id"""
@@ -813,6 +817,7 @@ class Account:
         request needs to be retried, the caller must call __next__."""
 
         error: Exception | None = None
+        delay: float = 1
         iteration = 0
         for iteration in range(1, retries + 1):
             try:
@@ -825,9 +830,9 @@ class Account:
                 # Make the request
                 async with self._client.request(
                     method=method, url=url, **kwargs
-                ) as resp:
+                ) as response:
                     # Log the response
-                    log_resp = [m async for m in self._response_log(resp)]
+                    log_resp = [m async for m in self._response_log(response)]
                     if DEBUG_API_CALLS:
                         for msg in log_resp:
                             _LOGGER.debug(msg)
@@ -845,7 +850,16 @@ class Account:
                     # Let the caller handle the response. If the caller
                     # calls __next__ on the generator the request will be
                     # retried.
-                    yield resp, log_exc
+                    yield response, log_exc
+
+                # Implement exponential backoff with jitter and sleep before
+                # retying the request.
+                delay = delay * API_RETRY_FACTOR
+                delay = random.normalvariate(delay, delay * API_RETRY_JITTER)
+                delay = min(delay, self._max_time)
+                if DEBUG_API_CALLS:
+                    _LOGGER.debug("Sleeping for %s seconds", delay)
+                await asyncio.sleep(delay)
 
             # Exceptions that can be retried
             except (asyncio.TimeoutError, aiohttp.ClientConnectionError) as err:
@@ -901,9 +915,9 @@ class Account:
             # Each iteration is a new request. resp is the response object, while
             # log_exc is a callback that will log the exception if the request
             # fails.
-            async for resp, log_exc in ctx:
-                if resp.status == 200:
-                    data = await resp.json()
+            async for response, log_exc in ctx:
+                if response.status == 200:
+                    data = await response.json()
                     # The data includes the time the access token expires
                     # atm we just ignore it and refresh token when needed.
                     self._token_info.update(data)
@@ -912,8 +926,8 @@ class Account:
                         _LOGGER.debug("     TOKEN OK")
                     return
 
-                elif resp.status == 400:
-                    data = await resp.json()
+                elif response.status == 400:
+                    data = await response.json()
                     raise log_exc(
                         AuthenticationError(
                             f"Failed to authenticate. {data.get('error_description', '')}"
@@ -922,8 +936,8 @@ class Account:
 
                 raise log_exc(
                     RequestError(
-                        f"POST request to {TOKEN_URL} failed with status {resp.status}: {resp}",
-                        resp.status,
+                        f"POST request to {TOKEN_URL} failed with status {response.status}: {response}",
+                        response.status,
                     )
                 )
 
@@ -955,20 +969,20 @@ class Account:
             # Each iteration is a new request. resp is the response object, while
             # log_exc is a callback that will log the exception if the request
             # fails.
-            async for resp, log_exc in ctx:
-                if resp.status == 401:  # Unauthorized
+            async for response, log_exc in ctx:
+                if response.status == 401:  # Unauthorized
                     await self._refresh_token()
                     kwargs["headers"]["Authorization"] = f"Bearer {self._access_token}"
                     continue  # Retry request
 
-                elif resp.status == 204:  # No content
-                    content = await resp.read()
+                elif response.status == 204:  # No content
+                    content = await response.read()
                     return content
 
-                elif resp.status == 200:  # OK
+                elif response.status == 200:  # OK
                     # Read the JSON payload
                     try:
-                        json_result = await resp.json(content_type=None)
+                        json_result = await response.json(content_type=None)
                     except json.JSONDecodeError as err:
                         raise log_exc(
                             RequestDataError(f"Failed to decode json: {err}"),
@@ -985,11 +999,11 @@ class Account:
                     return json_result
 
                 error = RequestError(
-                        f"{method.upper()} request to {full_url} failed with status {resp.status}: {resp}",
-                        resp.status,
+                        f"{method.upper()} request to {full_url} failed with status {response.status}: {response}",
+                        response.status,
                 )
 
-                if resp.status == 500:  # Internal server error
+                if response.status == 500:  # Internal server error
                     # Zaptec cloud often delivers this error code.
                     log_exc(error)  # Error is not raised, this for logging
                     continue  # Retry request

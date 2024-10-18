@@ -23,6 +23,9 @@ API_URL = "https://api.zaptec.com/api/"
 CONST_URL = "https://api.zaptec.com/api/constants"
 
 API_RETRIES = 5
+API_RETRY_FACTOR = 2.3
+API_RETRY_JITTER = 0.1
+API_RETRY_MAXTIME = 600
 API_TIMEOUT = 10
 
 DEFAULT_SCAN_INTERVAL = 60

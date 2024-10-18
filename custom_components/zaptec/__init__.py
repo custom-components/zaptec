@@ -140,13 +140,14 @@ class ZaptecUpdateCoordinator(DataUpdateCoordinator[None]):
 
         _LOGGER.debug("Setting up coordinator")
 
+        scan_interval = entry.data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
+
         self.account = Account(
             entry.data[CONF_USERNAME],
             entry.data[CONF_PASSWORD],
             client=async_get_clientsession(hass),
+            max_time=scan_interval,  # Make sure any request is done within the scan interval
         )
-
-        scan_interval = entry.data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
 
         super().__init__(
             hass,
