@@ -108,8 +108,7 @@
                     "on": "Required"
                 }
             },
-            "online": { "name": "Online" },
-            "permanent_cable_lock": { "name": "Permanent cable lock" }
+            "online": { "name": "Online" }
         },
         "button": {
             "authorize_charge": { "name": "Authorize charging" },
@@ -125,6 +124,9 @@
         },
         "update": {
             "firmware_update": { "name": "Firmware update" }
+        },
+        "lock": {
+            "permanent_cable_lock": { "name": "Permanent cable lock" }
         }
     }
 }
