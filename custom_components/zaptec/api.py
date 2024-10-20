@@ -280,7 +280,6 @@ class Installation(ZaptecBase):
             from azure.servicebus.exceptions import ServiceBusError
         except ImportError:
             _LOGGER.debug("Azure Service bus is not available. Resolving to polling")
-            # https://github.com/custom-components/zaptec/issues
             return
 
         await self.cancel_stream()
@@ -297,7 +296,6 @@ class Installation(ZaptecBase):
                 _LOGGER.warning(
                     "Azure Service bus is not available. Resolving to polling"
                 )
-                # https://github.com/custom-components/zaptec/issues
                 return
 
             # Get connection details
