@@ -40,18 +40,6 @@ class ZaptecBinarySensorWithAttrs(ZaptecBinarySensor):
         self._attr_unique_id = self.zaptec_obj.id
 
 
-class ZaptecBinarySensorLock(ZaptecBinarySensor):
-    @callback
-    def _update_from_zaptec(self) -> None:
-        try:
-            self._attr_is_on = not self._get_zaptec_value()
-            self._attr_available = True
-            self._log_value(self._attr_is_on)
-        except (KeyError, AttributeError):
-            self._attr_available = False
-            self._log_unavailable()
-
-
 @dataclass
 class ZapBinarySensorEntityDescription(BinarySensorEntityDescription):
     cls: type | None = None
@@ -113,14 +101,6 @@ CHARGER_ENTITIES: list[EntityDescription] = [
         translation_key="authorization_required",
         entity_category=const.EntityCategory.DIAGNOSTIC,
         icon="mdi:lock",
-    ),
-    ZapBinarySensorEntityDescription(
-        key="permanent_cable_lock",
-        translation_key="permanent_cable_lock",
-        device_class=BinarySensorDeviceClass.LOCK,  # False=unlocked, True=locked
-        entity_category=const.EntityCategory.DIAGNOSTIC,
-        icon="mdi:lock",
-        cls=ZaptecBinarySensorLock,
     ),
 ]
 

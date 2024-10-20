@@ -2,6 +2,8 @@
 
 ## 0.7.2b1
 
+* Added new charger lock "Permanent cable lock" and removed the binary
+  sensor of the same name #102
 * Remove large and noisy charger states containg test or production data.
   Helps to reduce the entity attribute <16kb. #88
 * Ignore updates with chargerid 000000...000, #84
