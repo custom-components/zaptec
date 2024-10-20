@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.7.2b1
+## 0.7.2
 
 * Add support for setting status light brightness, #112
 * Add retry on 500 server errors from Zaptec cloud, #90
