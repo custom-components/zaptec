@@ -2,6 +2,7 @@
 
 ## 0.7.2b1
 
+* Add retry on 500 server errors from Zaptec cloud, #90
 * Added new charger lock "Permanent cable lock" and removed the binary
   sensor of the same name #102
 * Remove large and noisy charger states containg test or production data.
