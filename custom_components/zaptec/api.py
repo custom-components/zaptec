@@ -711,6 +711,20 @@ class Charger(ZaptecBase):
     async def set_current_in_maxium(self, value):
         return await self.set_settings({"current_in_maximum": value})
 
+    async def set_permanent_cable_lock(self, lock: bool):
+        """Set if the cable lock is permanent"""
+        _LOGGER.debug("Set permanent cable lock %s", lock)
+        data = {
+            "Cable": {
+                "PermanentLock": lock,
+            },
+        }
+        # NOTE: Undocumented API call
+        result = await self._account._request(
+            f"chargers/{self.id}/localSettings", method="post", data=data
+        )
+        return result
+
 
 class Account:
     """This class represent an zaptec account"""

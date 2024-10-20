@@ -49,7 +49,7 @@ PLATFORMS = [
     Platform.BINARY_SENSOR,
     Platform.BUTTON,
     # Platform.DEVICE_TRACKER,
-    # Platform.LOCK,
+    Platform.LOCK,
     # Platform.NOTIFY,
     Platform.NUMBER,
     # Platform.SELECT,

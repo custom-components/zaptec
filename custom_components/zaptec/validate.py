@@ -89,6 +89,13 @@ class ChargerFirmware(BaseModel):
     IsUpToDate: bool
 
 
+class ChargerLocalSettings(BaseModel):
+    model_config = ConfigDict(extra="allow")
+    Id: str
+    # Name: str
+    # DeviceId: str
+
+
 # pydantic v2
 # ChargerFirmwares = TypeAdapter[list[ChargerFirmware]]
 class ChargerFirmwares(TypeWrapper, BaseModel):
@@ -121,6 +128,7 @@ URLS = {
     r"chargers/[0-9a-f\-]+/settings": ChargerSettings,
     r"chargers/[0-9a-f\-]+/authorizecharge": None,
     r"chargers/[0-9a-f\-]+/SendCommand/[0-9]+": None,
+    r"chargers/[0-9a-f\-]+/localSettings": ChargerLocalSettings,
     r"chargerFirmware/installation/[0-9a-f\-]+": ChargerFirmwares,
 }
 
