@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.7.2b1
+## 0.7.2
 
 * Remove large and noisy charger states containg test or production data.
   Helps to reduce the entity attribute <16kb. #88
