@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.7.2b1
+## 0.7.2
 
 * Add retry on 500 server errors from Zaptec cloud, #90
 * Added new charger lock "Permanent cable lock" and removed the binary
