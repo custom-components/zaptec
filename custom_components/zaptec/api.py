@@ -267,6 +267,7 @@ class Installation(ZaptecBase):
         self.set_attributes(data)
 
     async def live_stream_connection_details(self):
+        # NOTE: API call deprecated
         data = await self._account._request(
             f"installation/{self.id}/messagingConnectionDetails"
         )
@@ -280,7 +281,6 @@ class Installation(ZaptecBase):
             from azure.servicebus.exceptions import ServiceBusError
         except ImportError:
             _LOGGER.debug("Azure Service bus is not available. Resolving to polling")
-            # https://github.com/custom-components/zaptec/issues
             return
 
         await self.cancel_stream()
@@ -297,7 +297,6 @@ class Installation(ZaptecBase):
                 _LOGGER.warning(
                     "Azure Service bus is not available. Resolving to polling"
                 )
-                # https://github.com/custom-components/zaptec/issues
                 return
 
             # Get connection details
@@ -461,6 +460,7 @@ class Installation(ZaptecBase):
             "Id": self.id,
             "IsRequiredAuthentication": required,
         }
+        # NOTE: Undocumented API call
         result = await self._account._request(
             f"installation/{self.id}", method="put", data=data
         )
@@ -510,6 +510,7 @@ class Circuit(ZaptecBase):
 
     async def circuit_info(self) -> TDict:
         """Raw request for circuit data"""
+        # NOTE: Undocumented API call. circuit is no longer part of the official docs
         data = await self._account._request(f"circuits/{self.id}")
         return data
 
@@ -598,6 +599,7 @@ class Charger(ZaptecBase):
 
         # Fetch some additional attributes from settings
         try:
+            # NOTE: Undocumented API call
             settings = await self._account._request(f"chargers/{self.id}/settings")
             data = self.state_to_attrs(settings.values(), "SettingId", ZCONST.settings)
             self.set_attributes(data)
@@ -631,6 +633,7 @@ class Charger(ZaptecBase):
 
         # This don't seems to be documented but the portal uses it
         # FIXME check what it returns and parse it to attributes
+        # NOTE: Undocumented API call
         data = await self._account._request(f"chargers/{self.id}/live")
         # FIXME: Missing validator (see validate)
         return data
@@ -678,6 +681,7 @@ class Charger(ZaptecBase):
             raise ValueError(f"Unknown setting '{settings}'")
 
         _LOGGER.debug("Settings %s", settings)
+        # NOTE: Undocumented API call
         data = await self._account._request(
             f"chargers/{self.id}/settings", method="post", data=values
         )
@@ -700,6 +704,7 @@ class Charger(ZaptecBase):
 
     async def authorize_charge(self):
         _LOGGER.debug("Authorize charge")
+        # NOTE: Undocumented API call
         data = await self._account._request(
             f"chargers/{self.id}/authorizecharge", method="post"
         )

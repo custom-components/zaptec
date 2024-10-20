@@ -90,6 +90,17 @@ Next the **Zaptec setup** dialog is presented. Fill in the form:
 
 # Usage
 
+>  :information_source: This integration use the
+[official Web API](https://api.zaptec.com/help/index.html) provided by Zaptec.
+However, this integration also use a few functions that are not officially
+supported by the API. Use at own risk and they might break at any time.
+>
+>  * Setting authorization required
+>  * Circuit info
+>  * Setting charger min and max current
+>  * Authorize charging
+>  * Setting cable lock
+
 ## Zaptec device concept
 
 The Zaptec cloud API use three levels of abstractions in their EVCP setup. These are
