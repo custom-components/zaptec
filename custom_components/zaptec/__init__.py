@@ -69,8 +69,13 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up zaptec as config entry."""
 
+    redacted_data = {**entry.data}
+    for key in ("password", "username"):
+        if key in redacted_data:
+            redacted_data[key] = "********"
+
     _LOGGER.info(STARTUP)
-    _LOGGER.debug("Setting up entry %s: %s", entry.entry_id, entry.data)
+    _LOGGER.debug("Setting up entry %s: %s", entry.entry_id, redacted_data)
 
     coordinator = ZaptecUpdateCoordinator(
         hass,
