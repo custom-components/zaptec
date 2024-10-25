@@ -100,6 +100,7 @@ supported by the API. Use at own risk and they might break at any time.
 >  * Setting charger min and max current
 >  * Authorize charging
 >  * Setting cable lock
+>  * Setting status light brightness
 
 ## Zaptec device concept
 
