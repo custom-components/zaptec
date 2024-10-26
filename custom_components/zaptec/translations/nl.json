@@ -14,7 +14,7 @@
             },
             "chargers": {
                 "title": "Zaptec oplader selectie",
-                "description": "Selecteer de opladers die u aan Home Assistant wilt toevoegen.",
+                "description": "Selecteer de oplader(s) die u aan Home Assistant wilt toevoegen.",
                 "data": {
                     "chargers": "Opladers"
                 }
@@ -24,10 +24,10 @@
             "cannot_connect": "[%key:common::config_flow::error::cannot_connect%]",
             "invalid_auth": "[%key:common::config_flow::error::invalid_auth%]",
             "unknown": "[%key:common::config_flow::error::unknown%]",
-            "no_chargers_selected": "Geen opladers geselecteerd. Selecteer ten minste één oplader."
+            "no_chargers_selected": "Geen oplader(s) geselecteerd. Selecteer ten minste één oplader."
         },
         "abort":{
-            "already_exists": "Eén exemplaar van Zaptec bestaat al."
+            "already_exists": "Een exemplaar van Zaptec bestaat al."
         }
     },
     "entity": {
@@ -66,7 +66,7 @@
             },
             "humidity": { "name": "Vochtigheid" },
             "installation_type": { "name": "Installatie type" },
-            "max_current": { "name": "Maximale stroom" },
+            "max_current": { "name": "Max stroom per fase" },
             "network_type": { 
                 "name": "Netwerk type",
                 "state": {
@@ -78,7 +78,7 @@
                 }
             },
             "operating_mode": {
-                "name": "Operatie-modus",
+                "name": "Opladermodus",
                 "state": {
                     "Unknown": "Onbekend",
                     "Disconnected": "Losgekoppeld",
@@ -98,7 +98,8 @@
         "number": {
             "available_current": { "name": "Beschikbare stroom" },
             "charger_max_current": { "name": "Max stroom" },
-            "charger_min_current": { "name": "Min stroom" }
+            "charger_min_current": { "name": "Min stroom" },
+            "hmi_brightness": { "name": "Helderheid statusindicator" }
         },
         "binary_sensor": {
             "authorization_required": {
@@ -113,7 +114,7 @@
         "button": {
             "authorize_charge": { "name": "Autoriseer het laden" },
             "deauthorize_and_stop": { "name": "Deautoriseer het laden"},
-            "restart_charger": { "name": "Herstart de oplader" },
+            "restart_charger": { "name": "Herstart het laadstation" },
             "resume_charging": { "name": "Hervat het opladen" },
             "stop_charging": { "name": "Stop het opladen" },
             "upgrade_firmware": { "name": "Firmware upgraden" }
