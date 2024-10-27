@@ -1,7 +1,10 @@
 # Changelog
 
-## 0.7.2b1
+## 0.7.2
 
+* Add Dutch language translation, #133
+* Prevent leaking username and passwords to logs, #131
+* Added documentation of API calls which are not official, #126
 * Add support for setting status light brightness, #112
 * Add retry on 500 server errors from Zaptec cloud, #90
 * Added new charger lock "Permanent cable lock" and removed the binary
