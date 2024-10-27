@@ -729,6 +729,20 @@ class Charger(ZaptecBase):
             f"chargers/{self.id}/localSettings", method="post", data=data
         )
         return result
+    
+    async def set_hmi_brightness(self, brightness: float):
+        """Set the HMI brightness"""
+        _LOGGER.debug("Set HMI brightness %s", brightness)
+        data = {
+            "Device": {
+                "HmiBrightness": brightness,
+            },
+        }
+        # NOTE: Undocumented API call
+        result = await self._account._request(
+            f"chargers/{self.id}/localSettings", method="post", data=data
+        )
+        return result
 
 
 class Account:

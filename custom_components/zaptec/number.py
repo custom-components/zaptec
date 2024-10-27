@@ -18,7 +18,7 @@ from homeassistant.helpers.entity import EntityDescription
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import ZaptecBaseEntity, ZaptecUpdateCoordinator
-from .api import Installation
+from .api import Installation, Charger
 from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
@@ -38,6 +38,7 @@ class ZaptecNumber(ZaptecBaseEntity, NumberEntity):
 
 class ZaptecAvailableCurrentNumber(ZaptecNumber):
     zaptec_obj: Installation
+    entity_description: ZapNumberEntityDescription
 
     def _post_init(self):
         # Get the max current rating from the reported max current
@@ -64,7 +65,8 @@ class ZaptecAvailableCurrentNumber(ZaptecNumber):
 
 
 class ZaptecSettingNumber(ZaptecNumber):
-    zaptec_obj: Installation
+    zaptec_obj: Charger
+    entity_description: ZapNumberEntityDescription
 
     def _post_init(self):
         # Get the max current rating from the reported max current
@@ -89,6 +91,38 @@ class ZaptecSettingNumber(ZaptecNumber):
             raise HomeAssistantError(
                 f"Setting {self.entity_description.setting} to {value} failed"
             ) from exc
+
+        await self.coordinator.async_request_refresh()
+
+
+class ZaptecHmiBrightness(ZaptecNumber):
+    zaptec_obj: Charger
+    entity_description: ZapNumberEntityDescription
+
+    @callback
+    def _update_from_zaptec(self) -> None:
+        try:
+            self._attr_native_value = float(self._get_zaptec_value()) * 100
+            self._attr_available = True
+            self._log_value(self._attr_native_value)
+        except (KeyError, AttributeError):
+            self._attr_available = False
+            self._log_unavailable()
+
+    async def async_set_native_value(self, value: float) -> None:
+        """Update to Zaptec."""
+        _LOGGER.debug(
+            "Set %s to <%s> %s in %s",
+            self.entity_id,
+            type(value).__qualname__,
+            value,
+            self.zaptec_obj.qual_id,
+        )
+
+        try:
+            await self.zaptec_obj.set_hmi_brightness(value / 100)
+        except Exception as exc:
+            raise HomeAssistantError(f"Set HmiBrightness to {value} failed") from exc
 
         await self.coordinator.async_request_refresh()
 
@@ -138,6 +172,14 @@ CHARGER_ENTITIES: list[EntityDescription] = [
         native_unit_of_measurement=const.UnitOfElectricCurrent.AMPERE,
         cls=ZaptecSettingNumber,
         setting="CurrentInMaximum",
+    ),
+    ZapNumberEntityDescription(
+        key="hmi_brightness",
+        translation_key="hmi_brightness",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        icon="mdi:brightness-6",
+        native_unit_of_measurement=const.PERCENTAGE,
+        cls=ZaptecHmiBrightness,
     ),
 ]
 

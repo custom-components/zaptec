@@ -98,7 +98,8 @@
         "number": {
             "available_current": { "name": "Available current" },
             "charger_max_current": { "name": "Charger max current" },
-            "charger_min_current": { "name": "Charger min current" }
+            "charger_min_current": { "name": "Charger min current" },
+            "hmi_brightness": { "name": "Status indicator brightness" }
         },
         "binary_sensor": {
             "authorization_required": {
