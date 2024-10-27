@@ -98,7 +98,8 @@
         "number": {
             "available_current": { "name": "Beschikbare stroom" },
             "charger_max_current": { "name": "Max stroom" },
-            "charger_min_current": { "name": "Min stroom" }
+            "charger_min_current": { "name": "Min stroom" },
+            "hmi_brightness": { "name": "Helderheid statusindicator" }
         },
         "binary_sensor": {
             "authorization_required": {
