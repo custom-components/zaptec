@@ -1,0 +1,133 @@
+{
+    "config": {
+        "step": {
+            "user": {
+                "title": "Konfiguracja Zaptec",
+                "description": "Dodaj swoje dane logowania do Zaptec Portal.\n\nOpcjonalny prefiks doda prefiks do wszystkich urządzeń. Należy pamiętać, że lepiej jest zmienić nazwy urządzeń w HA niż dodawać prefiks.",
+                "data": {
+                    "username": "Nazwa użytkownika",
+                    "password": "Hasło",
+                    "prefix": "Opcjonalny prefiks",
+                    "scan_interval": "Interwał skanowania",
+                    "manual_select": "Ręczne wybieranie ładowarek. Na następnym ekranie wybierz ładowarki do dodania."
+                }
+            },
+            "chargers": {
+                "title": "Wybór ładowarki Zaptec",
+                "description": "Wybierz ładowarki, które chcesz dodać do Home Assistant.",
+                "data": {
+                    "chargers": "Ładowarki"
+                }
+            }
+        },
+        "error": {
+            "cannot_connect": "[%key:common::config_flow::error::cannot_connect%]",
+            "invalid_auth": "[%key:common::config_flow::error::invalid_auth%]",
+            "unknown": "[%key:common::config_flow::error::unknown%]",
+            "no_chargers_selected": "Nie wybrano ładowarek. Wybierz co najmniej jedną ładowarkę."
+        },
+        "abort":{
+            "already_exists": "Istnieje już jedna instancja Zaptec."
+        }
+    },
+    "entity": {
+        "sensor": {
+            "authentication_type": {
+                "name": "Typ uwierzytelniania",
+                "state": {
+                    "Native": "Natywny",
+                    "WebHooks": "Web Hooks",
+                    "Ocpp": "OCPP"
+                }
+            },
+            "available_current_phase1": { "name": "Dostępny prąd fazy 1" },
+            "available_current_phase2": { "name": "Dostępny prąd fazy 2" },
+            "available_current_phase3": { "name": "Dostępny prąd fazy 3" },
+            "charge_current_set": { "name": "Przydzielony prąd ładowania" },
+            "charger_operation_mode": {
+                "name": "Tryb pracy ładowarki",
+                "state": {
+                    "Unknown": "Nieznany",
+                    "Disconnected": "Odłączony",
+                    "Connected_Requesting": "Podłączony (Żądanie)",
+                    "Connected_Charging": "Ładowanie",
+                    "Connected_Finished": "Zakończone"
+                }
+            },
+            "completed_session_energy": { "name": "Zużycie energii w zakończonej sesji" },
+            "current_phase1": { "name": "Prąd fazy 1" },
+            "current_phase2": { "name": "Prąd fazy 2" },
+            "current_phase3": { "name": "Prąd fazy 3" },
+            "device_type": {
+                "name": "Typ urządzenia",
+                "state": {
+                    "Unknown": "Nieznany"
+                }
+            },
+            "humidity": { "name": "Wilgotność" },
+            "installation_type": { "name": "Typ instalacji" },
+            "max_current": { "name": "Maksymalny prąd" },
+            "network_type": {
+                "name": "Typ sieci",
+                "state": {
+                    "Unknown": "Nieznany",
+                    "IT_1_Phase": "IT 1 Faza",
+                    "IT_3_Phase": "IT 3 Fazowy",
+                    "TN_1_Phase": "TN 1 Faza",
+                    "TN_3_Phase": "TN 3 Fazowy"
+                }
+            },
+            "operating_mode": {
+                "name": "Tryb ładowarki",
+                "state": {
+                    "Unknown": "Nieznany",
+                    "Disconnected": "Odłączony",
+                    "Waiting": "Oczekiwanie",
+                    "Charging": "Ładowanie",
+                    "Charge done": "Ładowanie zakończone"
+                }
+            },
+            "signed_meter_value": { "name": "Licznik energii" },
+            "temperature_internal5": { "name": "Temperatura (wewnętrzna)" },
+            "total_charge_power_session": { "name": "Łączna moc ładowania sesji" },
+            "total_charge_power": { "name": "Moc ładowania" },
+            "voltage_phase1": { "name": "Napięcie fazy 1" },
+            "voltage_phase2": { "name": "Napięcie fazy 2" },
+            "voltage_phase3": { "name": "Napięcie fazy 3" }
+        },
+        "number": {
+            "available_current": { "name": "Dostępny prąd" },
+            "charger_max_current": { "name": "Maksymalny prąd ładowarki" },
+            "charger_min_current": { "name": "Minimalny prąd ładowarki" },
+            "hmi_brightness": { "name": "Jasność wskaźnika statusu" }
+        },
+        "binary_sensor": {
+            "authorization_required": {
+                "name": "Wymagane uprawnienia",
+                "state": {
+                    "off": "Nie wymagane",
+                    "on": "Wymagane"
+                }
+            },
+            "online": { "name": "Online" }
+        },
+        "button": {
+            "authorize_charge": { "name": "Autoryzuj ładowanie" },
+            "deauthorize_and_stop": { "name": "Deautoryzuj ładowanie"},
+            "restart_charger": { "name": "Uruchom ponownie ładowarkę" },
+            "resume_charging": { "name": "Wznów ładowanie" },
+            "stop_charging": { "name": "Zatrzymaj ładowanie" },
+            "upgrade_firmware": { "name": "Aktualizuj oprogramowanie" }
+        },
+        "switch": {
+            "authorization_required": { "name": "Wymagane uprawnienia" },
+            "operating_mode": { "name": "Ładowanie" }
+        },
+        "update": {
+            "firmware_update": { "name": "Aktualizacja oprogramowania" }
+        },
+        "lock": {
+            "permanent_cable_lock": { "name": "Stała blokada kabla" }
+        }
+    }
+}

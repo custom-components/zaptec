@@ -1,6 +1,7 @@
 # Changelog
 
 ## 0.7.3b1
+* Add Polish language tranlation, #140
 
 ## 0.7.2
 
