@@ -1,0 +1,133 @@
+{
+    "config": {
+        "step": {
+            "user": {
+                "title": "Zaptec setup",
+                "description": "Lägg till dina Zaptec Portal login detaljer.\n\nDet valfria prefixet kommer att bli tillagt på alla enheter. Notera att det oftast är bättre att ändra namn på enheterna i HA än att lägga till prefix.",
+                "data": {
+                    "username": "Användarnamn",
+                    "password": "Lösenord",
+                    "prefix": "Valfritt prefix",
+                    "scan_interval": "Uppdaterings intervall",
+                    "manual_select": "Välj laddare manuellt. Nästa ruta visar vilka laddare att lägga till."
+                }
+            },
+            "chargers": {
+                "title": "Zaptec laddväljare",
+                "description": "Välj laddarna du vill lägga till i Home Assistant.",
+                "data": {
+                    "chargers": "Laddare"
+                }
+            }
+        },
+        "error": {
+            "cannot_connect": "[%key:common::config_flow::error::cannot_connect%]",
+            "invalid_auth": "[%key:common::config_flow::error::invalid_auth%]",
+            "unknown": "[%key:common::config_flow::error::unknown%]",
+            "no_chargers_selected": "Ingen laddare vald. Välj minst en laddare."
+        },
+        "abort":{
+            "already_exists": "En instans med laddare finns redan."
+        }
+    },
+    "entity": {
+        "sensor": {
+            "authentication_type": { 
+                "name": "Autensieringstyp",
+                "state": {
+                    "Native": "Native",
+                    "WebHooks": "Web Hooks",
+                    "Ocpp": "OCPP"
+                }
+            },
+            "available_current_phase1": { "name": "Tillgänglig ström fas 1" },
+            "available_current_phase2": { "name": "Tillgänglig ström fas 2" },
+            "available_current_phase3": { "name": "Tillgänglig ström fas 3" },
+            "charge_current_set": { "name": "Tilldelad laddström" },
+            "charger_operation_mode": {
+                "name": "Laddarens driftläge",
+                "state": {
+                    "Unknown": "Okänt",
+                    "Disconnected": "Frånkopplad",
+                    "Connected_Requesting": "Ansluten (Begärande)",
+                    "Connected_Charging": "Laddar",
+                    "Connected_Finished": "Laddat klart"
+                }
+            },
+            "completed_session_energy": { "name": "Energiförbrukning denna laddningen" },
+            "current_phase1": { "name": "Ström fas 1" },
+            "current_phase2": { "name": "Ström fas 2" },
+            "current_phase3": { "name": "Ström fas 3" },
+            "device_type": {
+                "name": "Enhetstyp",
+                "state": {
+                    "Unknown": "Okänd"
+                }
+            },
+            "humidity": { "name": "Luftfuktighet" },
+            "installation_type": { "name": "Installationstyp" },
+            "max_current": { "name": "Max ström" },
+            "network_type": { 
+                "name": "Nätverkstyp",
+                "state": {
+                    "Unknown": "Okänd",
+                    "IT_1_Phase": "IT 1 Fas",
+                    "IT_3_Phase": "IT 3 Fas",
+                    "TN_1_Phase": "TN 1 Fas",
+                    "TN_3_Phase": "TN 3 Fas"
+                }
+            },
+            "operating_mode": {
+                "name": "Laddstatus",
+                "state": {
+                    "Unknown": "Okänd",
+                    "Disconnected": "Frånkopplad",
+                    "Waiting": "Väntar",
+                    "Charging": "Laddar",
+                    "Charge done": "Laddning klar"
+                }
+            },
+            "signed_meter_value": { "name": "Förbrukad energi"},
+            "temperature_internal5": { "name": "Temperatur (intern)" },
+            "total_charge_power_session": { "name": "Laddat denna sessionen" },
+            "total_charge_power": { "name": "Laddeffekt" },
+            "voltage_phase1": { "name": "Volt fas 1" },
+            "voltage_phase2": { "name": "Volt fas 2" },
+            "voltage_phase3": { "name": "Volt fas 3" }
+        },
+        "number": {
+            "available_current": { "name": "Tillgänglig ström" },
+            "charger_max_current": { "name": "Max laddström" },
+            "charger_min_current": { "name": "Min laddström" },
+            "hmi_brightness": { "name": "Statusindikator ljusstyrka" }
+        },
+        "binary_sensor": {
+            "authorization_required": {
+                "name": "Auktorisering krävs",
+                "state": {
+                    "off": "Krävs inte",
+                    "on": "Krävs"
+                }
+            },
+            "online": { "name": "Online" }
+        },
+        "button": {
+            "authorize_charge": { "name": "Auktorisera laddning" },
+            "deauthorize_and_stop": { "name": "Avauktorisera laddning"},
+            "restart_charger": { "name": "Starta om laddaren" },
+            "resume_charging": { "name": "Återuppta laddning" },
+            "stop_charging": { "name": "Stoppa laddning" },
+            "upgrade_firmware": { "name": "Uppgradera mjukvara" }
+        },
+        "switch": {
+            "authorization_required": { "name": "Auktorisering krävs" },
+            "operating_mode": { "name": "Laddar" }
+        },
+        "update": {
+            "firmware_update": { "name": "Uppdatera mjukvara" }
+        },
+        "lock": {
+            "permanent_cable_lock": { "name": "Permanent kabellås" }
+        }
+    }
+}
