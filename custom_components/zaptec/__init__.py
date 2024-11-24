@@ -27,6 +27,7 @@ from homeassistant.helpers.update_coordinator import (
     DataUpdateCoordinator,
     UpdateFailed,
 )
+from homeassistant.util.ssl import get_default_context
 
 from .api import Account, Charger, Circuit, Installation, ZaptecApiError, ZaptecBase
 from .const import (
@@ -255,7 +256,8 @@ class ZaptecUpdateCoordinator(DataUpdateCoordinator[None]):
                     # Setup the stream subscription
                     for install in self.account.installations:
                         if install.id in self.account.map:
-                            await install.stream(cb=self._stream_update)
+                            await install.stream(cb=self._stream_update,
+                                                 ssl_context=get_default_context())
 
                 # Fetch updates
                 await self.account.update_states()

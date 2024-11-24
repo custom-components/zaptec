@@ -274,25 +274,24 @@ class Installation(ZaptecBase):
         self.connection_details = data
         return data
 
-    async def stream(self, cb=None) -> asyncio.Task:
+    async def stream(self, cb=None, ssl_context=None) -> asyncio.Task|None:
         """Kickoff the steam in the background."""
         try:
             from azure.servicebus.aio import ServiceBusClient
             from azure.servicebus.exceptions import ServiceBusError
         except ImportError:
             _LOGGER.debug("Azure Service bus is not available. Resolving to polling")
-            return
+            return None
 
         await self.cancel_stream()
-        self._stream_task = asyncio.create_task(self._stream(cb=cb))
+        self._stream_task = asyncio.create_task(self._stream(cb=cb, ssl_context=ssl_context))
         return self._stream_task
 
-    async def _stream(self, cb=None):
+    async def _stream(self, cb=None, ssl_context=None):
         """Main stream handler"""
         try:
             try:
                 from azure.servicebus.aio import ServiceBusClient
-                from azure.servicebus.exceptions import ServiceBusError
             except ImportError:
                 _LOGGER.warning(
                     "Azure Service bus is not available. Resolving to polling"
@@ -316,7 +315,10 @@ class Installation(ZaptecBase):
                 f'SharedAccessKeyName={conf["Username"]};'
                 f'SharedAccessKey={conf["Password"]}'
             )
-            servicebus_client = ServiceBusClient.from_connection_string(conn_str=constr)
+            kw = {}
+            if ssl_context:
+                kw["ssl_context"] = ssl_context
+            servicebus_client = ServiceBusClient.from_connection_string(conn_str=constr, **kw)
             _LOGGER.debug("Connecting to servicebus using %s", constr)
 
             self._stream_receiver = None
