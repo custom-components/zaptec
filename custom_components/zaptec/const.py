@@ -8,16 +8,6 @@ ISSUEURL = "https://github.com/custom-components/zaptec/issues"
 DOMAIN = "zaptec"
 MANUFACTURER = "Zaptec"
 
-STARTUP = f"""
--------------------------------------------------------------------
-{NAME}
-Version: {VERSION}
-This is a custom component
-If you have any issues with this you need to open an issue here:
-{ISSUEURL}
--------------------------------------------------------------------
-"""
-
 TOKEN_URL = "https://api.zaptec.com/oauth/token"
 API_URL = "https://api.zaptec.com/api/"
 CONST_URL = "https://api.zaptec.com/api/constants"
