@@ -24,38 +24,19 @@
 To use this component, a user with access to
 [Zaptec Portal](https://portal.zaptec.com/) is needed.
 
-### Compatibility
+## Compatibility
 
-Confirmed to work with
+>  :bangbang: If you are upgrading from old version <0.7.0 this version will
+>  break your current automations.
+
+Confirmed to work with Zaptec products
 
 * Zaptec Go
 * Zaptec Home
 * Zaptec PRO
 
->  :information_source: Please reach out if you have been able to make this component work with
-other Zaptec chargers.
-
-
-## :bangbang: Breaking change
-
-> **:warning: This release will BREAK your current automations**
-
-The Zaptec integration has been completely refactored. The way to interact
-with you Zaptec charger from Home Assistant has been changed. The Zaptec data
-is now represented as proper entities (like sensors, numbers, buttons, etc).
-This makes logging and interactions much simpler and it needs no additional
-templates.
-
-The integration is set up as one devices for each of the detected Zaptec
-devices. Most users will have three devices: An installation device, a circuit
-and a charger and each provide different functionality.
-
-The previous zaptec entities were named `zaptec_charger_<uuid>`,
-`zaptec_installation_<uuid>` and `zaptec_circute_<uuid>`. The full data were
-available as attributes in these objects, and they could be retried with
-the aid of manual templates. The same objects exists, but under the names
-`<name> Installer`, `<name> Charger` and `<name> Circuit`.
-
+>  :information_source: Please reach out if you have been able to make this
+>  component work with other Zaptec chargers.
 
 # Installation and setup
 
@@ -65,7 +46,9 @@ Just search for Zaptec in the HACS list or click the badge below:
 
 [![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=custom-components&repository=zaptec)
 
-After adding it to HACS it must be added to HA.
+## Setting up Zaptec
+
+After adding the Zaptec integration, it must be added to HA.
 
 - Click Settings (left hand side menu at the bottom)
 - Click Devices & Services
@@ -83,10 +66,23 @@ Next the **Zaptec setup** dialog is presented. Fill in the form:
 - **Scan interval** indicates how many seconds between the cloud is polled for
   new data. Zaptec has rate limiting, so putting a too low value might cause
   problems. Default value is fine.
-- **Manually select chargers** will allow you to select which chargers that should
-  be included into HA. This is useful for large installation that have many
-  chargers. When selected a new dialog asking for which
-  chargers to add will be selected.
+- **Manually select chargers** will allow you to select which chargers that
+  should be included into HA. This is useful for large installation that have
+  many chargers. When selected a new dialog asking for which chargers to add
+  will be selected.
+
+## Manual installation
+
+This describes how Zaptec can be added manually if HACS cannot be used
+
+- Clone or download the [Zaptec repository](https://github.com/custom-components/zaptec/)
+  to the server where Home Assistant is installed.
+- Copy the folder `custom_components/zaptec` from the downloaded repo into folder
+  `config/custom_components/zaptec` in Home Assistant.
+- Restart HA. It should now be available for being added to HA.
+
+Continue as described above in [setting up Zaptec](#setting-up-zaptec)
+
 
 # Usage
 
@@ -102,10 +98,11 @@ supported by the API. Use at own risk and they might break at any time.
 >  * Setting cable lock
 >  * Setting status light brightness
 
+
 ## Zaptec device concept
 
-The Zaptec cloud API use three levels of abstractions in their EVCP setup. These are
-represented as three devices in HA
+The Zaptec cloud API use three levels of abstractions in their EVCP setup. These
+are represented as three devices in HA
 
 * **Installation** - This is the top-level entity and represents the entire
   site. This is where the current limit for the entire installation is set.
@@ -253,7 +250,8 @@ same view press `...` under *Integration entries* and press "reload". When the
 button *Enable debug logging* is turned off the browser will download the
 debug logs.
 
-Alternatively, debug can be enabled by manually adding the following to `configuration.yaml`:
+Alternatively, debug can be enabled by manually adding the following to
+`configuration.yaml`:
 
 ```yaml
 logger:
@@ -261,10 +259,12 @@ logger:
     custom_components.zaptec: debug
 ```
 
-**:warning: IMPORTANT!** The debug logs will contain identifiable information about your Zaptec setup such as login and password. Do not share logs without
+**:warning: IMPORTANT!** The debug logs will contain identifiable information
+about your Zaptec setup such as login and password. Do not share logs without
 filtering them.
 
-**:information_source: NOTE!** The Zaptec integration logs massive amounts in debug. This is nice for finding errors, but it will generate large amount of
+**:information_source: NOTE!** The Zaptec integration logs massive amounts in
+debug. This is nice for finding errors, but it will generate large amount of
 data if left enabled for long. Do not use in production setups.
 
 ## Using the integration
@@ -275,13 +275,34 @@ By using the [Zaptec Load Balancing](https://github.com/svenakela/ha/tree/main/z
 blueprint you'll get automatic load balancing for your charger (i.e. the charger 
 limit is updated constantly to avoid fuse overload).
 
-The automation created with the blueprint manages current limiting. If charging is enabled 
-and possible without tripping fuses it will manage the limit over the charging session.
+The automation created with the blueprint manages current limiting. If charging
+is enabled and possible without tripping fuses it will manage the limit over the
+charging session.
 
-How to setup the automation, how the logic works and what all settings mean is documented 
-in the [blueprint readme](https://github.com/svenakela/ha/blob/main/zaptec/README.md). 
+How to setup the automation, how the logic works and what all settings mean is
+documented  in the
+[blueprint readme](https://github.com/svenakela/ha/blob/main/zaptec/README.md). 
 
 
+## Changes from older versions <0.7.0
+
+> **:warning: This release will BREAK your current automations**
+
+The Zaptec integration has been completely refactored. The way to interact
+with you Zaptec charger from Home Assistant has been changed. The Zaptec data
+is now represented as proper entities (like sensors, numbers, buttons, etc).
+This makes logging and interactions much simpler and it needs no additional
+templates.
+
+The integration is set up as one devices for each of the detected Zaptec
+devices. Most users will have three devices: An installation device, a circuit
+and a charger and each provide different functionality.
+
+The previous zaptec entities were named `zaptec_charger_<uuid>`,
+`zaptec_installation_<uuid>` and `zaptec_circute_<uuid>`. The full data were
+available as attributes in these objects, and they could be retried with
+the aid of manual templates. The same objects exists, but under the names
+`<name> Installer`, `<name> Charger` and `<name> Circuit`.
 
 
 [hellowlol-buymecoffee]: https://www.buymeacoffee.com/hellowlol1
