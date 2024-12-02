@@ -9,6 +9,6 @@
     "sveinse"
   ],
   "iot_class": "cloud_polling",
-  "requirements": ["azure-servicebus", "pydantic"],
+  "requirements": ["azure-servicebus==7.13.0", "pydantic"],
   "version": "0.7.3b1"
 }
