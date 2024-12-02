@@ -39,7 +39,6 @@ from .const import (
     MANUFACTURER,
     MISSING,
     REQUEST_REFRESH_DELAY,
-    STARTUP,
 )
 from .services import async_setup_services, async_unload_services
 
@@ -74,7 +73,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         if key in redacted_data:
             redacted_data[key] = "********"
 
-    _LOGGER.info(STARTUP)
     _LOGGER.debug("Setting up entry %s: %s", entry.entry_id, redacted_data)
 
     coordinator = ZaptecUpdateCoordinator(

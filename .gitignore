@@ -18,15 +18,16 @@ $RECYCLE.BIN/
 # Windows shortcuts
 *.lnk
 
-# =========================
-# Operating System Files
-# =========================
-
+# Python files
 __pycache__
 
 # Python virtual environments
-venv*
+venv*/
+/.python-version
 
 # Home Assistant configuration
 config/*
 !config/configuration.yaml
+
+# Zaptec files
+constant.json
