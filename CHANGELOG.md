@@ -1,7 +1,9 @@
 # Changelog
 
-## 0.7.3b1
+## 0.7.3
 
+* Fix Azure service bus error causing HA to complain about blocking call, #149
+* Fix TOTAL_INCREASING that caused negative power consumption, #145
 * Add Swedish language tranlastion, #141
 * Add Polish language tranlation, #140
 
