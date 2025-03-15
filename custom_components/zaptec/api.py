@@ -323,9 +323,12 @@ class Installation(ZaptecBase):
 
             self._stream_receiver = None
             async with servicebus_client:
-                receiver = servicebus_client.get_subscription_receiver(
-                    topic_name=conf["Topic"], subscription_name=conf["Subscription"]
-                )
+                async with servicebus_client:
+                    receiver = await hass.async_add_executor_job(
+                        servicebus_client.get_subscription_receiver,
+                        conf["Topic"],
+                        conf["Subscription"]
+                    )
                 # Store the receiver in order to close it and cancel this stream
                 self._stream_receiver = receiver
                 async with receiver:
