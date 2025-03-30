@@ -323,8 +323,10 @@ class Installation(ZaptecBase):
 
             self._stream_receiver = None
             async with servicebus_client:
-                receiver = servicebus_client.get_subscription_receiver(
-                    topic_name=conf["Topic"], subscription_name=conf["Subscription"]
+                receiver = await asyncio.to_thread(
+                    servicebus_client.get_subscription_receiver,
+                    topic_name=conf["Topic"],
+                    subscription_name=conf["Subscription"]
                 )
                 # Store the receiver in order to close it and cancel this stream
                 self._stream_receiver = receiver

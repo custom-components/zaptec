@@ -117,16 +117,16 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     _LOGGER.debug("Unloading entry %s", entry.entry_id)
 
+    coordinator = hass.data[DOMAIN][entry.entry_id]
+    await coordinator.cancel_streams()
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
 
     if unload_ok:
-        coordinator = hass.data[DOMAIN].pop(entry.entry_id)
-        await coordinator.cancel_streams()
+        hass.data[DOMAIN].pop(entry.entry_id)
 
     await async_unload_services(hass)
 
     return unload_ok
-
 
 async def async_reload_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
     """Reload config entry."""
