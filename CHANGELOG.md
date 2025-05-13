@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.4
+
+* Fix avoiding blocking calls in api, #168
+
 ## 0.7.3
 
 * Fix Azure service bus error causing HA to complain about blocking call, #149
