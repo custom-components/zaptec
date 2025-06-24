@@ -96,7 +96,7 @@ Continue as described above in [setting up Zaptec](#setting-up-zaptec)
 
 # Usage
 
-> [!INFORMATION]
+> [!NOTE]
 > This integration use the
 [official Web API](https://api.zaptec.com/help/index.html) provided by Zaptec.
 However, this integration also use a few functions that are not officially
