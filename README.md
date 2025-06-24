@@ -1,5 +1,14 @@
 ## Zaptec EV charger component for Home Assistant
 
+> [!IMPORTANT]
+> Zaptec have reached out to this project kindly requested that we change the back-end API towards Zaptec cloud. We are using
+> undocumented API calls which are not permitted according to their [API fair use policy](https://docs.zaptec.com/docs/api-fair-use-policy#/)
+>
+> We are in urgent need of contributors that can work on improving the API to become compliant with the policy.
+> See more [here](https://github.com/custom-components/zaptec/issues/176)
+
+---
+
 [![hacs][hacsbadge]][hacs]
 [![GitHub Release][releases-shield]][releases]
 [![License][license-shield]][license]
@@ -10,7 +19,6 @@
 
 [![Project Maintenance][sveinse-maintenance-shield]][sveinse-profile]
 [![BuyMeCoffee][buymecoffeebadge]][sveinse-buymecoffee]
-
 
 # Features
 
@@ -26,7 +34,8 @@ To use this component, a user with access to
 
 ## Compatibility
 
->  :bangbang: If you are upgrading from old version <0.7.0 this version will
+>  [!CAUTION]
+>  If you are upgrading from old version <0.7.0 this version will
 >  break your current automations.
 
 Confirmed to work with Zaptec products
@@ -35,8 +44,9 @@ Confirmed to work with Zaptec products
 * Zaptec Home
 * Zaptec PRO
 
->  :information_source: Please reach out if you have been able to make this
->  component work with other Zaptec chargers.
+> [!NOTE]
+> Please reach out if you have been able to make this
+> component work with other Zaptec chargers.
 
 # Installation and setup
 
@@ -86,7 +96,8 @@ Continue as described above in [setting up Zaptec](#setting-up-zaptec)
 
 # Usage
 
->  :information_source: This integration use the
+> [!INFORMATION]
+> This integration use the
 [official Web API](https://api.zaptec.com/help/index.html) provided by Zaptec.
 However, this integration also use a few functions that are not officially
 supported by the API. Use at own risk and they might break at any time.
