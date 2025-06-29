@@ -41,7 +41,7 @@
                 "python.formatting.provider": "black",
                 "python.formatting.blackPath": "/usr/local/py-utils/bin/black",
                 "editor.formatOnPaste": false,
-                "editor.formatOnSave": true,
+                "editor.formatOnSave": false,
                 "editor.formatOnType": true,
                 "files.trimTrailingWhitespace": true
             }
