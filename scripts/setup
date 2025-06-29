@@ -12,6 +12,6 @@ pip_packages() {
         "${@}"
 }
 
-pip_packages "pip<23.2,>=21.3.1"
+pip_packages "pip<25.2,>=25.0.0"
 pip_packages setuptools wheel
 pip_packages --requirement requirements.txt

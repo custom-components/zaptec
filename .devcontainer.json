@@ -1,6 +1,6 @@
 {
     "name": "Zaptec integration development",
-    "image": "mcr.microsoft.com/vscode/devcontainers/python:0-3.11-bullseye",
+    "image": "mcr.microsoft.com/vscode/devcontainers/python:3.13-bullseye",
     "postCreateCommand": "scripts/setup",
     "forwardPorts": [
         8123
@@ -41,7 +41,7 @@
                 "python.formatting.provider": "black",
                 "python.formatting.blackPath": "/usr/local/py-utils/bin/black",
                 "editor.formatOnPaste": false,
-                "editor.formatOnSave": true,
+                "editor.formatOnSave": false,
                 "editor.formatOnType": true,
                 "files.trimTrailingWhitespace": true
             }
