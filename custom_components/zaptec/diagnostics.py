@@ -259,10 +259,6 @@ async def async_get_device_diagnostics(
             red.redact_statelist(data, ctx="state")
             add(url, data, ctx="state")
 
-            data = await req(url := f"chargers/{charger_id}/settings")
-            red.redact_statelist(data.values(), ctx="settings")
-            add(url, data, ctx="settings")
-
     except Exception as err:
         add_failure(out, err)
 

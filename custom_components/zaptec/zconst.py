@@ -19,6 +19,14 @@ class ZConst(UserDict):
     observations: dict[str, int]
     settings: dict[str, int]
     commands: dict[str, int]
+    update_params=[
+        "maxChargeCurrent",
+        "maxChargePhases",
+        "minChargeCurrent",
+        "offlineChargeCurrent",
+        "offlineChargePhase",
+        "meterValueInterval",
+    ] # valid parameters for api/chargers/{id}/update
 
     def get_remap(self, wanted, device_types=None) -> dict:
         """Parse the given zaptec constants record `CONST` and generate
