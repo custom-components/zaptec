@@ -44,16 +44,8 @@ class ChargerStates(TypeWrapper, BaseModel):
     _data: list[ChargerState]
 
 
-class ChargerSetting(BaseModel):
-    model_config = ConfigDict(extra="allow")
-    SettingsId: int
-    Value: str = ""
-
-
-# pydantic v2
-# ChargerSettings = TypeAdapter[dict[str, ChargerSetting]]
-class ChargerSettings(TypeWrapper, BaseModel):
-    _data: dict[str, ChargerSetting]
+class ChargerUpdate(TypeWrapper, BaseModel):
+    _data: dict[str, str]
 
 
 class Chargers(BaseModel):
@@ -125,10 +117,10 @@ URLS = {
     r"circuits/[0-9a-f\-]+": Circuit,
     r"chargers/[0-9a-f\-]+": Charger,
     r"chargers/[0-9a-f\-]+/state": ChargerStates,
-    r"chargers/[0-9a-f\-]+/settings": ChargerSettings,
     r"chargers/[0-9a-f\-]+/authorizecharge": None,
     r"chargers/[0-9a-f\-]+/SendCommand/[0-9]+": None,
     r"chargers/[0-9a-f\-]+/localSettings": ChargerLocalSettings,
+    r"chargers/[0-9a-f\-]+/update": ChargerUpdate,
     r"chargerFirmware/installation/[0-9a-f\-]+": ChargerFirmwares,
 }
 
