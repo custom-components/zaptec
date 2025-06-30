@@ -515,10 +515,13 @@ class Circuit(ZaptecBase):
     # -----------------
 
     async def circuit_info(self) -> TDict:
-        """Raw request for circuit data"""
-        # NOTE: Undocumented API call. circuit is no longer part of the official docs
-        data = await self._account._request(f"circuits/{self.id}")
-        return data
+        """Obtain circuit data through the installation-hierarchy api"""
+        if self.installation:
+            data = await self._account._request(f"installation/{self.installation.id}/hierarchy")
+            for circuit in data["Circuits"]:
+                if circuit["Id"] == self.id:
+                    return circuit
+        return {}
 
 
 class Charger(ZaptecBase):
