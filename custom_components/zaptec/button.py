@@ -26,6 +26,15 @@ _LOGGER = logging.getLogger(__name__)
 class ZaptecButton(ZaptecBaseEntity, ButtonEntity):
     zaptec_obj: Charger
 
+    @property
+    def available(self) -> bool:
+        """Return True if entity is available."""
+        if not self._attr_available:
+            return False
+        else:
+            # Disable/gray out button if the command is invalid in the current state
+            return self.zaptec_obj.is_command_valid(self.key)
+
     async def async_press(self) -> None:
         """Press the button."""
         _LOGGER.debug(
