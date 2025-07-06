@@ -214,7 +214,7 @@ class ZaptecBase(ABC):
 class Installation(ZaptecBase):
     """Represents an installation"""
 
-    circuits: list[Circuit]
+    chargers: list[Charger]
 
     # Type conversions for the named attributes (keep sorted)
     ATTR_TYPES = {
@@ -228,7 +228,7 @@ class Installation(ZaptecBase):
     def __init__(self, data, account):
         super().__init__(data, account)
         self.connection_details = None
-        self.circuits = []
+        self.chargers = []
 
         self._stream_task = None
         self._stream_receiver = None
@@ -247,19 +247,23 @@ class Installation(ZaptecBase):
                     "Access denied to installation hierarchy of %s. The user might not have access.",
                     self.id,
                 )
-                self.circuits = []
+                self.chargers = []
                 return
             raise
 
-        circuits = []
-        for item in hierarchy["Circuits"]:
-            _LOGGER.debug("    Circuit %s", item["Id"])
-            circ = Circuit(item, self._account, installation=self)
-            self._account.register(item["Id"], circ)
-            await circ.build()
-            circuits.append(circ)
+        chargers = []
+        for circuit_item in hierarchy["Circuits"]:
+            _LOGGER.debug("    Circuit %s", circuit_item["Id"])
+            for charger_item in circuit_item["Chargers"]:
+                _LOGGER.debug("      Charger %s", charger_item["Id"])
+                charger_item["CircuitId"] = circuit_item["Id"]
+                charger_item["CircuitName"] = circuit_item["Name"]
+                chg = Charger(charger_item, self._account, installation=self)
+                self._account.register(charger_item["Id"], chg)
+                await chg.build()
+                chargers.append(chg)
 
-        self.circuits = circuits
+        self.chargers = chargers
 
     async def state(self):
         _LOGGER.debug(
@@ -473,57 +477,6 @@ class Installation(ZaptecBase):
         return result
 
 
-class Circuit(ZaptecBase):
-    """Represents a circuits"""
-
-    chargers: list["Charger"]
-
-    # Type conversions for the named attributes (keep sorted)
-    ATTR_TYPES = {
-        "active": bool,
-    }
-
-    def __init__(
-        self, data: TDict, account: Account, installation: Installation | None = None
-    ):
-        super().__init__(data, account)
-        self.chargers = []
-        self.installation = installation
-
-    async def build(self):
-        """Build the python interface."""
-
-        chargers = []
-        for item in self._attrs["chargers"]:
-            _LOGGER.debug("      Charger %s", item["Id"])
-            chg = Charger(item, self._account, circuit=self)
-            self._account.register(item["Id"], chg)
-            await chg.build()
-            chargers.append(chg)
-
-        self.chargers = chargers
-
-    async def state(self):
-        _LOGGER.debug(
-            "Polling state for %s (%s)", self.qual_id, self._attrs.get("name")
-        )
-        data = await self.circuit_info()
-        self.set_attributes(data)
-
-    # -----------------
-    # API methods
-    # -----------------
-
-    async def circuit_info(self) -> TDict:
-        """Obtain circuit data through the installation-hierarchy api"""
-        if self.installation:
-            data = await self._account._request(f"installation/{self.installation.id}/hierarchy")
-            for circuit in data["Circuits"]:
-                if circuit["Id"] == self.id:
-                    return circuit
-        return {}
-
-
 class Charger(ZaptecBase):
     """Represents a charger"""
 
@@ -536,6 +489,8 @@ class Charger(ZaptecBase):
         "charger_max_current": float,
         "charger_min_current": float,
         "charger_operation_mode": ZCONST.type_charger_operation_mode,
+        "circuit_id": str,
+        "circuit_name": str,
         "completed_session": ZCONST.type_completed_session,
         "current_phase1": float,
         "current_phase2": float,
@@ -555,11 +510,11 @@ class Charger(ZaptecBase):
     }
 
     def __init__(
-        self, data: TDict, account: "Account", circuit: Circuit | None = None
+        self, data: TDict, account: "Account", installation: Installation | None = None
     ) -> None:
         super().__init__(data, account)
 
-        self.circuit = circuit
+        self.installation = installation
 
     async def build(self) -> None:
         """Build the object"""

@@ -54,6 +54,7 @@
                     "Connected_Finished": "Afgerond"
                 }
             },
+            "circuit_name": { "name": "Circuitnaam" },
             "completed_session_energy": { "name": "Laatste laadsessie" },
             "current_phase1": { "name": "Stroom fase1" },
             "current_phase2": { "name": "Stroom fase2" },

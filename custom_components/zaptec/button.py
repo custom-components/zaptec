@@ -58,8 +58,6 @@ class ZapButtonEntityDescription(ButtonEntityDescription):
 
 INSTALLATION_ENTITIES: list[EntityDescription] = []
 
-CIRCUIT_ENTITIES: list[EntityDescription] = []
-
 CHARGER_ENTITIES: list[EntityDescription] = [
     ZapButtonEntityDescription(
         key="resume_charging",
@@ -106,7 +104,6 @@ async def async_setup_entry(
     entities = ZaptecButton.create_from_zaptec(
         coordinator,
         INSTALLATION_ENTITIES,
-        CIRCUIT_ENTITIES,
         CHARGER_ENTITIES,
     )
     async_add_entities(entities, True)

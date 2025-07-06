@@ -86,8 +86,6 @@ class ZapSwitchEntityDescription(SwitchEntityDescription):
 
 INSTALLATION_SWITCH_TYPES: list[EntityDescription] = []
 
-CIRCUIT_SWITCH_TYPES: list[EntityDescription] = []
-
 CHARGER_SWITCH_TYPES: list[EntityDescription] = [
     ZapSwitchEntityDescription(
         key="operating_mode",
@@ -108,7 +106,6 @@ async def async_setup_entry(
     entities = ZaptecSwitch.create_from_zaptec(
         coordinator,
         INSTALLATION_SWITCH_TYPES,
-        CIRCUIT_SWITCH_TYPES,
         CHARGER_SWITCH_TYPES,
     )
     async_add_entities(entities, True)

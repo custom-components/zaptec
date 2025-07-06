@@ -54,6 +54,7 @@
                     "Connected_Finished": "Finished"
                 }
             },
+            "circuit_name": { "name": "Circuit name" },
             "completed_session_energy": { "name": "Completed session energy" },
             "current_phase1": { "name": "Current phase 1" },
             "current_phase2": { "name": "Current phase 2" },

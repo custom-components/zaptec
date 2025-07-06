@@ -66,18 +66,6 @@ INSTALLATION_ENTITIES: list[EntityDescription] = [
     ),
 ]
 
-CIRCUIT_ENTITIES: list[EntityDescription] = [
-    ZapBinarySensorEntityDescription(
-        key="active",
-        name="Circuit",  # Special case, no translation
-        device_class=BinarySensorDeviceClass.CONNECTIVITY,  # False=disconnected, True=connected
-        entity_category=const.EntityCategory.DIAGNOSTIC,
-        icon="mdi:cloud",
-        has_entity_name=False,
-        cls=ZaptecBinarySensorWithAttrs,
-    ),
-]
-
 CHARGER_ENTITIES: list[EntityDescription] = [
     ZapBinarySensorEntityDescription(
         key="active",
@@ -115,7 +103,6 @@ async def async_setup_entry(
     entities = ZaptecBinarySensor.create_from_zaptec(
         coordinator,
         INSTALLATION_ENTITIES,
-        CIRCUIT_ENTITIES,
         CHARGER_ENTITIES,
     )
     async_add_entities(entities, True)

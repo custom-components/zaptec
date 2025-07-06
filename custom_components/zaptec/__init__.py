@@ -29,7 +29,7 @@ from homeassistant.helpers.update_coordinator import (
 )
 from homeassistant.util.ssl import get_default_context
 
-from .api import Account, Charger, Circuit, Installation, ZaptecApiError, ZaptecBase
+from .api import Account, Charger, Installation, ZaptecApiError, ZaptecBase
 from .const import (
     API_TIMEOUT,
     CONF_CHARGERS,
@@ -230,17 +230,14 @@ class ZaptecUpdateCoordinator(DataUpdateCoordinator[None]):
                         if not_present:
                             _LOGGER.error("Charger objects %s not found", not_present)
 
-                        # Calculate the objects to keep. From the list of chargers
-                        # we want to keep, we also want to keep the circuit and
-                        # installation objects.
+                        # Calculate the objects to keep. From the list of chargers we
+                        # want to keep, we also want to keep the installation objects.
                         keep = set()
                         for charger in self.account.get_chargers():
                             if charger.id in want:
                                 keep.add(charger.id)
-                                if charger.circuit:
-                                    keep.add(charger.circuit.id)
-                                    if charger.circuit.installation:
-                                        keep.add(charger.circuit.installation.id)
+                                if charger.installation:
+                                    keep.add(charger.installation.id)
 
                         if not keep:
                             _LOGGER.error("No zaptec objects will be added")
@@ -421,12 +418,11 @@ class ZaptecBaseEntity(CoordinatorEntity[ZaptecUpdateCoordinator]):
         cls,
         coordinator: ZaptecUpdateCoordinator,
         installation_descriptions: list[EntityDescription],
-        circuit_descriptions: list[EntityDescription],
         charger_descriptions: list[EntityDescription],
     ) -> list[ZaptecBaseEntity]:
         """Helper factory to populate the listed entities for the detected
-        Zaptec devices. It sets the proper device info on the installation,
-        circuit and charger object in order for them to be grouped in HA.
+        Zaptec devices. It sets the proper device info on the installation
+        and charger objects in order for them to be grouped in HA.
         """
         entities = []
 
@@ -445,24 +441,10 @@ class ZaptecBaseEntity(CoordinatorEntity[ZaptecUpdateCoordinator]):
                     )
                 )
 
-            elif isinstance(obj, Circuit):
-                info = DeviceInfo(model=f"{obj.name} Circuit")
-                if obj.installation:
-                    info["via_device"] = (DOMAIN, obj.installation.id)
-
-                entities.extend(
-                    cls.create_from_descriptions(
-                        circuit_descriptions,
-                        coordinator,
-                        obj,
-                        info,
-                    )
-                )
-
             elif isinstance(obj, Charger):
                 info = DeviceInfo(model=f"{obj.name} Charger")
-                if obj.circuit:
-                    info["via_device"] = (DOMAIN, obj.circuit.id)
+                if obj.installation:
+                    info["via_device"] = (DOMAIN, obj.installation.id)
 
                 entities.extend(
                     cls.create_from_descriptions(

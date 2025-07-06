@@ -54,6 +54,7 @@
                     "Connected_Finished": "Laddat klart"
                 }
             },
+            "circuit_name": { "name": "Kretsnamn" },
             "completed_session_energy": { "name": "Energiförbrukning denna laddningen" },
             "current_phase1": { "name": "Ström fas 1" },
             "current_phase2": { "name": "Ström fas 2" },
