@@ -601,17 +601,6 @@ class Charger(ZaptecBase):
         # I couldn't find a way to see if it was up to date..
         # maybe remove this later if it dont interest ppl.
 
-        # Fetch some additional attributes from settings
-        try:
-            # NOTE: Undocumented API call
-            settings = await self._account._request(f"chargers/{self.id}/settings")
-            data = self.state_to_attrs(settings.values(), "SettingId", ZCONST.settings)
-            self.set_attributes(data)
-        except RequestError as err:
-            if err.error_code != 403:
-                raise
-            _LOGGER.debug("Access denied to charger %s settings", self.id)
-
         if self.installation_id in self._account.map:
             try:
                 firmware_info = await self._account._request(
@@ -677,17 +666,12 @@ class Charger(ZaptecBase):
     async def set_settings(self, settings: dict[str, Any]):
         """Set settings on the charger"""
 
-        values = [
-            {"id": ZCONST.settings.get(k), "value": v} for k, v in settings.items()
-        ]
-
-        if any(d for d in values if d["id"] is None):
+        if any(key not in ZCONST.update_params for key in settings.keys()):
             raise ValueError(f"Unknown setting '{settings}'")
 
         _LOGGER.debug("Settings %s", settings)
-        # NOTE: Undocumented API call
         data = await self._account._request(
-            f"chargers/{self.id}/settings", method="post", data=values
+            f"chargers/{self.id}/update", method="post", data=settings
         )
         return data
 
@@ -713,12 +697,6 @@ class Charger(ZaptecBase):
             f"chargers/{self.id}/authorizecharge", method="post"
         )
         return data
-
-    async def set_current_in_minimum(self, value):
-        return await self.set_settings({"current_in_minimum": value})
-
-    async def set_current_in_maxium(self, value):
-        return await self.set_settings({"current_in_maximum": value})
 
     async def set_permanent_cable_lock(self, lock: bool):
         """Set if the cable lock is permanent"""

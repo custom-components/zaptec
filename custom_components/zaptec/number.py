@@ -159,7 +159,7 @@ CHARGER_ENTITIES: list[EntityDescription] = [
         icon="mdi:current-ac",
         native_unit_of_measurement=const.UnitOfElectricCurrent.AMPERE,
         cls=ZaptecSettingNumber,
-        setting="CurrentInMinimum",
+        setting="minChargeCurrent",
     ),
     ZapNumberEntityDescription(
         key="charger_max_current",
@@ -171,7 +171,7 @@ CHARGER_ENTITIES: list[EntityDescription] = [
         icon="mdi:current-ac",
         native_unit_of_measurement=const.UnitOfElectricCurrent.AMPERE,
         cls=ZaptecSettingNumber,
-        setting="CurrentInMaximum",
+        setting="maxChargeCurrent",
     ),
     ZapNumberEntityDescription(
         key="hmi_brightness",
