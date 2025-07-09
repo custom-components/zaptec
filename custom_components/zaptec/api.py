@@ -1101,6 +1101,9 @@ class Account:
         """Return a list of all chargers"""
         return [v for v in self.map.values() if isinstance(v, Charger)]
 
+    def get_circuit_id_set(self):
+        return set(c.circuit_id for c in self.get_chargers() if "circuit_id" in c._attrs and len(c.circuit_id)>0)
+
 
 if __name__ == "__main__":
     # Just to execute the script manually with "python -m custom_components.zaptec.api"

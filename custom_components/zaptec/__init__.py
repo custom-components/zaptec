@@ -95,6 +95,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Dump the full entity map to the debug log
     coordinator.log_entity_map()
 
+    # Get a set of the circuit ids in the account to check for deprecated Circuit-devices
+    circuit_id_set = coordinator.account.get_circuit_id_set()
+
     # Clean up unused device entries with no entities
     device_registry = dr.async_get(hass)
     entity_registry = er.async_get(hass)
@@ -106,7 +109,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         dev_entities = er.async_entries_for_device(
             entity_registry, dev.id, include_disabled_entities=True
         )
+        zap_dev_id = list(dev.identifiers)[0][1]  # identifiers is a set with a single tuple ('zaptec', '<zaptec_id>')
         if not dev_entities:
+            device_registry.async_remove_device(dev.id)
+        elif zap_dev_id in circuit_id_set:
+            _LOGGER.warning(f"Detected deprecated Circuit device {zap_dev_id}, removing device and associated entities")
+            for ent in dev_entities:
+                _LOGGER.debug(f"Deleting entity {ent.entity_id}")
+                entity_registry.async_remove(ent.entity_id)
             device_registry.async_remove_device(dev.id)
 
     return True
