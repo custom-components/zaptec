@@ -14,6 +14,7 @@ from typing import Any, AsyncGenerator, Callable, Protocol, cast
 
 import aiohttp
 import pydantic
+from aiolimiter import AsyncLimiter
 
 from .const import (
     API_RETRIES, API_RETRY_FACTOR, API_RETRY_JITTER, API_RETRY_MAXTIME,
@@ -747,6 +748,7 @@ class Account:
         self.is_built = False
         self._timeout = aiohttp.ClientTimeout(total=API_TIMEOUT)
         self._max_time = max_time
+        self._ratelimiter = AsyncLimiter(max_rate=10, time_period=2)
 
     def register(self, id: str, data: ZaptecBase):
         """Register an object data with id"""
@@ -959,72 +961,73 @@ class Account:
     async def _request(self, url: str, method="get", data=None):
         """Make a request to the API."""
 
-        full_url = API_URL + url
-        kwargs = {
-            "timeout": self._timeout,
-            "headers": {
-                "Authorization": f"Bearer {self._access_token}",
-                "Accept": "application/json",
-            },
-        }
-        if data is not None:
-            kwargs["json"] = data
+        async with self._ratelimiter:
+            full_url = API_URL + url
+            kwargs = {
+                "timeout": self._timeout,
+                "headers": {
+                    "Authorization": f"Bearer {self._access_token}",
+                    "Accept": "application/json",
+                },
+            }
+            if data is not None:
+                kwargs["json"] = data
 
-        # Run the _retry_request() in a context manager that will close the
-        # generator when the context is exited, ensuring the request and
-        # connection is closed when done.
-        async with aclosing(
-            self._retry_request(
-                full_url,
-                method=method,
-                retries=API_RETRIES,
-                **kwargs,
-            )
-        ) as ctx:
-            # Each iteration is a new request. resp is the response object, while
-            # log_exc is a callback that will log the exception if the request
-            # fails.
-            async for response, log_exc in ctx:
-                if response.status == 401:  # Unauthorized
-                    await self._refresh_token()
-                    kwargs["headers"]["Authorization"] = f"Bearer {self._access_token}"
-                    continue  # Retry request
-
-                elif response.status == 204:  # No content
-                    content = await response.read()
-                    return content
-
-                elif response.status == 200:  # OK
-                    # Read the JSON payload
-                    try:
-                        json_result = await response.json(content_type=None)
-                    except json.JSONDecodeError as err:
-                        raise log_exc(
-                            RequestDataError(f"Failed to decode json: {err}"),
-                        ) from err
-
-                    # Validate the incoming json data
-                    try:
-                        validate(json_result, url=url)
-                    except pydantic.ValidationError as err:
-                        raise log_exc(
-                            RequestDataError(f"Failed to validate data: {err}"),
-                        ) from err
-
-                    return json_result
-
-                error = RequestError(
-                        f"{method.upper()} request to {full_url} failed with status {response.status}: {response}",
-                        response.status,
+            # Run the _retry_request() in a context manager that will close the
+            # generator when the context is exited, ensuring the request and
+            # connection is closed when done.
+            async with aclosing(
+                self._retry_request(
+                    full_url,
+                    method=method,
+                    retries=API_RETRIES,
+                    **kwargs,
                 )
+            ) as ctx:
+                # Each iteration is a new request. resp is the response object, while
+                # log_exc is a callback that will log the exception if the request
+                # fails.
+                async for response, log_exc in ctx:
+                    if response.status == 401:  # Unauthorized
+                        await self._refresh_token()
+                        kwargs["headers"]["Authorization"] = f"Bearer {self._access_token}"
+                        continue  # Retry request
 
-                if response.status == 500:  # Internal server error
-                    # Zaptec cloud often delivers this error code.
-                    log_exc(error)  # Error is not raised, this for logging
-                    continue  # Retry request
+                    elif response.status == 204:  # No content
+                        content = await response.read()
+                        return content
 
-                # All other error codes will be raised
-                raise log_exc(error)
+                    elif response.status == 200:  # OK
+                        # Read the JSON payload
+                        try:
+                            json_result = await response.json(content_type=None)
+                        except json.JSONDecodeError as err:
+                            raise log_exc(
+                                RequestDataError(f"Failed to decode json: {err}"),
+                            ) from err
+
+                        # Validate the incoming json data
+                        try:
+                            validate(json_result, url=url)
+                        except pydantic.ValidationError as err:
+                            raise log_exc(
+                                RequestDataError(f"Failed to validate data: {err}"),
+                            ) from err
+
+                        return json_result
+
+                    error = RequestError(
+                            f"{method.upper()} request to {full_url} failed with status {response.status}: {response}",
+                            response.status,
+                    )
+
+                    if response.status == 500:  # Internal server error
+                        # Zaptec cloud often delivers this error code.
+                        log_exc(error)  # Error is not raised, this for logging
+                        continue  # Retry request
+
+                    # All other error codes will be raised
+                    raise log_exc(error)
 
     #   API METHODS DONE
     # =======================================================================
