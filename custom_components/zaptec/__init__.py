@@ -96,7 +96,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     coordinator.log_entity_map()
 
     # Get a set of the circuit ids in the account to check for deprecated Circuit-devices
-    circuit_id_set = coordinator.account.get_circuit_id_set()
+    circuit_id_set = coordinator.account.get_circuit_ids()
 
     # Clean up unused device entries with no entities
     device_registry = dr.async_get(hass)

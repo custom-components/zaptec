@@ -258,6 +258,7 @@ class Installation(ZaptecBase):
                 _LOGGER.debug("      Charger %s", charger_item["Id"])
                 charger_item["CircuitId"] = circuit_item["Id"]
                 charger_item["CircuitName"] = circuit_item["Name"]
+                charger_item["CircuitMaxCurrent"] = circuit_item["MaxCurrent"]
                 chg = Charger(charger_item, self._account, installation=self)
                 self._account.register(charger_item["Id"], chg)
                 await chg.build()
@@ -490,6 +491,7 @@ class Charger(ZaptecBase):
         "charger_min_current": float,
         "charger_operation_mode": ZCONST.type_charger_operation_mode,
         "circuit_id": str,
+        "circuit_max_current": float,
         "circuit_name": str,
         "completed_session": ZCONST.type_completed_session,
         "current_phase1": float,
@@ -734,7 +736,6 @@ class Account:
         self._token_info = {}
         self._access_token = None
         self.installations: list[Installation] = []
-        self.stand_alone_chargers: list[Charger] = []
         self.map: dict[str, ZaptecBase] = {}
         self.is_built = False
         self._timeout = aiohttp.ClientTimeout(total=API_TIMEOUT)
@@ -1049,18 +1050,9 @@ class Account:
         # Will also report chargers listed in installation hierarchy above
         chargers = await self._request("chargers")
 
-        so_chargers = []
         for data in chargers["Data"]:
-            if data["Id"] in self.map:
-                continue
-
-            _LOGGER.debug("  Charger %s", data["Id"])
-            chg = Charger(data, self)
-            self.register(data["Id"], chg)
-            await chg.build()
-            so_chargers.append(chg)
-
-        self.stand_alone_chargers = so_chargers
+            if data["Id"] not in self.map:
+                _LOGGER.warning("Standalone Charger %s will not be added as a device", data["Id"])
 
         # Find the charger device types
         device_types = set(
@@ -1101,8 +1093,9 @@ class Account:
         """Return a list of all chargers"""
         return [v for v in self.map.values() if isinstance(v, Charger)]
 
-    def get_circuit_id_set(self):
-        return set(c.circuit_id for c in self.get_chargers() if "circuit_id" in c._attrs and len(c.circuit_id)>0)
+    def get_circuit_ids(self) -> set[str]:
+        """Return a set of all circuit ids for all chargers."""
+        return set(c.circuit_id for c in self.get_chargers() if c.get("circuit_id", ""))
 
 
 if __name__ == "__main__":

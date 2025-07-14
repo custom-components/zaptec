@@ -112,15 +112,15 @@ supported by the API. Use at own risk and they might break at any time.
 
 ## Zaptec device concept
 
-The Zaptec cloud API use three levels of abstractions in their EVCP setup. These
-are represented as three devices in HA
+The Zaptec cloud API use three levels of abstractions in their EVCP setup. Only
+the top and bottom levels are represented as devices in HA
 
 * **Installation** - This is the top-level entity and represents the entire
   site. This is where the current limit for the entire installation is set.
 
 * **Circuit** - An installation can have one or more (electrical) circuits. One
-  circuit have one common circuit breaker. This device isn't directly used in
-  HA.
+  circuit has one common circuit breaker, and can have one or more chargers.
+  This level is not used in HA.
 
 * **Charger** - This is the actual EV charge point connected to a circuit. Each
   circuit might have more than one charger. This is where the start & stop
@@ -282,8 +282,8 @@ data if left enabled for long. Do not use in production setups.
 
 ### Load balancing your charger
 
-By using the [Zaptec Load Balancing](https://github.com/svenakela/ha/tree/main/zaptec) 
-blueprint you'll get automatic load balancing for your charger (i.e. the charger 
+By using the [Zaptec Load Balancing](https://github.com/svenakela/ha/tree/main/zaptec)
+blueprint you'll get automatic load balancing for your charger (i.e. the charger
 limit is updated constantly to avoid fuse overload).
 
 The automation created with the blueprint manages current limiting. If charging
@@ -292,7 +292,18 @@ charging session.
 
 How to setup the automation, how the logic works and what all settings mean is
 documented  in the
-[blueprint readme](https://github.com/svenakela/ha/blob/main/zaptec/README.md). 
+[blueprint readme](https://github.com/svenakela/ha/blob/main/zaptec/README.md).
+
+
+## Changes from 0.7 to 0.8
+
+The Circuit device type has been removed since it was not really used in HA. The
+information in the old Circuit device is now included with the full data of the
+charger in the attributes of the `<name> Charger` diagnostics sensor. If you rely on
+this information, it can be retrieved for instance with a template sensor similar to
+```
+{{ state_attr('binary_sensor.<YOUR_CHARGER_NAME>_charger', 'circuit_max_current') }}
+```
 
 
 ## Changes from older versions <0.7.0
@@ -313,7 +324,8 @@ The previous zaptec entities were named `zaptec_charger_<uuid>`,
 `zaptec_installation_<uuid>` and `zaptec_circute_<uuid>`. The full data were
 available as attributes in these objects, and they could be retried with
 the aid of manual templates. The same objects exists, but under the names
-`<name> Installer`, `<name> Charger` and `<name> Circuit`.
+`<name> Installer` and `<name> Charger` (see [Changes from 0.7 to 0.8](#changes-from-07-to-08)
+for the new treatment of the Circuit level)
 
 
 [hellowlol-buymecoffee]: https://www.buymeacoffee.com/hellowlol1
