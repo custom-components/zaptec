@@ -1,13 +1,13 @@
 """Zaptec component."""
+
 from __future__ import annotations
 
 import asyncio
-import logging
 from copy import copy
 from datetime import timedelta
+import logging
 from typing import Any
 
-import async_timeout
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
     CONF_PASSWORD,
@@ -16,7 +16,12 @@ from homeassistant.const import (
     Platform,
 )
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.exceptions import HomeAssistantError
+from homeassistant.exceptions import (
+    ConfigEntryAuthFailed,
+    ConfigEntryError,
+    ConfigEntryNotReady,
+    HomeAssistantError,
+)
 from homeassistant.helpers import device_registry as dr, entity_registry as er
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.debounce import Debouncer
@@ -29,7 +34,17 @@ from homeassistant.helpers.update_coordinator import (
 )
 from homeassistant.util.ssl import get_default_context
 
-from .api import Account, Charger, Circuit, Installation, ZaptecApiError, ZaptecBase
+from .api import (
+    Account,
+    AuthenticationError,
+    Charger,
+    Circuit,
+    Installation,
+    RequestConnectionError,
+    RequestTimeoutError,
+    ZaptecApiError,
+    ZaptecBase,
+)
 from .const import (
     API_TIMEOUT,
     CONF_CHARGERS,
@@ -76,9 +91,30 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     _LOGGER.debug("Setting up entry %s: %s", entry.entry_id, redacted_data)
 
+    # Create the Zaptec account object and log in
+    account = Account(
+        entry.data[CONF_USERNAME],
+        entry.data[CONF_PASSWORD],
+        client=async_get_clientsession(hass),
+        max_time=entry.data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL),
+    )
+    try:
+        await account.login()
+    except AuthenticationError as err:
+        _LOGGER.error("Authentication failed: %s", err)
+        raise ConfigEntryAuthFailed from err
+    except (RequestTimeoutError, RequestConnectionError) as err:
+        _LOGGER.error("Connection error: %s", err)
+        raise ConfigEntryNotReady from err
+    except ZaptecApiError as err:
+        _LOGGER.error("Zaptec API error: %s", err)
+        raise ConfigEntryError from err
+
+    # Setup the coordinator handling the Zaptec data updates
     coordinator = ZaptecUpdateCoordinator(
         hass,
         entry=entry,
+        account=account,
     )
     await coordinator.async_config_entry_first_refresh()
 
@@ -115,8 +151,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
 
-    _LOGGER.debug("Unloading entry %s", entry.entry_id)
-
     coordinator = hass.data[DOMAIN][entry.entry_id]
     await coordinator.cancel_streams()
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
@@ -128,36 +162,30 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     return unload_ok
 
+
 async def async_reload_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
     """Reload config entry."""
-    _LOGGER.debug("Reloading entry %s", entry.entry_id)
     await hass.config_entries.async_reload(entry.entry_id)
 
 
 class ZaptecUpdateCoordinator(DataUpdateCoordinator[None]):
-    account: Account
-    config_entry: ConfigEntry
-    entity_maps: dict[str, dict[str, ZaptecBaseEntity]]
+    """Coordinator for Zaptec data updates."""
 
-    def __init__(self, hass: HomeAssistant, *, entry: ConfigEntry) -> None:
+    def __init__(
+        self, hass: HomeAssistant, *, entry: ConfigEntry, account: Account
+    ) -> None:
         """Initialize account-wide Zaptec data updater."""
-
-        _LOGGER.debug("Setting up coordinator")
-
-        scan_interval = entry.data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
-
-        self.account = Account(
-            entry.data[CONF_USERNAME],
-            entry.data[CONF_PASSWORD],
-            client=async_get_clientsession(hass),
-            max_time=scan_interval,  # Make sure any request is done within the scan interval
-        )
+        self.account: Account = account
+        self.streams: list[tuple[asyncio.Task, Installation]] = []
+        self.entity_maps: dict[str, dict[str, ZaptecBaseEntity]] = {}
 
         super().__init__(
             hass,
             _LOGGER,
             name=f"{DOMAIN}-{entry.data['username']}",
-            update_interval=timedelta(seconds=scan_interval),
+            update_interval=timedelta(
+                seconds=entry.data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
+            ),
             request_refresh_debouncer=Debouncer(
                 hass,
                 _LOGGER,
@@ -165,9 +193,6 @@ class ZaptecUpdateCoordinator(DataUpdateCoordinator[None]):
                 immediate=False,
             ),
         )
-
-        # Map the entities to the Zaptec object IDs
-        self.entity_maps = {}
 
     def register_entity(self, entity: ZaptecBaseEntity) -> None:
         """Register a new entity."""
@@ -187,11 +212,32 @@ class ZaptecUpdateCoordinator(DataUpdateCoordinator[None]):
             for entity in sorted(entitymap.values(), key=lambda x: x.key):
                 _LOGGER.debug("        %s  ->  %s", entity.key, entity.entity_id)
 
+    def create_streams(self):
+        """Create the streams for all installations."""
+        for install in self.account.installations:
+            if install.id in self.account.map:
+                task = self.config_entry.async_create_background_task(
+                    self.hass,
+                    install.stream_main(
+                        cb=self.stream_callback,
+                        ssl_context=get_default_context(),
+                    ),
+                    name=f"Zaptec Stream for {install.qual_id}",
+                )
+                self.streams.append((task, install))
+
     async def cancel_streams(self):
-        await asyncio.gather(*(i.cancel_stream() for i in self.account.installations))
+        for task, install in self.streams:
+            _LOGGER.debug("Cancelling stream for %s", install.qual_id)
+            await install.stream_close()
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
 
     @callback
-    async def _stream_update(self, event):
+    async def stream_callback(self, event):
         """Handle new update event from the zaptec stream. The zaptec objects
         are updated in-place prior to this callback being called.
         """
@@ -203,61 +249,67 @@ class ZaptecUpdateCoordinator(DataUpdateCoordinator[None]):
         #
         # await self.async_request_refresh()
 
+    async def _first_time_setup(self) -> None:
+        """Run the first time setup for the coordinator."""
+        _LOGGER.debug("Running first time setup")
+
+        # Build the Zaptec hierarchy
+        await self.account.build()
+
+        # Get the list if chargers to include
+        chargers = None
+        if self.config_entry.data.get(CONF_MANUAL_SELECT, False):
+            chargers = self.config_entry.data.get(CONF_CHARGERS)
+
+        # Selected chargers to add
+        if chargers is not None:
+            _LOGGER.debug("Configured chargers: %s", chargers)
+            want = set(chargers)
+            all_objects = set(self.account.map.keys())
+
+            # Log if there are any objects listed not found in Zaptec
+            not_present = want - all_objects
+            if not_present:
+                _LOGGER.error("Charger objects %s not found", not_present)
+
+            # Calculate the objects to keep. From the list of chargers
+            # we want to keep, we also want to keep the circuit and
+            # installation objects.
+            keep = set()
+            for charger in self.account.get_chargers():
+                if charger.id in want:
+                    keep.add(charger.id)
+                    if charger.circuit:
+                        keep.add(charger.circuit.id)
+                        if charger.circuit.installation:
+                            keep.add(charger.circuit.installation.id)
+
+            if not keep:
+                _LOGGER.error("No zaptec objects will be added")
+
+            # Unregister all discovered objects not in the keep list
+            for objid in all_objects:
+                if objid not in keep:
+                    _LOGGER.debug("Unregistering: %s", objid)
+                    self.account.unregister(objid)
+
+        # Setup the stream subscription
+        self.create_streams()
+
     async def _async_update_data(self) -> None:
         """Fetch data from Zaptec."""
 
         try:
             # This timeout is only a safeguard against the API methods locking
             # up. The API methods themselves have their own timeouts.
-            async with async_timeout.timeout(10 * API_TIMEOUT):
+            async with asyncio.timeout(10 * API_TIMEOUT):
+                # Run this only once, when the coordinator is first set up
+                # to fetch the zaptec account data
                 if not self.account.is_built:
-                    # Build the Zaptec hierarchy
-                    await self.account.build()
-
-                    # Get the list if chargers to include
-                    chargers = None
-                    if self.config_entry.data.get(CONF_MANUAL_SELECT, False):
-                        chargers = self.config_entry.data.get(CONF_CHARGERS)
-
-                    # Selected chargers to add
-                    if chargers is not None:
-                        _LOGGER.debug("Configured chargers: %s", chargers)
-                        want = set(chargers)
-                        all_objects = set(self.account.map.keys())
-
-                        # Log if there are any objects listed not found in Zaptec
-                        not_present = want - all_objects
-                        if not_present:
-                            _LOGGER.error("Charger objects %s not found", not_present)
-
-                        # Calculate the objects to keep. From the list of chargers
-                        # we want to keep, we also want to keep the circuit and
-                        # installation objects.
-                        keep = set()
-                        for charger in self.account.get_chargers():
-                            if charger.id in want:
-                                keep.add(charger.id)
-                                if charger.circuit:
-                                    keep.add(charger.circuit.id)
-                                    if charger.circuit.installation:
-                                        keep.add(charger.circuit.installation.id)
-
-                        if not keep:
-                            _LOGGER.error("No zaptec objects will be added")
-
-                        # Unregister all discovered objects not in the keep list
-                        for objid in all_objects:
-                            if objid not in keep:
-                                _LOGGER.debug("Unregistering: %s", objid)
-                                self.account.unregister(objid)
-
-                    # Setup the stream subscription
-                    for install in self.account.installations:
-                        if install.id in self.account.map:
-                            await install.stream(cb=self._stream_update,
-                                                 ssl_context=get_default_context())
+                    await self._first_time_setup()
 
                 # Fetch updates
+                _LOGGER.debug("Polling from Zaptec")
                 await self.account.update_states()
 
         except ZaptecApiError as err:
