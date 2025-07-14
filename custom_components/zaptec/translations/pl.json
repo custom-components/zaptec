@@ -54,7 +54,6 @@
                     "Connected_Finished": "Zakończone"
                 }
             },
-            "circuit_name": { "name": "Nazwa obwodu" },
             "completed_session_energy": { "name": "Zużycie energii w zakończonej sesji" },
             "current_phase1": { "name": "Prąd fazy 1" },
             "current_phase2": { "name": "Prąd fazy 2" },

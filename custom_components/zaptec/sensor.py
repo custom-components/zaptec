@@ -257,13 +257,6 @@ CHARGER_ENTITIES: list[EntityDescription] = [
         icon="mdi:shape-outline",
         # No state class as its not a numeric value
     ),
-    ZapSensorEntityDescription(
-        key="circuit_name",
-        translation_key="circuit_name",
-        entity_category=const.EntityCategory.DIAGNOSTIC,
-        icon="mdi:shape-outline",
-        # No state class as its not a numeric value
-    ),
 ]
 
 
