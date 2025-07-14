@@ -74,9 +74,6 @@ class ZapLockEntityDescription(LockEntityDescription):
 INSTALLATION_ENTITIES: list[ZapLockEntityDescription] = [
 ]
 
-CIRCUIT_ENTITIES: list[ZapLockEntityDescription] = [
-]
-
 CHARGER_ENTITIES: list[ZapLockEntityDescription] = [
     ZapLockEntityDescription(
         key="permanent_cable_lock",
@@ -97,7 +94,6 @@ async def async_setup_entry(
     entitites = ZaptecLock.create_from_zaptec(
         coordinator,
         INSTALLATION_ENTITIES,
-        CIRCUIT_ENTITIES,
         CHARGER_ENTITIES,
     )
     async_add_entities(entitites, True)

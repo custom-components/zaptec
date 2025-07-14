@@ -215,7 +215,7 @@ class ZaptecBase(ABC):
 class Installation(ZaptecBase):
     """Represents an installation"""
 
-    circuits: list[Circuit]
+    chargers: list[Charger]
 
     # Type conversions for the named attributes (keep sorted)
     ATTR_TYPES = {
@@ -229,7 +229,7 @@ class Installation(ZaptecBase):
     def __init__(self, data, account):
         super().__init__(data, account)
         self.connection_details = None
-        self.circuits = []
+        self.chargers = []
 
         self._stream_task = None
         self._stream_receiver = None
@@ -248,19 +248,24 @@ class Installation(ZaptecBase):
                     "Access denied to installation hierarchy of %s. The user might not have access.",
                     self.id,
                 )
-                self.circuits = []
+                self.chargers = []
                 return
             raise
 
-        circuits = []
-        for item in hierarchy["Circuits"]:
-            _LOGGER.debug("    Circuit %s", item["Id"])
-            circ = Circuit(item, self._account, installation=self)
-            self._account.register(item["Id"], circ)
-            await circ.build()
-            circuits.append(circ)
+        chargers = []
+        for circuit_item in hierarchy["Circuits"]:
+            _LOGGER.debug("    Circuit %s", circuit_item["Id"])
+            for charger_item in circuit_item["Chargers"]:
+                _LOGGER.debug("      Charger %s", charger_item["Id"])
+                charger_item["CircuitId"] = circuit_item["Id"]
+                charger_item["CircuitName"] = circuit_item["Name"]
+                charger_item["CircuitMaxCurrent"] = circuit_item["MaxCurrent"]
+                chg = Charger(charger_item, self._account, installation=self)
+                self._account.register(charger_item["Id"], chg)
+                await chg.build()
+                chargers.append(chg)
 
-        self.circuits = circuits
+        self.chargers = chargers
 
     async def state(self):
         _LOGGER.debug(
@@ -474,54 +479,6 @@ class Installation(ZaptecBase):
         return result
 
 
-class Circuit(ZaptecBase):
-    """Represents a circuits"""
-
-    chargers: list["Charger"]
-
-    # Type conversions for the named attributes (keep sorted)
-    ATTR_TYPES = {
-        "active": bool,
-    }
-
-    def __init__(
-        self, data: TDict, account: Account, installation: Installation | None = None
-    ):
-        super().__init__(data, account)
-        self.chargers = []
-        self.installation = installation
-
-    async def build(self):
-        """Build the python interface."""
-
-        chargers = []
-        for item in self._attrs["chargers"]:
-            _LOGGER.debug("      Charger %s", item["Id"])
-            chg = Charger(item, self._account, circuit=self)
-            self._account.register(item["Id"], chg)
-            await chg.build()
-            chargers.append(chg)
-
-        self.chargers = chargers
-
-    async def state(self):
-        _LOGGER.debug(
-            "Polling state for %s (%s)", self.qual_id, self._attrs.get("name")
-        )
-        data = await self.circuit_info()
-        self.set_attributes(data)
-
-    # -----------------
-    # API methods
-    # -----------------
-
-    async def circuit_info(self) -> TDict:
-        """Raw request for circuit data"""
-        # NOTE: Undocumented API call. circuit is no longer part of the official docs
-        data = await self._account._request(f"circuits/{self.id}")
-        return data
-
-
 class Charger(ZaptecBase):
     """Represents a charger"""
 
@@ -534,6 +491,9 @@ class Charger(ZaptecBase):
         "charger_max_current": float,
         "charger_min_current": float,
         "charger_operation_mode": ZCONST.type_charger_operation_mode,
+        "circuit_id": str,
+        "circuit_max_current": float,
+        "circuit_name": str,
         "completed_session": ZCONST.type_completed_session,
         "current_phase1": float,
         "current_phase2": float,
@@ -553,11 +513,11 @@ class Charger(ZaptecBase):
     }
 
     def __init__(
-        self, data: TDict, account: "Account", circuit: Circuit | None = None
+        self, data: TDict, account: "Account", installation: Installation | None = None
     ) -> None:
         super().__init__(data, account)
 
-        self.circuit = circuit
+        self.installation = installation
 
     async def build(self) -> None:
         """Build the object"""
@@ -777,7 +737,6 @@ class Account:
         self._token_info = {}
         self._access_token = None
         self.installations: list[Installation] = []
-        self.stand_alone_chargers: list[Charger] = []
         self.map: dict[str, ZaptecBase] = {}
         self.is_built = False
         self._timeout = aiohttp.ClientTimeout(total=API_TIMEOUT)
@@ -1100,18 +1059,9 @@ class Account:
         # Will also report chargers listed in installation hierarchy above
         chargers = await self._request("chargers")
 
-        so_chargers = []
         for data in chargers["Data"]:
-            if data["Id"] in self.map:
-                continue
-
-            _LOGGER.debug("  Charger %s", data["Id"])
-            chg = Charger(data, self)
-            self.register(data["Id"], chg)
-            await chg.build()
-            so_chargers.append(chg)
-
-        self.stand_alone_chargers = so_chargers
+            if data["Id"] not in self.map:
+                _LOGGER.warning("Standalone Charger %s will not be added as a device", data["Id"])
 
         # Find the charger device types
         device_types = set(
@@ -1151,6 +1101,10 @@ class Account:
     def get_chargers(self):
         """Return a list of all chargers"""
         return [v for v in self.map.values() if isinstance(v, Charger)]
+
+    def get_circuit_ids(self) -> set[str]:
+        """Return a set of all circuit ids for all chargers."""
+        return set(c.circuit_id for c in self.get_chargers() if c.get("circuit_id", ""))
 
 
 if __name__ == "__main__":
