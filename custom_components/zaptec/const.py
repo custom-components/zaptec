@@ -12,7 +12,8 @@ TOKEN_URL = "https://api.zaptec.com/oauth/token"
 API_URL = "https://api.zaptec.com/api/"
 CONST_URL = "https://api.zaptec.com/api/constants"
 
-API_RETRIES = 5
+API_RETRIES = 9  # Corresponds to median ~31 seconds of retries before giving up
+API_RETRY_INIT_DELAY = 0.01
 API_RETRY_FACTOR = 2.3
 API_RETRY_JITTER = 0.1
 API_RETRY_MAXTIME = 600
