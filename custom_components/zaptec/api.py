@@ -645,10 +645,7 @@ class Charger(ZaptecBase):
         if command == "authorize_charge":
             return await self.authorize_charge()
 
-        # Fetching the name from the ZCONST is perhaps not a good idea
-        # if Zaptec is changing them.
-        if command not in ZCONST.commands:
-            raise ValueError(f"Unknown command '{command}'")
+        self.is_command_valid(command, raise_value_error_if_invalid=True)
 
         if isinstance(command, int):
             # If int, look up the command name
@@ -662,6 +659,41 @@ class Charger(ZaptecBase):
             f"chargers/{self.id}/SendCommand/{cmdid}", method="post"
         )
         return data
+
+    def is_command_valid(self, command: str|int, raise_value_error_if_invalid=False) -> bool:
+        # Fetching the name from the ZCONST is perhaps not a good idea if Zaptec is changing them.
+        if command not in ZCONST.commands and command != "authorize_charge":
+            if raise_value_error_if_invalid:
+                raise ValueError(f"Unknown command '{command}'")
+            return False
+
+        if isinstance(command, int):
+            # If int, look up the command name
+            command = ZCONST.commands.get(command)
+
+        valid_command = True
+        msg = ""
+        if command in ["resume_charging", "stop_charging_final"]:
+            # Pause/stop or resume charging are only allowed in certain states, see comments on
+            # commands 506+507 in https://api.zaptec.com/help/index.html#/Charger/Charger_SendCommand_POST
+            operation_mode = self.get("ChargerOperationMode")
+            final_stop_active = self.get("FinalStopActive")
+            paused = (operation_mode == "Connected_Finished" and int(final_stop_active) == 1)
+            if command == "stop_charging_final" and (paused or operation_mode == "Disconnected"):
+                msg = "Pause/stop charging is not allowed if charging is already paused or disconnected"
+                valid_command = False
+            elif command == "resume_charging" and not paused:
+                # should also check for NextScheduleEvent, but API doc is difficult to interpret
+                msg = "Resume charging is not allowed if charger is not paused"
+                valid_command = False
+
+        if valid_command:
+            return True
+        if raise_value_error_if_invalid:
+            _LOGGER.warning(msg)
+            _LOGGER.debug("operation_mode: %s, final_stop_active: %s", operation_mode, final_stop_active)
+            raise ValueError(msg)
+        return False
 
     async def set_settings(self, settings: dict[str, Any]):
         """Set settings on the charger"""
