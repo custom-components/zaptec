@@ -5,6 +5,7 @@ import asyncio
 import json
 import logging
 import random
+import time
 from abc import ABC, abstractmethod
 from collections import UserDict
 from collections.abc import Iterable
@@ -17,7 +18,7 @@ import pydantic
 from aiolimiter import AsyncLimiter
 
 from .const import (
-    API_RETRIES, API_RETRY_FACTOR, API_RETRY_JITTER, API_RETRY_MAXTIME,
+    API_RETRIES, API_RETRY_INIT_DELAY, API_RETRY_FACTOR, API_RETRY_JITTER, API_RETRY_MAXTIME,
     API_TIMEOUT, API_RATELIMIT_PERIOD, API_RATELIMIT_MAX_REQUEST_RATE, API_URL,
     MISSING, TOKEN_URL, TRUTHY, CHARGER_EXCLUDES)
 from .misc import mc_nbfx_decoder, to_under
@@ -867,7 +868,7 @@ class Account:
         request needs to be retried, the caller must call __next__."""
 
         error: Exception | None = None
-        delay: float = 1
+        delay: float = API_RETRY_INIT_DELAY
         iteration = 0
         for iteration in range(1, retries + 1):
             try:
@@ -876,6 +877,9 @@ class Account:
                 if DEBUG_API_CALLS:
                     for msg in log_req:
                         _LOGGER.debug(msg)
+
+                # Capture the current time
+                start_time = time.perf_counter()
 
                 # Make the request
                 async with self._ratelimiter:
@@ -908,9 +912,14 @@ class Account:
                 delay = delay * API_RETRY_FACTOR
                 delay = random.normalvariate(delay, delay * API_RETRY_JITTER)
                 delay = min(delay, self._max_time)
-                if DEBUG_API_CALLS:
-                    _LOGGER.debug("Sleeping for %s seconds", delay)
-                await asyncio.sleep(delay)
+
+                # If the sleep time is negative, it means the request took
+                # longer than the wanted delay, so we don't need to sleep.
+                sleep_delay = delay - time.perf_counter() + start_time
+                if sleep_delay > 0:
+                    if DEBUG_API_CALLS:
+                        _LOGGER.debug("Sleeping for %1.1f seconds", sleep_delay)
+                    await asyncio.sleep(delay)
 
             # Exceptions that can be retried
             except (asyncio.TimeoutError, aiohttp.ClientConnectionError) as err:
