@@ -676,8 +676,7 @@ class Charger(ZaptecBase):
         if command not in ZCONST.commands and command != "authorize_charge":
             if raise_value_error_if_invalid:
                 raise ValueError(f"Unknown command '{command}'")
-            else:
-                return False
+            return False
 
         if isinstance(command, int):
             # If int, look up the command name
@@ -701,12 +700,11 @@ class Charger(ZaptecBase):
 
         if valid_command:
             return True
-        elif raise_value_error_if_invalid:
+        if raise_value_error_if_invalid:
             _LOGGER.warning(msg)
             _LOGGER.debug("operation_mode: %s, final_stop_active: %s", operation_mode, final_stop_active)
             raise ValueError(msg)
-        else:
-            return False
+        return False
 
     async def set_settings(self, settings: dict[str, Any]):
         """Set settings on the charger"""
