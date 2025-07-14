@@ -14,10 +14,12 @@ from typing import Any, AsyncGenerator, Callable, Protocol, cast
 
 import aiohttp
 import pydantic
+from aiolimiter import AsyncLimiter
 
 from .const import (
     API_RETRIES, API_RETRY_FACTOR, API_RETRY_JITTER, API_RETRY_MAXTIME,
-    API_TIMEOUT, API_URL, MISSING, TOKEN_URL, TRUTHY, CHARGER_EXCLUDES)
+    API_TIMEOUT, API_RATELIMIT_PERIOD, API_RATELIMIT_MAX_REQUEST_RATE, API_URL,
+    MISSING, TOKEN_URL, TRUTHY, CHARGER_EXCLUDES)
 from .misc import mc_nbfx_decoder, to_under
 from .validate import validate
 from .zconst import ZConst
@@ -779,6 +781,7 @@ class Account:
         self.is_built = False
         self._timeout = aiohttp.ClientTimeout(total=API_TIMEOUT)
         self._max_time = max_time
+        self._ratelimiter = AsyncLimiter(max_rate=API_RATELIMIT_MAX_REQUEST_RATE, time_period= API_RATELIMIT_PERIOD)
 
     def register(self, id: str, data: ZaptecBase):
         """Register an object data with id"""
@@ -875,29 +878,30 @@ class Account:
                         _LOGGER.debug(msg)
 
                 # Make the request
-                async with self._client.request(
-                    method=method, url=url, **kwargs
-                ) as response:
-                    # Log the response
-                    log_resp = [m async for m in self._response_log(response)]
-                    if DEBUG_API_CALLS:
-                        for msg in log_resp:
-                            _LOGGER.debug(msg)
+                async with self._ratelimiter:
+                    async with self._client.request(
+                        method=method, url=url, **kwargs
+                    ) as response:
+                        # Log the response
+                        log_resp = [m async for m in self._response_log(response)]
+                        if DEBUG_API_CALLS:
+                            for msg in log_resp:
+                                _LOGGER.debug(msg)
 
-                    # Prepare the exception handler
-                    def log_exc(exc: Exception) -> Exception:
-                        """Log the exception and return it."""
-                        if DEBUG_API_ERRORS:
-                            if not DEBUG_API_CALLS:
-                                for msg in log_req + log_resp:
-                                    _LOGGER.debug(msg)
-                            _LOGGER.error(exc)
-                        return exc
+                        # Prepare the exception handler
+                        def log_exc(exc: Exception) -> Exception:
+                            """Log the exception and return it."""
+                            if DEBUG_API_ERRORS:
+                                if not DEBUG_API_CALLS:
+                                    for msg in log_req + log_resp:
+                                        _LOGGER.debug(msg)
+                                _LOGGER.error(exc)
+                            return exc
 
-                    # Let the caller handle the response. If the caller
-                    # calls __next__ on the generator the request will be
-                    # retried.
-                    yield response, log_exc
+                        # Let the caller handle the response. If the caller
+                        # calls __next__ on the generator the request will be
+                        # retried.
+                        yield response, log_exc
 
                 # Implement exponential backoff with jitter and sleep before
                 # retying the request.
