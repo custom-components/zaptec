@@ -1,4 +1,5 @@
 """Zaptec integration constants."""
+
 from __future__ import annotations
 
 NAME = "zaptec"
@@ -13,19 +14,36 @@ API_URL = "https://api.zaptec.com/api/"
 CONST_URL = "https://api.zaptec.com/api/constants"
 
 API_RETRIES = 9  # Corresponds to median ~31 seconds of retries before giving up
+"""Number of retries for API requests."""
+
 API_RETRY_INIT_DELAY = 0.01
+"""Initial delay for the first API retry."""
+
 API_RETRY_FACTOR = 2.3
+"""Factor for exponential backoff in API retries."""
+
 API_RETRY_JITTER = 0.1
+"""Jitter to add to the API retry delay to avoid thundering herd problem."""
+
 API_RETRY_MAXTIME = 600
+"""Maximum time to wait for API retries."""
+
 API_TIMEOUT = 10
-API_RATELIMIT_PERIOD = 1 
+"""The maximum time to wait for a response from the API."""
+
+API_RATELIMIT_PERIOD = 1
+"""Period in seconds for the bursting API rate limit."""
+
 API_RATELIMIT_MAX_REQUEST_RATE = 10
+"""Maximum number of requests allowed per API rate limit period."""
 
 DEFAULT_SCAN_INTERVAL = 60
+"""Default scan interval for state updates."""
 
 # This sets the delay after doing actions and the poll of updated values.
 # It was 0.3 and evidently that is a bit too fast for Zaptec cloud to handle.
 REQUEST_REFRESH_DELAY = 1
+"""Delay after doing actions and the poll of updated values."""
 
 CONF_MANUAL_SELECT = "manual_select"
 CONF_CHARGERS = "chargers"

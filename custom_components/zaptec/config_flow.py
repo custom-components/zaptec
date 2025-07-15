@@ -1,15 +1,17 @@
 """Adds config flow for zaptec."""
+
 from __future__ import annotations
 
 import logging
 from typing import Any
 
-import homeassistant.helpers.config_validation as cv
 import voluptuous as vol
+
 from homeassistant import config_entries
 from homeassistant.config_entries import data_entry_flow
 from homeassistant.const import CONF_PASSWORD, CONF_SCAN_INTERVAL, CONF_USERNAME
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+import homeassistant.helpers.config_validation as cv
 
 from .api import (
     Account,
@@ -32,12 +34,12 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class ZaptecFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
-    """Config flow for Blueprint."""
+    """Config flow for Zaptec."""
 
     VERSION = 1
 
-    def __init__(self):
-        """Initialize."""
+    def __init__(self) -> None:
+        """Initialize the config flow handler."""
         self._account: Account | None = None
         self._input: dict[str, Any] = {}
 
@@ -98,7 +100,7 @@ class ZaptecFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_chargers(
         self, user_input: dict[str, Any] | None = None
     ) -> data_entry_flow.FlowResult:
-        """Handle login steps"""
+        """Handle login steps."""
         errors: dict[str, str] = {}
 
         if user_input is not None:
@@ -156,8 +158,9 @@ class ZaptecFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
             errors=errors,
         )
 
-    async def async_step_import(self, user_input):  # pylint: disable=unused-argument
+    async def async_step_import(self, user_input):
         """Import a config entry.
+
         Special type of import, we're not actually going to store any data.
         Instead, we're going to rely on the values that are in config file.
         """
