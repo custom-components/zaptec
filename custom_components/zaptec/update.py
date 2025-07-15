@@ -1,8 +1,9 @@
 """Zaptec component update."""
+
 from __future__ import annotations
 
-import logging
 from dataclasses import dataclass
+import logging
 
 from homeassistant import const
 from homeassistant.components.update import (
@@ -24,10 +25,13 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class ZaptecUpdate(ZaptecBaseEntity, UpdateEntity):
+    """Base class for Zaptec update entities."""
+
     zaptec_obj: Charger
 
     @callback
     def _update_from_zaptec(self) -> None:
+        """Update the entity from Zaptec data."""
         try:
             self._attr_installed_version = self._get_zaptec_value(
                 key="current_firmware_version"
@@ -42,6 +46,7 @@ class ZaptecUpdate(ZaptecBaseEntity, UpdateEntity):
             self._log_unavailable()
 
     async def async_install(self, version, backup):
+        """Install the update."""
         _LOGGER.debug(
             "Updating firmware %s of %s",
             self.entity_id,
@@ -56,8 +61,10 @@ class ZaptecUpdate(ZaptecBaseEntity, UpdateEntity):
         await self.coordinator.async_request_refresh()
 
 
-@dataclass
+@dataclass(frozen=True, kw_only=True)
 class ZapUpdateEntityDescription(UpdateEntityDescription):
+    """Class describing Zaptec update entities."""
+
     cls: type | None = None
 
 
@@ -77,6 +84,7 @@ CHARGER_ENTITIES: list[EntityDescription] = [
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
+    """Set up the Zaptec update entities."""
     _LOGGER.debug("Setup binary sensors")
 
     coordinator: ZaptecUpdateCoordinator = hass.data[DOMAIN][entry.entry_id]

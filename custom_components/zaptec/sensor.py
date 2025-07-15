@@ -1,8 +1,9 @@
 """Zaptec component sensors."""
+
 from __future__ import annotations
 
-import logging
 from dataclasses import dataclass
+import logging
 
 from homeassistant import const
 from homeassistant.components.sensor import (
@@ -27,8 +28,11 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class ZaptecSensor(ZaptecBaseEntity, SensorEntity):
+    """Base class for Zaptec sensors."""
+
     @callback
     def _update_from_zaptec(self) -> None:
+        """Update the entity from Zaptec data."""
         try:
             self._attr_native_value = self._get_zaptec_value()
             self._attr_available = True
@@ -39,6 +43,8 @@ class ZaptecSensor(ZaptecBaseEntity, SensorEntity):
 
 
 class ZaptecChargeSensor(ZaptecSensor):
+    """Zaptec charge sensor entity."""
+
     # See ZCONST.charger_operation_modes for possible values
     CHARGE_MODE_MAP = {
         "Unknown": ["Unknown", "mdi:help-rhombus-outline"],
@@ -50,6 +56,7 @@ class ZaptecChargeSensor(ZaptecSensor):
 
     @callback
     def _update_from_zaptec(self) -> None:
+        """Update the entity from Zaptec data."""
         try:
             state = self._get_zaptec_value()
             mode = self.CHARGE_MODE_MAP.get(state, self.CHARGE_MODE_MAP["Unknown"])
@@ -62,7 +69,7 @@ class ZaptecChargeSensor(ZaptecSensor):
             self._log_unavailable()
 
 
-@dataclass
+@dataclass(frozen=True, kw_only=True)
 class ZapSensorEntityDescription(SensorEntityDescription):
     """Provide a description of a Zaptec sensor."""
 
@@ -263,6 +270,7 @@ CHARGER_ENTITIES: list[EntityDescription] = [
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
+    """Set up the Zaptec sensors."""
     _LOGGER.debug("Setup sensors")
 
     coordinator: ZaptecUpdateCoordinator = hass.data[DOMAIN][entry.entry_id]

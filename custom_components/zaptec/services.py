@@ -1,15 +1,17 @@
 """Zaptec components services."""
+
 from __future__ import annotations
 
+from collections.abc import Awaitable, Callable, Generator
 import logging
-from collections.abc import Generator
-from typing import TYPE_CHECKING, Awaitable, Callable, TypeVar
+from typing import TYPE_CHECKING, TypeVar
 
-import homeassistant.helpers.config_validation as cv
 import voluptuous as vol
+
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.exceptions import HomeAssistantError
-from homeassistant.helpers import device_registry, entity_registry
+from homeassistant.helpers import device_registry as dr, entity_registry as er
+import homeassistant.helpers.config_validation as cv
 
 from .api import Charger, Installation
 from .const import DOMAIN
@@ -127,8 +129,8 @@ async def async_setup_services(hass: HomeAssistant) -> None:
     def iter_objects(
         service_call: ServiceCall, mustbe: type[T]
     ) -> Generator[tuple[ZaptecUpdateCoordinator, T], None, None]:
-        ent_reg = entity_registry.async_get(hass)
-        dev_reg = device_registry.async_get(hass)
+        ent_reg = er.async_get(hass)
+        dev_reg = dr.async_get(hass)
 
         device_ids = get_as_set(service_call, "device_id")
         lookup: dict[str, str] = {}
