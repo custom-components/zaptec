@@ -158,7 +158,7 @@ class ZaptecFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
             errors=errors,
         )
 
-    async def async_step_import(self, user_input):  # pylint: disable=unused-argument
+    async def async_step_import(self, user_input):
         """Import a config entry.
 
         Special type of import, we're not actually going to store any data.

@@ -36,8 +36,6 @@ from .misc import mc_nbfx_decoder, to_under
 from .validate import validate
 from .zconst import ZConst
 
-# pylint: disable=missing-function-docstring
-
 _LOGGER = logging.getLogger(__name__)
 
 # Set to True to debug log all API calls
