@@ -2,19 +2,20 @@
 
 from __future__ import annotations
 
+from abc import ABC, abstractmethod
 import asyncio
+from collections.abc import AsyncGenerator, Callable, Iterable
+from concurrent.futures import CancelledError
+from contextlib import aclosing
 import json
 import logging
 import random
 import time
-from abc import ABC, abstractmethod
-from collections.abc import Iterable
-from contextlib import aclosing
-from typing import Any, AsyncGenerator, Callable, Protocol
+from typing import Any, Protocol
 
 import aiohttp
-import pydantic
 from aiolimiter import AsyncLimiter
+import pydantic
 
 from .const import (
     API_RATELIMIT_MAX_REQUEST_RATE,
@@ -34,17 +35,6 @@ from .const import (
 from .misc import mc_nbfx_decoder, to_under
 from .validate import validate
 from .zconst import ZConst
-
-"""
-stuff are missing from the api docs compared to what the portal uses.
-circuits/{self.id}/live
-circuits/{self.id}/
-https://api.zaptec.com/api/dashboard/activechargersforowner?limit=250
-/dashbord
-signalr is used by the website.
-"""
-
-# pylint: disable=missing-function-docstring
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -66,62 +56,63 @@ TDict = dict[str, TValue]
 
 
 class TLogExc(Protocol):
-    """Protocol for logging exceptions"""
+    """Protocol for logging exceptions."""
 
-    def __call__(self, exc: Exception) -> Exception:
-        ...
+    def __call__(self, exc: Exception) -> Exception: ...
 
 
 class ZaptecApiError(Exception):
-    """Base exception for all Zaptec API errors"""
+    """Base exception for all Zaptec API errors."""
 
 
 class AuthenticationError(ZaptecApiError):
-    """Authenatication failed"""
+    """Authenatication failed."""
 
 
 class RequestError(ZaptecApiError):
-    """Failed to get the results from the API"""
+    """Failed to get the results from the API."""
 
-    def __init__(self, message, error_code):
+    def __init__(self, message, error_code) -> None:
+        """Initialize the RequestError."""
         super().__init__(message)
         self.error_code = error_code
 
 
 class RequestConnectionError(ZaptecApiError):
-    """Failed to make the request to the API"""
+    """Failed to make the request to the API."""
 
 
 class RequestTimeoutError(ZaptecApiError):
-    """Failed to get the results from the API"""
+    """Failed to get the results from the API."""
 
 
 class RequestRetryError(ZaptecApiError):
-    """Retries too many times"""
+    """Retries too many times."""
 
 
 class RequestDataError(ZaptecApiError):
-    """Data is not valid"""
+    """Data is not valid."""
 
 
 class ZaptecBase(ABC):
-    """Base class for Zaptec objects"""
+    """Base class for Zaptec objects."""
 
     id: str
     name: str
-    _account: "Account"
+    _account: Account
     _attrs: TDict
 
     # Type definitions and convertions on the attributes
     ATTR_TYPES: dict[str, Callable] = {}
 
-    def __init__(self, data: TDict, account: "Account") -> None:
+    def __init__(self, data: TDict, account: Account) -> None:
+        """Initialize the ZaptecBase object."""
         self._account = account
         self._attrs = {}
         self.set_attributes(data)
 
     def set_attributes(self, data: TDict) -> bool:
-        """Set the class attributes from the given data"""
+        """Set the class attributes from the given data."""
         for k, v in data.items():
             # Cast the value to the correct type
             new_key = to_under(k)
@@ -162,12 +153,18 @@ class ZaptecBase(ABC):
             self._attrs[new_key] = new_v
 
     def __getattr__(self, key):
+        """Get an attribute by name."""
         try:
             return self._attrs[to_under(key)]
         except KeyError as exc:
             raise AttributeError(exc) from exc
 
     def get(self, key, default=MISSING):
+        """Get an attribute by name, with a default value.
+
+        Unlike dict.get, this function will return AttributeError if the key
+        is not found and no default is provided.
+        """
         if default is MISSING:
             return self._attrs[to_under(key)]
         else:
@@ -175,32 +172,34 @@ class ZaptecBase(ABC):
 
     @property
     def qual_id(self):
+        """Return a qualified name for the object."""
         qn = self.__class__.__qualname__
         if "id" not in self._attrs:
             return qn
         return f"{qn}[{self.id[-6:]}]"
 
     def asdict(self):
-        """Return the attributes as a dict"""
+        """Return the attributes as a dict."""
         return self._attrs
 
     @abstractmethod
     async def build(self) -> None:
-        """Build the object"""
+        """Build the object."""
 
     @abstractmethod
     async def state(self) -> None:
-        """Update the state of the object"""
+        """Update the state of the object."""
 
     @staticmethod
     def state_to_attrs(
         data: Iterable[dict[str, str]],
         key: str,
         keydict: dict[str, str],
-        excludes: set[str] = set(), 
+        excludes: set[str] = set(),
     ):
-        """Convert a list of state data into a dict of attributes. `key`
-        is the key that specifies the attribute name. `keydict` is a
+        """Convert a list of state data into a dict of attributes.
+
+        `key` is the key that specifies the attribute name. `keydict` is a
         dict that maps the key value to an attribute name.
         """
         out = {}
@@ -224,7 +223,7 @@ class ZaptecBase(ABC):
 
 
 class Installation(ZaptecBase):
-    """Represents an installation"""
+    """Represents an installation."""
 
     chargers: list[Charger]
 
@@ -237,7 +236,8 @@ class Installation(ZaptecBase):
         "network_type": ZCONST.type_network_type,
     }
 
-    def __init__(self, data, account):
+    def __init__(self, data, account) -> None:
+        """Initialize the installation object."""
         super().__init__(data, account)
         self.connection_details = None
         self.chargers = []
@@ -257,7 +257,7 @@ class Installation(ZaptecBase):
         except RequestError as err:
             if err.error_code == 403:
                 _LOGGER.warning(
-                    "Access denied to installation hierarchy of %s. The user might not have access.",
+                    "Access denied to installation hierarchy of %s. The user might not have access",
                     self.id,
                 )
                 self.chargers = []
@@ -280,6 +280,7 @@ class Installation(ZaptecBase):
         self.chargers = chargers
 
     async def state(self):
+        """Update the installation state."""
         _LOGGER.debug(
             "Polling state for %s (%s)", self.qual_id, self._attrs.get("name")
         )
@@ -290,6 +291,7 @@ class Installation(ZaptecBase):
     # =======================================================================
 
     async def live_stream_connection_details(self):
+        """Get the live stream connection details for the installation."""
         # NOTE: API call deprecated
         data = await self._account._request(
             f"installation/{self.id}/messagingConnectionDetails"
@@ -297,7 +299,7 @@ class Installation(ZaptecBase):
         self.connection_details = data
         return data
 
-    async def stream(self, cb=None, ssl_context=None) -> asyncio.Task|None:
+    async def stream(self, cb=None, ssl_context=None) -> asyncio.Task | None:
         """Kickoff the steam in the background."""
         try:
             from azure.servicebus.aio import ServiceBusClient
@@ -313,7 +315,7 @@ class Installation(ZaptecBase):
         return self._stream_task
 
     async def stream_main(self, cb=None, ssl_context=None):
-        """Main stream handler"""
+        """Main stream handler."""
         try:
             try:
                 from azure.servicebus.aio import ServiceBusClient
@@ -343,9 +345,9 @@ class Installation(ZaptecBase):
 
             # Open the connection
             constr = (
-                f'Endpoint=sb://{conf["Host"]}/;'
-                f'SharedAccessKeyName={conf["Username"]};'
-                f'SharedAccessKey={conf["Password"]}'
+                f"Endpoint=sb://{conf['Host']}/;"
+                f"SharedAccessKeyName={conf['Username']};"
+                f"SharedAccessKey={conf['Password']}"
             )
             kw = {}
             if ssl_context:
@@ -436,6 +438,7 @@ class Installation(ZaptecBase):
             pass
 
     async def cancel_stream(self):
+        """Cancel the running stream task."""
         if self._stream_task is not None:
             await self.stream_close()
             self._stream_task.cancel()
@@ -473,7 +476,7 @@ class Installation(ZaptecBase):
     # =======================================================================
 
     async def installation_info(self) -> TDict:
-        """Raw request for installation data"""
+        """Raw request for installation data."""
 
         # Get the installation data
         data = await self._account._request(f"installation/{self.id}")
@@ -490,7 +493,9 @@ class Installation(ZaptecBase):
         return data
 
     async def set_limit_current(self, **kwargs):
-        """Set a limit now how many amps the installation can use
+        """Set current limit for the installation.
+
+        Set a limit now how many amps the installation can use
         Use availableCurrent for setting all phases at once. Use
         availableCurrentPhase* to set each phase individually.
         """
@@ -516,7 +521,7 @@ class Installation(ZaptecBase):
         return data
 
     async def set_authentication_required(self, required: bool):
-        """Set if authorization is required for charging"""
+        """Set if authorization is required for charging."""
 
         # The naming of this function is ambigous. The Zaptec API is inconsistent
         # on its use of the terms authorization and authentication. In the
@@ -536,7 +541,7 @@ class Installation(ZaptecBase):
 
 
 class Charger(ZaptecBase):
-    """Represents a charger"""
+    """Represents a charger."""
 
     # Type conversions for the named attributes (keep sorted)
     ATTR_TYPES = {
@@ -569,20 +574,21 @@ class Charger(ZaptecBase):
     }
 
     def __init__(
-        self, data: TDict, account: "Account", installation: Installation | None = None
+        self, data: TDict, account: Account, installation: Installation | None = None
     ) -> None:
+        """Initialize the Charger object."""
         super().__init__(data, account)
 
         self.installation = installation
 
     async def build(self) -> None:
-        """Build the object"""
+        """Build the object."""
 
         # Don't update state at build, because the state and settings ids
         # is not loaded yet.
 
     async def state(self):
-        """Update the charger state"""
+        """Update the charger state."""
         _LOGGER.debug(
             "Polling state for %s (%s)", self.qual_id, self._attrs.get("name")
         )
@@ -607,8 +613,9 @@ class Charger(ZaptecBase):
         # Get the state from the charger
         try:
             state = await self._account._request(f"chargers/{self.id}/state")
-            data = self.state_to_attrs(state, "StateId", ZCONST.observations,
-                                       excludes=CHARGER_EXCLUDES)
+            data = self.state_to_attrs(
+                state, "StateId", ZCONST.observations, excludes=CHARGER_EXCLUDES
+            )
             self.set_attributes(data)
         except RequestError as err:
             if err.error_code != 403:
@@ -654,11 +661,12 @@ class Charger(ZaptecBase):
     # =======================================================================
 
     async def charger_info(self) -> TDict:
+        """Get the charger info."""
         data = await self._account._request(f"chargers/{self.id}")
         return data
 
     async def command(self, command: str | int):
-        """Send a command to the charger"""
+        """Send a command to the charger."""
 
         if command == "authorize_charge":
             return await self.authorize_charge()
@@ -678,7 +686,11 @@ class Charger(ZaptecBase):
         )
         return data
 
-    def is_command_valid(self, command: str|int, raise_value_error_if_invalid=False) -> bool:
+    def is_command_valid(
+        self, command: str | int, raise_value_error_if_invalid=False
+    ) -> bool:
+        """Check if the command is valid."""
+
         # Fetching the name from the ZCONST is perhaps not a good idea if Zaptec is changing them.
         if command not in ZCONST.commands and command != "authorize_charge":
             if raise_value_error_if_invalid:
@@ -696,8 +708,12 @@ class Charger(ZaptecBase):
             # commands 506+507 in https://api.zaptec.com/help/index.html#/Charger/Charger_SendCommand_POST
             operation_mode = self.get("ChargerOperationMode")
             final_stop_active = self.get("FinalStopActive")
-            paused = (operation_mode == "Connected_Finished" and int(final_stop_active) == 1)
-            if command == "stop_charging_final" and (paused or operation_mode == "Disconnected"):
+            paused = (
+                operation_mode == "Connected_Finished" and int(final_stop_active) == 1
+            )
+            if command == "stop_charging_final" and (
+                paused or operation_mode == "Disconnected"
+            ):
                 msg = "Pause/stop charging is not allowed if charging is already paused or disconnected"
                 valid_command = False
             elif command == "resume_charging" and not paused:
@@ -709,12 +725,16 @@ class Charger(ZaptecBase):
             return True
         if raise_value_error_if_invalid:
             _LOGGER.warning(msg)
-            _LOGGER.debug("operation_mode: %s, final_stop_active: %s", operation_mode, final_stop_active)
+            _LOGGER.debug(
+                "operation_mode: %s, final_stop_active: %s",
+                operation_mode,
+                final_stop_active,
+            )
             raise ValueError(msg)
         return False
 
     async def set_settings(self, settings: dict[str, Any]):
-        """Set settings on the charger"""
+        """Set settings on the charger."""
 
         if any(key not in ZCONST.update_params for key in settings.keys()):
             raise ValueError(f"Unknown setting '{settings}'")
@@ -726,21 +746,27 @@ class Charger(ZaptecBase):
         return data
 
     async def stop_charging_final(self):
+        """Send stop charging command."""
         return await self.command("stop_charging_final")
 
     async def resume_charging(self):
+        """Send resume charging command."""
         return await self.command("resume_charging")
 
     async def deauthorize_and_stop(self):
+        """Deauthorize the charger and stop it."""
         return await self.command("deauthorize_and_stop")
 
     async def restart_charger(self):
+        """Restart the charger."""
         return await self.command("restart_charger")
 
     async def upgrade_firmware(self):
+        """Send command to upgrade firmware."""
         return await self.command("upgrade_firmware")
 
     async def authorize_charge(self):
+        """Authorize the charger to charge."""
         _LOGGER.debug("Authorize charge")
         # NOTE: Undocumented API call
         data = await self._account._request(
@@ -749,7 +775,7 @@ class Charger(ZaptecBase):
         return data
 
     async def set_permanent_cable_lock(self, lock: bool):
-        """Set if the cable lock is permanent"""
+        """Set the permanent cable lock on the charger."""
         _LOGGER.debug("Set permanent cable lock %s", lock)
         data = {
             "Cable": {
@@ -761,9 +787,9 @@ class Charger(ZaptecBase):
             f"chargers/{self.id}/localSettings", method="post", data=data
         )
         return result
-    
+
     async def set_hmi_brightness(self, brightness: float):
-        """Set the HMI brightness"""
+        """Set the HMI brightness."""
         _LOGGER.debug("Set HMI brightness %s", brightness)
         data = {
             "Device": {
@@ -778,13 +804,17 @@ class Charger(ZaptecBase):
 
 
 class Account:
-    """This class represent an zaptec account"""
+    """This class represent an zaptec account."""
 
     def __init__(
-        self, username: str, password: str, *, 
+        self,
+        username: str,
+        password: str,
+        *,
         client: aiohttp.ClientSession | None = None,
         max_time: float = API_RETRY_MAXTIME,
     ) -> None:
+        """Initialize the Zaptec account handler."""
         _LOGGER.debug("Account init")
         self._username = username
         self._password = password
@@ -796,14 +826,16 @@ class Account:
         self.is_built = False
         self._timeout = aiohttp.ClientTimeout(total=API_TIMEOUT)
         self._max_time = max_time
-        self._ratelimiter = AsyncLimiter(max_rate=API_RATELIMIT_MAX_REQUEST_RATE, time_period= API_RATELIMIT_PERIOD)
+        self._ratelimiter = AsyncLimiter(
+            max_rate=API_RATELIMIT_MAX_REQUEST_RATE, time_period=API_RATELIMIT_PERIOD
+        )
 
     def register(self, id: str, data: ZaptecBase):
-        """Register an object data with id"""
+        """Register an object data with id."""
         self.map[id] = data
 
     def unregister(self, id: str):
-        """Unregister an object data with id"""
+        """Unregister an object data with id."""
         del self.map[id]
 
     # =======================================================================
@@ -851,9 +883,12 @@ class Account:
     async def _request_worker(
         self, url: str, method="get", retries=API_RETRIES, **kwargs
     ) -> AsyncGenerator[tuple[aiohttp.ClientResponse, TLogExc], None]:
-        """API request generator that handles retries. This function handles
-        logging and error handling. The generator will yield responses. If the
-        request needs to be retried, the caller must call __next__."""
+        """API request generator that handles retries.
+
+        This function handles logging and error handling. The generator will
+        yield responses. If the request needs to be retried, the caller must
+        call __next__.
+        """
 
         error: Exception | None = None
         delay: float = API_RETRY_INIT_DELAY
@@ -1094,7 +1129,9 @@ class Account:
 
         for data in chargers["Data"]:
             if data["Id"] not in self.map:
-                _LOGGER.warning("Standalone Charger %s will not be added as a device", data["Id"])
+                _LOGGER.warning(
+                    "Standalone Charger %s will not be added as a device", data["Id"]
+                )
 
         # Find the charger device types
         device_types = set(
@@ -1108,13 +1145,13 @@ class Account:
         self.is_built = True
 
     async def update_states(self, id: str | None = None):
-        """Update the state for the given id. If id is None, all"""
+        """Update the state for the given id or update all."""
         for data in self.map.values():
             if id is None or data.id == id:
                 await data.state()
 
     def get_chargers(self):
-        """Return a list of all chargers"""
+        """Return a list of all chargers."""
         return [v for v in self.map.values() if isinstance(v, Charger)]
 
     def get_circuit_ids(self) -> set[str]:

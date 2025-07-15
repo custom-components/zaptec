@@ -144,7 +144,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         dev_entities = er.async_entries_for_device(
             entity_registry, dev.id, include_disabled_entities=True
         )
-        zap_dev_id = list(dev.identifiers)[0][1]  # identifiers is a set with a single tuple ('zaptec', '<zaptec_id>')
+        # identifiers is a set with a single tuple ('zaptec', '<zaptec_id>')
+        zap_dev_id = list(dev.identifiers)[0][1]
         if not dev_entities:
             device_registry.async_remove_device(dev.id)
         elif zap_dev_id in circuit_id_set:
@@ -236,6 +237,7 @@ class ZaptecUpdateCoordinator(DataUpdateCoordinator[None]):
                 self.streams.append((task, install))
 
     async def cancel_streams(self):
+        """Cancel all streams for the account."""
         for task, install in self.streams:
             _LOGGER.debug("Cancelling stream for %s", install.qual_id)
             await install.stream_close()
@@ -245,10 +247,10 @@ class ZaptecUpdateCoordinator(DataUpdateCoordinator[None]):
             except asyncio.CancelledError:
                 pass
 
-    @callback
     async def stream_callback(self, event):
-        """Handle new update event from the zaptec stream. The zaptec objects
-        are updated in-place prior to this callback being called.
+        """Handle new update event from the zaptec stream.
+
+        The zaptec objects are updated in-place prior to this callback being called.
         """
         self.async_update_listeners()
 
@@ -281,9 +283,8 @@ class ZaptecUpdateCoordinator(DataUpdateCoordinator[None]):
             if not_present:
                 _LOGGER.error("Charger objects %s not found", not_present)
 
-            # Calculate the objects to keep. From the list of chargers
-            # we want to keep, we also want to keep the circuit and
-            # installation objects.
+            # Calculate the objects to keep. From the list of chargers we
+            # want to keep, we also want to keep the installation objects.
             keep = set()
             for charger in self.account.get_chargers():
                 if charger.id in want:
@@ -327,6 +328,8 @@ class ZaptecUpdateCoordinator(DataUpdateCoordinator[None]):
 
 
 class ZaptecBaseEntity(CoordinatorEntity[ZaptecUpdateCoordinator]):
+    """Base class for Zaptec entities."""
+
     coordinator: ZaptecUpdateCoordinator
     zaptec_obj: ZaptecBase
     entity_description: EntityDescription
@@ -340,6 +343,7 @@ class ZaptecBaseEntity(CoordinatorEntity[ZaptecUpdateCoordinator]):
         description: EntityDescription,
         device_info: DeviceInfo,
     ) -> None:
+        """Initialize the Zaptec entity."""
         super().__init__(coordinator)
 
         self.zaptec_obj = zaptec_object
@@ -352,12 +356,14 @@ class ZaptecBaseEntity(CoordinatorEntity[ZaptecUpdateCoordinator]):
         self._post_init()
 
     def _post_init(self) -> None:
-        """Called after the entity has been initialized. Implement this for a
+        """Post-initialization method for the entity.
+
+        Called after the entity has been initialized. Implement this for a
         custom light-weight init in the inheriting class.
         """
 
     async def async_added_to_hass(self) -> None:
-        """Callback when entity is registered in HA"""
+        """Callback when entity is registered in HA."""
         await super().async_added_to_hass()
 
         # Register the entity with the coordinator
@@ -380,13 +386,17 @@ class ZaptecBaseEntity(CoordinatorEntity[ZaptecUpdateCoordinator]):
 
     @callback
     def _update_from_zaptec(self) -> None:
-        """Called when the coordinator has new data. Implement this in the
+        """Update the entity state from the Zaptec object.
+
+        Called when the coordinator has new data. Implement this in the
         inheriting class to update the entity state.
         """
 
     @callback
     def _get_zaptec_value(self, *, default=MISSING, key=None):
-        """Helper to retrieve the value from the Zaptec object. This is to
+        """Retrieve a value from the Zaptec object.
+
+        Helper to retrieve the value from the Zaptec object. This is to
         be called from _handle_coordinator_update() in the inheriting class.
         It will fetch the attr given by the entity description key.
         """
@@ -411,9 +421,7 @@ class ZaptecBaseEntity(CoordinatorEntity[ZaptecUpdateCoordinator]):
 
     @callback
     def _log_value(self, value, force=False):
-        """Helper to log a new value. This is to be called from
-        _handle_coordinator_update() in the inheriting class.
-        """
+        """Helper to log a new value."""
         prev = self._prev_value
         if force or value != prev:
             self._prev_value = value
@@ -448,9 +456,7 @@ class ZaptecBaseEntity(CoordinatorEntity[ZaptecUpdateCoordinator]):
         zaptec_obj: ZaptecBase,
         device_info: DeviceInfo,
     ) -> list[ZaptecBaseEntity]:
-        """Helper factory to create a list of entities from a list of
-        EntityDescription objects.
-        """
+        """Factory to create a list of entities from EntityDescription objects."""
 
         # Calculate the prefix to use for the entity name
         prefix = coordinator.config_entry.data.get(CONF_PREFIX, "").rstrip()
@@ -482,7 +488,9 @@ class ZaptecBaseEntity(CoordinatorEntity[ZaptecUpdateCoordinator]):
         installation_descriptions: list[EntityDescription],
         charger_descriptions: list[EntityDescription],
     ) -> list[ZaptecBaseEntity]:
-        """Helper factory to populate the listed entities for the detected
+        """Factory to entities from the discovered Zaptec objects.
+
+        Helper factory to populate the listed entities for the detected
         Zaptec devices. It sets the proper device info on the installation
         and charger objects in order for them to be grouped in HA.
         """

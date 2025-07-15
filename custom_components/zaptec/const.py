@@ -1,4 +1,5 @@
 """Zaptec integration constants."""
+
 from __future__ import annotations
 
 NAME = "zaptec"
@@ -30,7 +31,7 @@ API_RETRY_MAXTIME = 600
 API_TIMEOUT = 10
 """The maximum time to wait for a response from the API."""
 
-API_RATELIMIT_PERIOD = 1 
+API_RATELIMIT_PERIOD = 1
 """Period in seconds for the bursting API rate limit."""
 
 API_RATELIMIT_MAX_REQUEST_RATE = 10

@@ -42,12 +42,12 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class ZaptecFlowHandler(ConfigFlow, domain=DOMAIN):
-    """Config flow for Blueprint."""
+    """Config flow for Zaptec."""
 
     VERSION = 1
 
     def __init__(self) -> None:
-        """Initialize."""
+        """Initialize the config flow handler."""
         self.account: Account | None = None
         self.user_input: dict[str, Any] = {}
         self.chargers: tuple[dict[str, str], dict[str, str]] | None = None
