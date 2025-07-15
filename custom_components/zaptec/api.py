@@ -466,7 +466,7 @@ class Installation(ZaptecBase):
 
         charger = self.map.get(charger_id)
         if charger is None:
-            _LOGGER.warning("Got update for unknown charger id %s", charger_id)
+            _LOGGER.warning("Got update for unregistered charger, id %s", charger_id)
             return
 
         d = ZaptecBase.state_to_attrs([data], "StateId", ZCONST.observations)
