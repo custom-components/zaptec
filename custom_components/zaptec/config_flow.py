@@ -53,6 +53,7 @@ class ZaptecFlowHandler(ConfigFlow, domain=DOMAIN):
         self.chargers: tuple[dict[str, str], dict[str, str]] | None = None
 
     async def _validate_account(self, user_input: dict[str, Any]) -> dict[str, str]:
+        """Validate the account credentials and return any errors."""
         errors: dict[str, str] = {}
 
         try:
@@ -73,6 +74,7 @@ class ZaptecFlowHandler(ConfigFlow, domain=DOMAIN):
         return errors
 
     async def _get_chargers(self) -> tuple[dict[str, str], dict[str, str]]:
+        """Fetch a list of chargers from the Zaptec API."""
         errors: dict[str, str] = {}
         chargers: list[Charger] = []
 
@@ -102,6 +104,7 @@ class ZaptecFlowHandler(ConfigFlow, domain=DOMAIN):
             errors["base"] = "unknown"
 
         def charger_text(charger: Charger):
+            """Format the charger text for display."""
             text = f"{charger.name} ({getattr(charger, 'device_id', '-')})"
             if charger.circuit_name:
                 text += f" in {charger.circuit_name} circuit"
@@ -141,7 +144,7 @@ class ZaptecFlowHandler(ConfigFlow, domain=DOMAIN):
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Handle a flow initiated by the user."""
+        """Handle a configuration flow initiated by the user."""
         errors: dict[str, str] = {}
 
         if user_input is not None:
@@ -200,7 +203,7 @@ class ZaptecFlowHandler(ConfigFlow, domain=DOMAIN):
     async def async_step_chargers(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Handle login steps."""
+        """Handle configuration flow for selecting the chargers."""
         errors: dict[str, str] = {}
 
         _LOGGER.debug("async_step_chargers called with user_input: %s", user_input)

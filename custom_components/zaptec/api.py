@@ -450,23 +450,23 @@ class Installation(ZaptecBase):
                 self._stream_task = None
 
     def stream_update(self, data: TDict):
-        """update for the stream."""
+        """Streamm event callback."""
 
         charger_id = data.pop("ChargerId", None)
-        if charger_id == "00000000-0000-0000-0000-000000000000":
-            _LOGGER.debug("Ignoring charger with id %s", charger_id)
-            return
-        elif charger_id is None:
+        if charger_id is None:
             _LOGGER.warning("Unknown update message %s", data)
             return
 
-        if (charger := self._account.map.get(charger_id)) is None:
-            _LOGGER.warning("Got update for unknown charger id %s", charger_id)
+        if charger_id == "00000000-0000-0000-0000-000000000000":
+            _LOGGER.debug("Ignoring charger with id %s", charger_id)
             return
 
-        charger = self.map.get(charger_id)
-        if charger is None:
-            _LOGGER.warning("Got update for unregistered charger, id %s", charger_id)
+        try:
+            # Assumes that the stream only contain chargers that belong to
+            # this installation.
+            charger = next(chg for chg in self.chargers if chg.id == charger_id)
+        except StopIteration:
+            _LOGGER.warning("Got update for unknown charger, id %s", charger_id)
             return
 
         d = ZaptecBase.state_to_attrs([data], "StateId", ZCONST.observations)
