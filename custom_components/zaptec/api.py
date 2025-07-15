@@ -40,6 +40,7 @@ _LOGGER = logging.getLogger(__name__)
 
 # Set to True to debug log all API calls
 DEBUG_API_CALLS = False
+DEBUG_API_DATA = False
 
 # Set to True to debug log all API errors
 # Setting this to False because the error messages are very verbose and will
@@ -243,6 +244,7 @@ class Installation(ZaptecBase):
 
         self._stream_task = None
         self._stream_receiver = None
+        self._stream_running = False
 
     async def build(self):
         """Build the installation object hierarchy."""
@@ -308,11 +310,11 @@ class Installation(ZaptecBase):
 
         await self.cancel_stream()
         self._stream_task = asyncio.create_task(
-            self._stream(cb=cb, ssl_context=ssl_context)
+            self.stream_main(cb=cb, ssl_context=ssl_context)
         )
         return self._stream_task
 
-    async def _stream(self, cb=None, ssl_context=None):
+    async def stream_main(self, cb=None, ssl_context=None):
         """Main stream handler."""
         try:
             try:
@@ -322,6 +324,13 @@ class Installation(ZaptecBase):
                     "Azure Service bus is not available. Resolving to polling"
                 )
                 return
+
+            # Already running?
+            if self._stream_running:
+                raise RuntimeError(
+                    "Stream already running. Call cancel_stream() before starting a new stream."
+                )
+            self._stream_running = True
 
             # Get connection details
             try:
@@ -346,7 +355,10 @@ class Installation(ZaptecBase):
             servicebus_client = ServiceBusClient.from_connection_string(
                 conn_str=constr, **kw
             )
-            _LOGGER.debug("Connecting to servicebus using %s", constr)
+            obfuscated = constr.replace(conf["Password"], "********").replace(
+                conf["Username"], "********"
+            )
+            _LOGGER.debug("Connecting to servicebus using %s", obfuscated)
 
             self._stream_receiver = None
             async with servicebus_client:
@@ -355,6 +367,7 @@ class Installation(ZaptecBase):
                     topic_name=conf["Topic"],
                     subscription_name=conf["Subscription"],
                 )
+                _LOGGER.info("Running service bus stream for %s", self.qual_id)
                 # Store the receiver in order to close it and cancel this stream
                 self._stream_receiver = receiver
                 async with receiver:
@@ -385,8 +398,8 @@ class Installation(ZaptecBase):
                                 )
                             _LOGGER.debug("---   Subscription: %s", json_log)
 
-                            # Send result to account that will update the objects
-                            self._account.update(json_result)
+                            # Send result to the stream update method.
+                            self.stream_update(json_result)
 
                             # Execute the callback.
                             if cb:
@@ -407,30 +420,57 @@ class Installation(ZaptecBase):
             _LOGGER.exception("Stream failed: %s", err)
 
         finally:
-            # To ensure its not set if not active
+            # Cleanup
             self._stream_receiver = None
+            self._stream_running = False
+            _LOGGER.info("Servicebus stream stopped for %s", self.qual_id)
+
+    async def stream_close(self):
+        """Close the stream receiver."""
+        from azure.servicebus.exceptions import ServiceBusError
+
+        try:
+            if self._stream_receiver is not None:
+                await self._stream_receiver.close()
+        except ServiceBusError:
+            # This happens if the receiver is in the process of setting up
+            # or closing when are trying to close it.
+            pass
 
     async def cancel_stream(self):
         """Cancel the running stream task."""
-        try:
-            from azure.servicebus.exceptions import ServiceBusError
-        except ImportError:
-            return
-
         if self._stream_task is not None:
+            await self.stream_close()
+            self._stream_task.cancel()
             try:
-                if self._stream_receiver is not None:
-                    await self._stream_receiver.close()
-                self._stream_task.cancel()
                 await self._stream_task
-                _LOGGER.debug("Canceled stream")
-            except (ServiceBusError, CancelledError):
+            except asyncio.CancelledError:
                 pass
-                # this will still raise a exception, I think its a 3.7 issue.
-                # recheck this when the i have updated to 3.9
-
             finally:
                 self._stream_task = None
+
+    def stream_update(self, data: TDict):
+        """Streamm event callback."""
+
+        charger_id = data.pop("ChargerId", None)
+        if charger_id is None:
+            _LOGGER.warning("Unknown update message %s", data)
+            return
+
+        if charger_id == "00000000-0000-0000-0000-000000000000":
+            _LOGGER.debug("Ignoring charger with id %s", charger_id)
+            return
+
+        try:
+            # Assumes that the stream only contain chargers that belong to
+            # this installation.
+            charger = next(chg for chg in self.chargers if chg.id == charger_id)
+        except StopIteration:
+            _LOGGER.warning("Got update for unknown charger, id %s", charger_id)
+            return
+
+        d = ZaptecBase.state_to_attrs([data], "StateId", ZCONST.observations)
+        charger.set_attributes(d)
 
     #   API METHODS
     # =======================================================================
@@ -811,6 +851,8 @@ class Account:
             jlength = f" json length {len(jdata)}" if "json" in kwargs else ""
             attempt = f" (attempt {iteration})" if iteration > 1 else ""
             yield f"@@@  REQUEST {method.upper()} to '{url}'{dlength}{jlength}{attempt}"
+            if not DEBUG_API_DATA:
+                return
             if "headers" in kwargs:
                 yield f"     headers {dict((k, v) for k, v in kwargs['headers'].items())}"
             if "data" in kwargs:
@@ -826,6 +868,8 @@ class Account:
         try:
             contents = await resp.read()
             yield f"@@@  RESPONSE {resp.status} length {len(contents)}"
+            if not DEBUG_API_DATA:
+                return
             yield f"     headers {dict((k, v) for k, v in resp.headers.items())}"
             if not contents:
                 return
@@ -836,37 +880,7 @@ class Account:
         except Exception:
             _LOGGER.exception("Failed to log response (ignored exception)")
 
-    @staticmethod
-    async def check_login(
-        username: str, password: str, client: aiohttp.ClientSession | None = None
-    ) -> bool:
-        """Check if the login is valid."""
-        client = client or aiohttp.ClientSession()
-        p = {
-            "username": username,
-            "password": password,
-            "grant_type": "password",
-        }
-        try:
-            timeout = aiohttp.ClientTimeout(total=API_TIMEOUT)
-            async with client.post(TOKEN_URL, data=p, timeout=timeout) as resp:
-                if resp.status == 200:
-                    data = await resp.json()
-                    return True
-                else:
-                    raise AuthenticationError(
-                        f"Failed to authenticate. Got status {resp.status}"
-                    )
-        except asyncio.TimeoutError as err:
-            if DEBUG_API_ERRORS:
-                _LOGGER.error("Authentication timeout")
-            raise RequestTimeoutError("Authenticaton timed out") from err
-        except aiohttp.ClientConnectionError as err:
-            if DEBUG_API_ERRORS:
-                _LOGGER.error("Authentication request failed: %s", err)
-            raise RequestConnectionError("Authentication request failed") from err
-
-    async def _retry_request(
+    async def _request_worker(
         self, url: str, method="get", retries=API_RETRIES, **kwargs
     ) -> AsyncGenerator[tuple[aiohttp.ClientResponse, TLogExc], None]:
         """API request generator that handles retries.
@@ -958,6 +972,10 @@ class Account:
             f"Request to {url} failed after {iteration} retries"
         ) from None
 
+    async def login(self) -> None:
+        """Login to the Zaptec API and get an access token."""
+        await self._refresh_token()
+
     async def _refresh_token(self):
         # So for some reason they used grant_type password..
         # what the point with oauth then? Anyway this is valid for 24 hour
@@ -969,11 +987,11 @@ class Account:
         if DEBUG_API_CALLS:
             _LOGGER.debug("@@@  REFRESH TOKEN")
 
-        # Run the _retry_request() in a context manager that will close the
+        # Run the _request_worker() in a context manager that will close the
         # generator when the context is exited, ensuring the request and
         # connection is closed when done.
         async with aclosing(
-            self._retry_request(
+            self._request_worker(
                 TOKEN_URL,
                 method="post",
                 data=p,
@@ -1024,11 +1042,11 @@ class Account:
         if data is not None:
             kwargs["json"] = data
 
-        # Run the _retry_request() in a context manager that will close the
+        # Run the _request_worker() in a context manager that will close the
         # generator when the context is exited, ensuring the request and
         # connection is closed when done.
         async with aclosing(
-            self._retry_request(
+            self._request_worker(
                 full_url,
                 method=method,
                 retries=API_RETRIES,
@@ -1132,26 +1150,6 @@ class Account:
             if id is None or data.id == id:
                 await data.state()
 
-    def update(self, data: TDict):
-        """Stream update callback."""
-
-        cls_id = data.pop("ChargerId", None)
-        if cls_id == "00000000-0000-0000-0000-000000000000":
-            _LOGGER.debug(
-                "Ignoring charger with id 00000000-0000-0000-0000-000000000000"
-            )
-            return
-        elif cls_id is None:
-            _LOGGER.warning("Unknown update message %s", data)
-            return
-
-        klass = self.map.get(cls_id)
-        if klass:
-            d = ZaptecBase.state_to_attrs([data], "StateId", ZCONST.observations)
-            klass.set_attributes(d)
-        else:
-            _LOGGER.warning("Got update for unknown charger id %s", cls_id)
-
     def get_chargers(self):
         """Return a list of all chargers."""
         return [v for v in self.map.values() if isinstance(v, Charger)]
@@ -1179,26 +1177,14 @@ if __name__ == "__main__":
 
         try:
             # Builds the interface.
+            await acc.login()
             await acc.build()
+            await acc.update_states()
 
-            # Save the constant
-            with open("constant.json", "w") as outfile:
-                json.dump(dict(ZCONST), outfile, indent=2)
-
-            # Update the state to get all the attributes.
+            # Print all the attributes.
             for obj in acc.map.values():
                 await obj.state()
                 pprint(obj.asdict())
-
-            # with open("data.json", "w") as outfile:
-
-            #     async def cb(data):
-            #         print(data)
-            #         outfile.write(json.dumps(data, indent=2) + '\n')
-            #         outfile.flush()
-
-            #     for ins in acc.installations:
-            #         await ins._stream(cb=cb)
 
         finally:
             await acc._client.close()

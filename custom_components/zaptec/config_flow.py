@@ -7,11 +7,19 @@ from typing import Any
 
 import voluptuous as vol
 
-from homeassistant import config_entries
-from homeassistant.config_entries import data_entry_flow
+from homeassistant.config_entries import (
+    SOURCE_RECONFIGURE,
+    ConfigFlow,
+    ConfigFlowResult,
+)
 from homeassistant.const import CONF_PASSWORD, CONF_SCAN_INTERVAL, CONF_USERNAME
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 import homeassistant.helpers.config_validation as cv
+from homeassistant.helpers.selector import (
+    TextSelector,
+    TextSelectorConfig,
+    TextSelectorType,
+)
 
 from .api import (
     Account,
@@ -33,112 +41,70 @@ from .const import (
 _LOGGER = logging.getLogger(__name__)
 
 
-class ZaptecFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
+class ZaptecFlowHandler(ConfigFlow, domain=DOMAIN):
     """Config flow for Zaptec."""
 
     VERSION = 1
 
     def __init__(self) -> None:
         """Initialize the config flow handler."""
-        self._account: Account | None = None
-        self._input: dict[str, Any] = {}
+        self.account: Account | None = None
+        self.user_input: dict[str, Any] = {}
+        self.chargers: tuple[dict[str, str], dict[str, str]] | None = None
 
-    async def async_step_user(
-        self, user_input: dict[str, Any] | None = None
-    ) -> data_entry_flow.FlowResult:
-        """Handle a flow initiated by the user."""
+    async def _validate_account(self, user_input: dict[str, Any]) -> dict[str, str]:
+        """Validate the account credentials and return any errors."""
         errors: dict[str, str] = {}
-
-        if self._async_current_entries():
-            return self.async_abort(reason="already_exists")
-
-        if user_input is not None:
-            valid_login = False
-            try:
-                valid_login = await Account.check_login(
-                    username=user_input[CONF_USERNAME],
-                    password=user_input[CONF_PASSWORD],
-                    client=async_get_clientsession(self.hass),
-                )
-            except (RequestConnectionError, RequestTimeoutError):
-                errors["base"] = "cannot_connect"
-            except AuthenticationError:
-                errors["base"] = "invalid_auth"
-            except Exception:
-                _LOGGER.exception("Unexpected exception")
-                errors["base"] = "unknown"
-
-            if valid_login:
-                unique_id = user_input[CONF_USERNAME].lower()
-                await self.async_set_unique_id(unique_id)
-                self._abort_if_unique_id_configured()
-
-                if user_input.get(CONF_MANUAL_SELECT, False):
-                    self._input = user_input
-                    return await self.async_step_chargers()
-
-                return self.async_create_entry(
-                    title=DOMAIN.capitalize(), data=user_input
-                )
-
-        data = {
-            vol.Required(CONF_USERNAME): str,
-            vol.Required(CONF_PASSWORD): str,
-            vol.Optional(CONF_PREFIX): str,
-            vol.Optional(CONF_SCAN_INTERVAL, default=DEFAULT_SCAN_INTERVAL): vol.Coerce(
-                int
-            ),
-            vol.Optional(CONF_MANUAL_SELECT): bool,
-        }
-
-        return self.async_show_form(
-            step_id="user",
-            data_schema=vol.Schema(data),
-            errors=errors,
-        )
-
-    async def async_step_chargers(
-        self, user_input: dict[str, Any] | None = None
-    ) -> data_entry_flow.FlowResult:
-        """Handle login steps."""
-        errors: dict[str, str] = {}
-
-        if user_input is not None:
-            if user_input.get(CONF_CHARGERS):
-                self._input.update(user_input)
-
-                return self.async_create_entry(
-                    title=DOMAIN.capitalize(), data=self._input
-                )
-
-            errors["base"] = "no_chargers_selected"
 
         try:
-            if not self._account:
-                self._account = Account(
-                    username=self._input[CONF_USERNAME],
-                    password=self._input[CONF_PASSWORD],
-                    client=async_get_clientsession(self.hass),
-                )
-
-            # Build the hierarchy, but don't fetch any detailed data yet
-            if not self._account.is_built:
-                await self._account.build()
-
-            # Get all chargers
-            chargers = self._account.get_chargers()
-        except (RequestConnectionError, RequestTimeoutError, RequestDataError):
+            self.account = Account(
+                username=user_input[CONF_USERNAME],
+                password=user_input[CONF_PASSWORD],
+                client=async_get_clientsession(self.hass),
+            )
+            await self.account.login()
+        except (RequestConnectionError, RequestTimeoutError):
             errors["base"] = "cannot_connect"
-            chargers = []
-        except (AuthenticationError, RequestRetryError):
+        except AuthenticationError:
             errors["base"] = "invalid_auth"
-            chargers = []
         except Exception:
             _LOGGER.exception("Unexpected exception")
             errors["base"] = "unknown"
-            chargers = []
+
+        return errors
+
+    async def _get_chargers(self) -> tuple[dict[str, str], dict[str, str]]:
+        """Fetch a list of chargers from the Zaptec API."""
+        errors: dict[str, str] = {}
+        chargers: list[Charger] = []
+
+        # Cache the chargers to avoid multiple API calls
+        if self.chargers is not None:
+            return self.chargers
+
+        # This sets up a new account if it doesn't exist
+        if not self.account:
+            errors = await self._validate_account(self.user_input)
+
+        try:
+            if not errors:
+                # Build the hierarchy, but don't fetch any detailed data yet
+                if not self.account.is_built:
+                    await self.account.build()
+
+                # Get all chargers
+                chargers = self.account.get_chargers()
+
+        except (RequestConnectionError, RequestTimeoutError, RequestDataError):
+            errors["base"] = "cannot_connect"
+        except (AuthenticationError, RequestRetryError):
+            errors["base"] = "invalid_auth"
+        except Exception:
+            _LOGGER.exception("Unexpected exception")
+            errors["base"] = "unknown"
 
         def charger_text(charger: Charger):
+            """Format the charger text for display."""
             text = f"{charger.name} ({getattr(charger, 'device_id', '-')})"
             if charger.circuit_name:
                 text += f" in {charger.circuit_name} circuit"
@@ -146,22 +112,184 @@ class ZaptecFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
                 text += f" of {charger.installation.name} installation"
             return text
 
-        data = {
-            vol.Required(CONF_CHARGERS): cv.multi_select(
-                {charger.id: charger_text(charger) for charger in chargers},
-            ),
-        }
+        result = {charger.id: charger_text(charger) for charger in chargers}, errors
+        self.chargers = result
+        return result
+
+    def get_suggested_values(self) -> dict[str, Any]:
+        """Get suggested values for the user input."""
+        suggested_values: dict[str, Any] = {}
+        if self.source == SOURCE_RECONFIGURE:
+            reconfigure_entry = self._get_reconfigure_entry()
+            suggested_values = reconfigure_entry.data
+        return suggested_values
+
+    def finalize_user_input(self, user_input: dict[str, Any]) -> ConfigFlowResult:
+        """Finalize the user input."""
+        # Add suggested values to the user input
+        if self.source != SOURCE_RECONFIGURE:
+            return self.async_create_entry(title=DOMAIN.capitalize(), data=user_input)
+
+        # Reconfiguring
+        reconfigure_entry = self._get_reconfigure_entry()
+        return self.async_update_reload_and_abort(
+            reconfigure_entry,
+            data={
+                **reconfigure_entry.data,
+                **user_input,
+            },
+            reload_even_if_entry_is_unchanged=False,
+        )
+
+    async def async_step_user(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Handle a configuration flow initiated by the user."""
+        errors: dict[str, str] = {}
+
+        if user_input is not None:
+            errors = await self._validate_account(user_input)
+
+            if not errors:
+                # Validate the unique ID
+                unique_id = user_input[CONF_USERNAME].lower()
+                await self.async_set_unique_id(unique_id)
+
+                if self.source == SOURCE_RECONFIGURE:
+                    self._abort_if_unique_id_mismatch()
+                else:
+                    self._abort_if_unique_id_configured()
+
+                self.user_input = user_input
+
+                # Display the optional charger selection form
+                if user_input.get(CONF_MANUAL_SELECT, False):
+                    return await self.async_step_chargers()
+
+                # Finalize the user input
+                return self.finalize_user_input(self.user_input)
+
+        schema = vol.Schema(
+            {
+                vol.Required(CONF_USERNAME): TextSelector(
+                    TextSelectorConfig(
+                        type=TextSelectorType.EMAIL,
+                        autocomplete="email",
+                    ),
+                ),
+                vol.Required(CONF_PASSWORD): TextSelector(
+                    TextSelectorConfig(
+                        type=TextSelectorType.PASSWORD,
+                        autocomplete="current-password",
+                    ),
+                ),
+                vol.Optional(CONF_PREFIX): str,
+                vol.Optional(
+                    CONF_SCAN_INTERVAL, default=DEFAULT_SCAN_INTERVAL
+                ): vol.Coerce(int),
+                vol.Optional(CONF_MANUAL_SELECT): bool,
+            }
+        )
 
         return self.async_show_form(
-            step_id="chargers",
-            data_schema=vol.Schema(data),
+            step_id="reconfigure" if self.source == SOURCE_RECONFIGURE else "user",
+            data_schema=self.add_suggested_values_to_schema(
+                data_schema=schema,
+                suggested_values=self.get_suggested_values(),
+            ),
             errors=errors,
         )
 
-    async def async_step_import(self, user_input):
-        """Import a config entry.
+    async def async_step_chargers(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Handle configuration flow for selecting the chargers."""
+        errors: dict[str, str] = {}
 
-        Special type of import, we're not actually going to store any data.
-        Instead, we're going to rely on the values that are in config file.
-        """
+        _LOGGER.debug("async_step_chargers called with user_input: %s", user_input)
+
+        if user_input is not None:
+            if user_input.get(CONF_CHARGERS):
+                self.user_input.update(user_input)
+
+                # Finalize the user input
+                return self.finalize_user_input(self.user_input)
+
+            errors["base"] = "no_chargers_selected"
+
+        chargers, _errors = await self._get_chargers()
+        errors.update(_errors)
+
+        schema = vol.Schema(
+            {
+                vol.Required(CONF_CHARGERS): cv.multi_select(chargers),
+            }
+        )
+
+        return self.async_show_form(
+            step_id="chargers",
+            data_schema=self.add_suggested_values_to_schema(
+                data_schema=schema,
+                suggested_values=self.get_suggested_values(),
+            ),
+            errors=errors,
+        )
+
+    async def async_step_import(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Import a config entry from YAML."""
+        return await self.async_step_user()
+
+    async def async_step_reconfigure(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Reconfigure an existing config entry."""
         return await self.async_step_user(user_input)
+
+    async def async_step_reauth(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Handle a reauthorization flow request."""
+        return await self.async_step_reauth_confirm()
+
+    async def async_step_reauth_confirm(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Confirm reauth dialog."""
+        errors: dict[str, str] = {}
+        reauth_entry = self._get_reauth_entry()
+
+        _LOGGER.debug(
+            "async_step_reauth_confirm called with user_input: %s", user_input
+        )
+
+        if user_input is not None:
+            entries = {
+                **reauth_entry.data,
+                **user_input,
+            }
+            errors = await self._validate_account(entries)
+
+            if not errors:
+                return self.async_update_reload_and_abort(
+                    reauth_entry,
+                    data=entries,
+                )
+
+        schema = vol.Schema(
+            {
+                vol.Required(CONF_PASSWORD): TextSelector(
+                    TextSelectorConfig(
+                        type=TextSelectorType.PASSWORD,
+                        autocomplete="current-password",
+                    ),
+                ),
+            }
+        )
+
+        return self.async_show_form(
+            step_id="reauth_confirm",
+            data_schema=schema,
+            errors=errors,
+        )
