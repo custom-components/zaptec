@@ -12,14 +12,14 @@ TOKEN_URL = "https://api.zaptec.com/oauth/token"
 API_URL = "https://api.zaptec.com/api/"
 CONST_URL = "https://api.zaptec.com/api/constants"
 
-API_RETRIES = 5
+API_RETRIES = 9  # Corresponds to median ~31 seconds of retries before giving up
 """Number of retries for API requests."""
-
-API_RETRY_FACTOR = 2.3
-"""Factor for exponential backoff in API retries."""
 
 API_RETRY_INIT_DELAY = 0.01
 """Initial delay for the first API retry."""
+
+API_RETRY_FACTOR = 2.3
+"""Factor for exponential backoff in API retries."""
 
 API_RETRY_JITTER = 0.1
 """Jitter to add to the API retry delay to avoid thundering herd problem."""
@@ -29,6 +29,12 @@ API_RETRY_MAXTIME = 600
 
 API_TIMEOUT = 10
 """The maximum time to wait for a response from the API."""
+
+API_RATELIMIT_PERIOD = 1 
+"""Period in seconds for the bursting API rate limit."""
+
+API_RATELIMIT_MAX_REQUEST_RATE = 10
+"""Maximum number of requests allowed per API rate limit period."""
 
 DEFAULT_SCAN_INTERVAL = 60
 """Default scan interval for state updates."""

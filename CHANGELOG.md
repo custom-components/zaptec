@@ -1,5 +1,12 @@
 # Changelog
 
+## (in development)
+
+* Remove internal circuits api calls, #186
+* Throttle Zaptec Cloud requests to avoid hitting rate limits, #190
+* Do not send Pause/Resume to API if we know it will be rejected, #187
+* Remove internal settings api calls, #183
+
 ## 0.7.4
 
 * Fix avoiding blocking calls in api, #168

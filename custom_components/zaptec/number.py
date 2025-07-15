@@ -146,8 +146,6 @@ INSTALLATION_ENTITIES: list[EntityDescription] = [
     ),
 ]
 
-CIRCUIT_ENTITIES: list[EntityDescription] = []
-
 CHARGER_ENTITIES: list[EntityDescription] = [
     ZapNumberEntityDescription(
         key="charger_min_current",
@@ -194,7 +192,6 @@ async def async_setup_entry(
     entities = ZaptecNumber.create_from_zaptec(
         coordinator,
         INSTALLATION_ENTITIES,
-        CIRCUIT_ENTITIES,
         CHARGER_ENTITIES,
     )
     async_add_entities(entities, True)

@@ -63,8 +63,6 @@ class ZapUpdateEntityDescription(UpdateEntityDescription):
 
 INSTALLATION_ENTITIES: list[EntityDescription] = []
 
-CIRCUIT_ENTITIES: list[EntityDescription] = []
-
 CHARGER_ENTITIES: list[EntityDescription] = [
     ZapUpdateEntityDescription(
         key="firmware_update",
@@ -86,7 +84,6 @@ async def async_setup_entry(
     entities = ZaptecUpdate.create_from_zaptec(
         coordinator,
         INSTALLATION_ENTITIES,
-        CIRCUIT_ENTITIES,
         CHARGER_ENTITIES,
     )
     async_add_entities(entities, True)

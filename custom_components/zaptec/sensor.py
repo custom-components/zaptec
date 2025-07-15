@@ -132,18 +132,6 @@ INSTALLATION_ENTITIES: list[EntityDescription] = [
     ),
 ]
 
-CIRCUIT_ENTITIES: list[EntityDescription] = [
-    ZapSensorEntityDescription(
-        key="max_current",
-        translation_key="max_current",
-        device_class=SensorDeviceClass.CURRENT,
-        entity_category=const.EntityCategory.DIAGNOSTIC,
-        icon="mdi:current-ac",
-        native_unit_of_measurement=const.UnitOfElectricCurrent.AMPERE,
-        state_class=SensorStateClass.MEASUREMENT,
-    ),
-]
-
 CHARGER_ENTITIES: list[EntityDescription] = [
     ZapSensorEntityDescription(
         key="operating_mode",
@@ -282,7 +270,6 @@ async def async_setup_entry(
     entities = ZaptecSensor.create_from_zaptec(
         coordinator,
         INSTALLATION_ENTITIES,
-        CIRCUIT_ENTITIES,
         CHARGER_ENTITIES,
     )
     async_add_entities(entities, True)

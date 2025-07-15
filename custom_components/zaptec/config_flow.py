@@ -103,11 +103,10 @@ class ZaptecFlowHandler(ConfigFlow, domain=DOMAIN):
 
         def charger_text(charger: Charger):
             text = f"{charger.name} ({getattr(charger, 'device_id', '-')})"
-            circuit = charger.circuit
-            if circuit:
-                text += f" in {circuit.name} circuit"
-                if circuit.installation:
-                    text += f" of {circuit.installation.name} installation"
+            if charger.circuit_name:
+                text += f" in {charger.circuit_name} circuit"
+            if charger.installation:
+                text += f" of {charger.installation.name} installation"
             return text
 
         result = {charger.id: charger_text(charger) for charger in chargers}, errors

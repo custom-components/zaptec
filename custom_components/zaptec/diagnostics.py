@@ -228,13 +228,12 @@ async def async_get_device_diagnostics(
         installation_ids = [inst["Id"] for inst in data.get("Data", [])]
         add(url, data, ctx="installation")
 
-        circuit_ids = []
         charger_in_circuits_ids = []
         for inst_id in installation_ids:
             data = await req(url := f"installation/{inst_id}/hierarchy")
 
             for circuit in data.get("Circuits", []):
-                circuit_ids.append(circuit["Id"])
+                add(f"circuits/{circuit["Id"]}", circuit, ctx="circuit")
                 for charger in circuit.get("Chargers", []):
                     charger_in_circuits_ids.append(charger["Id"])
 
@@ -242,10 +241,6 @@ async def async_get_device_diagnostics(
 
             data = await req(url := f"installation/{inst_id}")
             add(url, data, ctx="installation")
-
-        for circ_id in circuit_ids:
-            data = await req(url := f"circuits/{circ_id}")
-            add(url, data, ctx="circuit")
 
         data = await req(url := "chargers")
         charger_ids = [charger["Id"] for charger in data.get("Data", [])]

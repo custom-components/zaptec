@@ -38,7 +38,6 @@ from .api import (
     Account,
     AuthenticationError,
     Charger,
-    Circuit,
     Installation,
     RequestConnectionError,
     RequestTimeoutError,
@@ -131,6 +130,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Dump the full entity map to the debug log
     coordinator.log_entity_map()
 
+    # Get a set of the circuit ids in the account to check for deprecated Circuit-devices
+    circuit_id_set = coordinator.account.get_circuit_ids()
+
     # Clean up unused device entries with no entities
     device_registry = dr.async_get(hass)
     entity_registry = er.async_get(hass)
@@ -142,7 +144,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         dev_entities = er.async_entries_for_device(
             entity_registry, dev.id, include_disabled_entities=True
         )
+        zap_dev_id = list(dev.identifiers)[0][1]  # identifiers is a set with a single tuple ('zaptec', '<zaptec_id>')
         if not dev_entities:
+            device_registry.async_remove_device(dev.id)
+        elif zap_dev_id in circuit_id_set:
+            _LOGGER.warning(f"Detected deprecated Circuit device {zap_dev_id}, removing device and associated entities")
+            for ent in dev_entities:
+                _LOGGER.debug(f"Deleting entity {ent.entity_id}")
+                entity_registry.async_remove(ent.entity_id)
             device_registry.async_remove_device(dev.id)
 
     return True
@@ -279,10 +288,8 @@ class ZaptecUpdateCoordinator(DataUpdateCoordinator[None]):
             for charger in self.account.get_chargers():
                 if charger.id in want:
                     keep.add(charger.id)
-                    if charger.circuit:
-                        keep.add(charger.circuit.id)
-                        if charger.circuit.installation:
-                            keep.add(charger.circuit.installation.id)
+                    if charger.installation:
+                        keep.add(charger.installation.id)
 
             if not keep:
                 _LOGGER.error("No zaptec objects will be added")
@@ -473,12 +480,11 @@ class ZaptecBaseEntity(CoordinatorEntity[ZaptecUpdateCoordinator]):
         cls,
         coordinator: ZaptecUpdateCoordinator,
         installation_descriptions: list[EntityDescription],
-        circuit_descriptions: list[EntityDescription],
         charger_descriptions: list[EntityDescription],
     ) -> list[ZaptecBaseEntity]:
         """Helper factory to populate the listed entities for the detected
-        Zaptec devices. It sets the proper device info on the installation,
-        circuit and charger object in order for them to be grouped in HA.
+        Zaptec devices. It sets the proper device info on the installation
+        and charger objects in order for them to be grouped in HA.
         """
         entities = []
 
@@ -497,24 +503,10 @@ class ZaptecBaseEntity(CoordinatorEntity[ZaptecUpdateCoordinator]):
                     )
                 )
 
-            elif isinstance(obj, Circuit):
-                info = DeviceInfo(model=f"{obj.name} Circuit")
-                if obj.installation:
-                    info["via_device"] = (DOMAIN, obj.installation.id)
-
-                entities.extend(
-                    cls.create_from_descriptions(
-                        circuit_descriptions,
-                        coordinator,
-                        obj,
-                        info,
-                    )
-                )
-
             elif isinstance(obj, Charger):
                 info = DeviceInfo(model=f"{obj.name} Charger")
-                if obj.circuit:
-                    info["via_device"] = (DOMAIN, obj.circuit.id)
+                if obj.installation:
+                    info["via_device"] = (DOMAIN, obj.installation.id)
 
                 entities.extend(
                     cls.create_from_descriptions(

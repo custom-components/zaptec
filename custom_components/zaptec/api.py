@@ -6,6 +6,7 @@ import asyncio
 import json
 import logging
 import random
+import time
 from abc import ABC, abstractmethod
 from collections.abc import Iterable
 from contextlib import aclosing
@@ -13,8 +14,11 @@ from typing import Any, AsyncGenerator, Callable, Protocol
 
 import aiohttp
 import pydantic
+from aiolimiter import AsyncLimiter
 
 from .const import (
+    API_RATELIMIT_MAX_REQUEST_RATE,
+    API_RATELIMIT_PERIOD,
     API_RETRIES,
     API_RETRY_FACTOR,
     API_RETRY_INIT_DELAY,
@@ -222,7 +226,7 @@ class ZaptecBase(ABC):
 class Installation(ZaptecBase):
     """Represents an installation"""
 
-    circuits: list[Circuit]
+    chargers: list[Charger]
 
     # Type conversions for the named attributes (keep sorted)
     ATTR_TYPES = {
@@ -236,7 +240,7 @@ class Installation(ZaptecBase):
     def __init__(self, data, account):
         super().__init__(data, account)
         self.connection_details = None
-        self.circuits = []
+        self.chargers = []
 
         self._stream_task = None
         self._stream_receiver = None
@@ -256,19 +260,24 @@ class Installation(ZaptecBase):
                     "Access denied to installation hierarchy of %s. The user might not have access.",
                     self.id,
                 )
-                self.circuits = []
+                self.chargers = []
                 return
             raise
 
-        circuits = []
-        for item in hierarchy["Circuits"]:
-            _LOGGER.debug("    Circuit %s", item["Id"])
-            circ = Circuit(item, self._account, installation=self)
-            self._account.register(item["Id"], circ)
-            await circ.build()
-            circuits.append(circ)
+        chargers = []
+        for circuit_item in hierarchy["Circuits"]:
+            _LOGGER.debug("    Circuit %s", circuit_item["Id"])
+            for charger_item in circuit_item["Chargers"]:
+                _LOGGER.debug("      Charger %s", charger_item["Id"])
+                charger_item["CircuitId"] = circuit_item["Id"]
+                charger_item["CircuitName"] = circuit_item["Name"]
+                charger_item["CircuitMaxCurrent"] = circuit_item["MaxCurrent"]
+                chg = Charger(charger_item, self._account, installation=self)
+                self._account.register(charger_item["Id"], chg)
+                await chg.build()
+                chargers.append(chg)
 
-        self.circuits = circuits
+        self.chargers = chargers
 
     async def state(self):
         _LOGGER.debug(
@@ -526,53 +535,6 @@ class Installation(ZaptecBase):
         return result
 
 
-class Circuit(ZaptecBase):
-    """Represents a circuits"""
-
-    chargers: list["Charger"]
-
-    # Type conversions for the named attributes (keep sorted)
-    ATTR_TYPES = {
-        "active": bool,
-    }
-
-    def __init__(
-        self, data: TDict, account: Account, installation: Installation | None = None
-    ):
-        super().__init__(data, account)
-        self.chargers = []
-        self.installation = installation
-
-    async def build(self):
-        """Build the python interface."""
-
-        chargers = []
-        for item in self._attrs["chargers"]:
-            _LOGGER.debug("      Charger %s", item["Id"])
-            chg = Charger(item, self._account, circuit=self)
-            self._account.register(item["Id"], chg)
-            await chg.build()
-            chargers.append(chg)
-
-        self.chargers = chargers
-
-    async def state(self):
-        _LOGGER.debug(
-            "Polling state for %s (%s)", self.qual_id, self._attrs.get("name")
-        )
-        data = await self.circuit_info()
-        self.set_attributes(data)
-
-    #   API METHODS
-    # =======================================================================
-
-    async def circuit_info(self) -> TDict:
-        """Raw request for circuit data"""
-        # NOTE: Undocumented API call. circuit is no longer part of the official docs
-        data = await self._account._request(f"circuits/{self.id}")
-        return data
-
-
 class Charger(ZaptecBase):
     """Represents a charger"""
 
@@ -585,6 +547,9 @@ class Charger(ZaptecBase):
         "charger_max_current": float,
         "charger_min_current": float,
         "charger_operation_mode": ZCONST.type_charger_operation_mode,
+        "circuit_id": str,
+        "circuit_max_current": float,
+        "circuit_name": str,
         "completed_session": ZCONST.type_completed_session,
         "current_phase1": float,
         "current_phase2": float,
@@ -604,11 +569,11 @@ class Charger(ZaptecBase):
     }
 
     def __init__(
-        self, data: TDict, account: "Account", circuit: Circuit | None = None
+        self, data: TDict, account: "Account", installation: Installation | None = None
     ) -> None:
         super().__init__(data, account)
 
-        self.circuit = circuit
+        self.installation = installation
 
     async def build(self) -> None:
         """Build the object"""
@@ -698,10 +663,7 @@ class Charger(ZaptecBase):
         if command == "authorize_charge":
             return await self.authorize_charge()
 
-        # Fetching the name from the ZCONST is perhaps not a good idea
-        # if Zaptec is changing them.
-        if command not in ZCONST.commands:
-            raise ValueError(f"Unknown command '{command}'")
+        self.is_command_valid(command, raise_value_error_if_invalid=True)
 
         if isinstance(command, int):
             # If int, look up the command name
@@ -715,6 +677,41 @@ class Charger(ZaptecBase):
             f"chargers/{self.id}/SendCommand/{cmdid}", method="post"
         )
         return data
+
+    def is_command_valid(self, command: str|int, raise_value_error_if_invalid=False) -> bool:
+        # Fetching the name from the ZCONST is perhaps not a good idea if Zaptec is changing them.
+        if command not in ZCONST.commands and command != "authorize_charge":
+            if raise_value_error_if_invalid:
+                raise ValueError(f"Unknown command '{command}'")
+            return False
+
+        if isinstance(command, int):
+            # If int, look up the command name
+            command = ZCONST.commands.get(command)
+
+        valid_command = True
+        msg = ""
+        if command in ["resume_charging", "stop_charging_final"]:
+            # Pause/stop or resume charging are only allowed in certain states, see comments on
+            # commands 506+507 in https://api.zaptec.com/help/index.html#/Charger/Charger_SendCommand_POST
+            operation_mode = self.get("ChargerOperationMode")
+            final_stop_active = self.get("FinalStopActive")
+            paused = (operation_mode == "Connected_Finished" and int(final_stop_active) == 1)
+            if command == "stop_charging_final" and (paused or operation_mode == "Disconnected"):
+                msg = "Pause/stop charging is not allowed if charging is already paused or disconnected"
+                valid_command = False
+            elif command == "resume_charging" and not paused:
+                # should also check for NextScheduleEvent, but API doc is difficult to interpret
+                msg = "Resume charging is not allowed if charger is not paused"
+                valid_command = False
+
+        if valid_command:
+            return True
+        if raise_value_error_if_invalid:
+            _LOGGER.warning(msg)
+            _LOGGER.debug("operation_mode: %s, final_stop_active: %s", operation_mode, final_stop_active)
+            raise ValueError(msg)
+        return False
 
     async def set_settings(self, settings: dict[str, Any]):
         """Set settings on the charger"""
@@ -795,11 +792,11 @@ class Account:
         self._token_info = {}
         self._access_token = None
         self.installations: list[Installation] = []
-        self.stand_alone_chargers: list[Charger] = []
         self.map: dict[str, ZaptecBase] = {}
         self.is_built = False
         self._timeout = aiohttp.ClientTimeout(total=API_TIMEOUT)
         self._max_time = max_time
+        self._ratelimiter = AsyncLimiter(max_rate=API_RATELIMIT_MAX_REQUEST_RATE, time_period= API_RATELIMIT_PERIOD)
 
     def register(self, id: str, data: ZaptecBase):
         """Register an object data with id"""
@@ -869,39 +866,48 @@ class Account:
                     for msg in log_req:
                         _LOGGER.debug(msg)
 
+                # Capture the current time
+                start_time = time.perf_counter()
+
                 # Make the request
-                async with self._client.request(
-                    method=method, url=url, **kwargs
-                ) as response:
-                    # Log the response
-                    log_resp = [m async for m in self._response_log(response)]
-                    if DEBUG_API_CALLS:
-                        for msg in log_resp:
-                            _LOGGER.debug(msg)
+                async with self._ratelimiter:
+                    async with self._client.request(
+                        method=method, url=url, **kwargs
+                    ) as response:
+                        # Log the response
+                        log_resp = [m async for m in self._response_log(response)]
+                        if DEBUG_API_CALLS:
+                            for msg in log_resp:
+                                _LOGGER.debug(msg)
 
-                    # Prepare the exception handler
-                    def log_exc(exc: Exception) -> Exception:
-                        """Log the exception and return it."""
-                        if DEBUG_API_ERRORS:
-                            if not DEBUG_API_CALLS:
-                                for msg in log_req + log_resp:
-                                    _LOGGER.debug(msg)
-                            _LOGGER.error(exc)
-                        return exc
+                        # Prepare the exception handler
+                        def log_exc(exc: Exception) -> Exception:
+                            """Log the exception and return it."""
+                            if DEBUG_API_ERRORS:
+                                if not DEBUG_API_CALLS:
+                                    for msg in log_req + log_resp:
+                                        _LOGGER.debug(msg)
+                                _LOGGER.error(exc)
+                            return exc
 
-                    # Let the caller handle the response. If the caller
-                    # calls __next__ on the generator the request will be
-                    # retried.
-                    yield response, log_exc
+                        # Let the caller handle the response. If the caller
+                        # calls __next__ on the generator the request will be
+                        # retried.
+                        yield response, log_exc
 
                 # Implement exponential backoff with jitter and sleep before
                 # retying the request.
                 delay = delay * API_RETRY_FACTOR
                 delay = random.normalvariate(delay, delay * API_RETRY_JITTER)
                 delay = min(delay, self._max_time)
-                if DEBUG_API_CALLS:
-                    _LOGGER.debug("Sleeping for %s seconds", delay)
-                await asyncio.sleep(delay)
+
+                # If the sleep time is negative, it means the request took
+                # longer than the wanted delay, so we don't need to sleep.
+                sleep_delay = delay - time.perf_counter() + start_time
+                if sleep_delay > 0:
+                    if DEBUG_API_CALLS:
+                        _LOGGER.debug("Sleeping for %1.1f seconds", sleep_delay)
+                    await asyncio.sleep(delay)
 
             # Exceptions that can be retried
             except (asyncio.TimeoutError, aiohttp.ClientConnectionError) as err:
@@ -1086,18 +1092,9 @@ class Account:
         # Will also report chargers listed in installation hierarchy above
         chargers = await self._request("chargers")
 
-        so_chargers = []
         for data in chargers["Data"]:
-            if data["Id"] in self.map:
-                continue
-
-            _LOGGER.debug("  Charger %s", data["Id"])
-            chg = Charger(data, self)
-            self.register(data["Id"], chg)
-            await chg.build()
-            so_chargers.append(chg)
-
-        self.stand_alone_chargers = so_chargers
+            if data["Id"] not in self.map:
+                _LOGGER.warning("Standalone Charger %s will not be added as a device", data["Id"])
 
         # Find the charger device types
         device_types = set(
@@ -1119,6 +1116,10 @@ class Account:
     def get_chargers(self):
         """Return a list of all chargers"""
         return [v for v in self.map.values() if isinstance(v, Charger)]
+
+    def get_circuit_ids(self) -> set[str]:
+        """Return a set of all circuit ids for all chargers."""
+        return set(c.circuit_id for c in self.get_chargers() if c.get("circuit_id", ""))
 
 
 if __name__ == "__main__":
