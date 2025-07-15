@@ -1,8 +1,9 @@
 """Zaptec component number entities."""
+
 from __future__ import annotations
 
-import logging
 from dataclasses import dataclass
+import logging
 
 from homeassistant import const
 from homeassistant.components.number import (
@@ -18,15 +19,18 @@ from homeassistant.helpers.entity import EntityDescription
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import ZaptecBaseEntity, ZaptecUpdateCoordinator
-from .api import Installation, Charger
+from .api import Charger, Installation
 from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
 
 class ZaptecNumber(ZaptecBaseEntity, NumberEntity):
+    """Base class for Zaptec number entities."""
+
     @callback
     def _update_from_zaptec(self) -> None:
+        """Update the entity from Zaptec data."""
         try:
             self._attr_native_value = self._get_zaptec_value()
             self._attr_available = True
@@ -37,6 +41,8 @@ class ZaptecNumber(ZaptecBaseEntity, NumberEntity):
 
 
 class ZaptecAvailableCurrentNumber(ZaptecNumber):
+    """Zaptec available current number entity."""
+
     zaptec_obj: Installation
     entity_description: ZapNumberEntityDescription
 
@@ -65,6 +71,8 @@ class ZaptecAvailableCurrentNumber(ZaptecNumber):
 
 
 class ZaptecSettingNumber(ZaptecNumber):
+    """Zaptec setting number entity."""
+
     zaptec_obj: Charger
     entity_description: ZapNumberEntityDescription
 
@@ -96,6 +104,8 @@ class ZaptecSettingNumber(ZaptecNumber):
 
 
 class ZaptecHmiBrightness(ZaptecNumber):
+    """Zaptec HMI brightness number entity."""
+
     zaptec_obj: Charger
     entity_description: ZapNumberEntityDescription
 
@@ -127,8 +137,13 @@ class ZaptecHmiBrightness(ZaptecNumber):
         await self.coordinator.async_request_refresh()
 
 
+# FIXME: Using @dataclass(frozen=True, kw_only=True) doesn't work when using
+# _post_init() to update the value. This must be fixed. Either the _post_init()
+# should be removed or the dataclass should be changed to non-frozen class.
 @dataclass
 class ZapNumberEntityDescription(NumberEntityDescription):
+    """Class describing Zaptec number entities."""
+
     cls: type | None = None
     setting: str | None = None
 
@@ -185,6 +200,7 @@ CHARGER_ENTITIES: list[EntityDescription] = [
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
+    """Set up the Zaptec numbers."""
     _LOGGER.debug("Setup numbers")
 
     coordinator: ZaptecUpdateCoordinator = hass.data[DOMAIN][entry.entry_id]

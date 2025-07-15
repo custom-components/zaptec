@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Iterable
 from copy import copy
 from datetime import timedelta
 import logging
@@ -149,7 +150,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         if not dev_entities:
             device_registry.async_remove_device(dev.id)
         elif zap_dev_id in circuit_id_set:
-            _LOGGER.warning(f"Detected deprecated Circuit device {zap_dev_id}, removing device and associated entities")
+            _LOGGER.warning(
+                f"Detected deprecated Circuit device {zap_dev_id}, removing device and associated entities"
+            )
             for ent in dev_entities:
                 _LOGGER.debug(f"Deleting entity {ent.entity_id}")
                 entity_registry.async_remove(ent.entity_id)
@@ -451,7 +454,7 @@ class ZaptecBaseEntity(CoordinatorEntity[ZaptecUpdateCoordinator]):
     @classmethod
     def create_from_descriptions(
         cls,
-        descriptions: list[EntityDescription],
+        descriptions: Iterable[EntityDescription],
         coordinator: ZaptecUpdateCoordinator,
         zaptec_obj: ZaptecBase,
         device_info: DeviceInfo,
@@ -485,8 +488,8 @@ class ZaptecBaseEntity(CoordinatorEntity[ZaptecUpdateCoordinator]):
     def create_from_zaptec(
         cls,
         coordinator: ZaptecUpdateCoordinator,
-        installation_descriptions: list[EntityDescription],
-        charger_descriptions: list[EntityDescription],
+        installation_descriptions: Iterable[EntityDescription],
+        charger_descriptions: Iterable[EntityDescription],
     ) -> list[ZaptecBaseEntity]:
         """Factory to entities from the discovered Zaptec objects.
 

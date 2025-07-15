@@ -1,17 +1,14 @@
 """Zaptec component binary sensors."""
+
 from __future__ import annotations
 
-import logging
 from dataclasses import dataclass
+import logging
 
 from homeassistant import const
-from homeassistant.components.button import (
-    ButtonDeviceClass,
-    ButtonEntity,
-    ButtonEntityDescription,
-)
+from homeassistant.components.button import ButtonEntity, ButtonEntityDescription
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant, callback
+from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity import EntityDescription
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -24,6 +21,8 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class ZaptecButton(ZaptecBaseEntity, ButtonEntity):
+    """Base class for Zaptec buttons."""
+
     zaptec_obj: Charger
 
     @property
@@ -51,8 +50,10 @@ class ZaptecButton(ZaptecBaseEntity, ButtonEntity):
         await self.coordinator.async_request_refresh()
 
 
-@dataclass
+@dataclass(frozen=True, kw_only=True)
 class ZapButtonEntityDescription(ButtonEntityDescription):
+    """Class describing Zaptec button entities."""
+
     cls: type | None = None
 
 
@@ -97,6 +98,7 @@ CHARGER_ENTITIES: list[EntityDescription] = [
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
+    """Set up the Zaptec buttons."""
     _LOGGER.debug("Setup buttons")
 
     coordinator: ZaptecUpdateCoordinator = hass.data[DOMAIN][entry.entry_id]

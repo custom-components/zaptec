@@ -1,8 +1,9 @@
 """Switch platform for Zaptec."""
+
 from __future__ import annotations
 
-import logging
 from dataclasses import dataclass
+import logging
 
 from homeassistant.components.switch import (
     SwitchDeviceClass,
@@ -16,15 +17,18 @@ from homeassistant.helpers.entity import EntityDescription
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import ZaptecBaseEntity, ZaptecUpdateCoordinator
-from .api import Charger, Installation
+from .api import Charger
 from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
 
 class ZaptecSwitch(ZaptecBaseEntity, SwitchEntity):
+    """Base class for Zaptec switches."""
+
     @callback
     def _update_from_zaptec(self) -> None:
+        """Update the entity from Zaptec data."""
         try:
             self._attr_is_on = self._get_zaptec_value()
             self._attr_available = True
@@ -35,10 +39,13 @@ class ZaptecSwitch(ZaptecBaseEntity, SwitchEntity):
 
 
 class ZaptecChargeSwitch(ZaptecSwitch):
+    """Zaptec charge switch entity."""
+
     zaptec_obj: Charger
 
     @callback
     def _update_from_zaptec(self) -> None:
+        """Update the entity from Zaptec data."""
         try:
             state = self._get_zaptec_value()
             self._attr_is_on = state in ["Connected_Charging"]
@@ -79,8 +86,10 @@ class ZaptecChargeSwitch(ZaptecSwitch):
         await self.coordinator.async_request_refresh()
 
 
-@dataclass
+@dataclass(frozen=True, kw_only=True)
 class ZapSwitchEntityDescription(SwitchEntityDescription):
+    """Class describing Zaptec switch entities."""
+
     cls: type | None = None
 
 
@@ -99,6 +108,7 @@ CHARGER_SWITCH_TYPES: list[EntityDescription] = [
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
+    """Set up the Zaptec switches."""
     _LOGGER.debug("Setup switches")
 
     coordinator: ZaptecUpdateCoordinator = hass.data[DOMAIN][entry.entry_id]

@@ -1,30 +1,30 @@
 """Xaptec lock."""
+
 from __future__ import annotations
 
-import logging
 from dataclasses import dataclass
+import logging
 
 from homeassistant import const
-from homeassistant.components.lock import (
-    LockEntity,
-    LockEntityDescription,
-)
-
+from homeassistant.components.lock import LockEntity, LockEntityDescription
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import ZaptecBaseEntity, ZaptecUpdateCoordinator
-from .const import DOMAIN
 from .api import Charger
+from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
 
 class ZaptecLock(ZaptecBaseEntity, LockEntity):
+    """Base class for Zaptec locks."""
+
     @callback
     def _update_from_zaptec(self) -> None:
+        """Update the entity from Zaptec data."""
         try:
             self._attr_is_locked = self._get_zaptec_value()
             self._attr_available = True
@@ -35,9 +35,12 @@ class ZaptecLock(ZaptecBaseEntity, LockEntity):
 
 
 class ZaptecCableLock(ZaptecLock):
+    """Zaptec cable lock entity."""
+
     zaptec_obj: Charger
 
     async def async_unlock(self, **kwargs) -> None:
+        """Unlock the cable lock."""
         _LOGGER.debug(
             "Turn on %s in %s",
             self.entity_id,
@@ -52,6 +55,7 @@ class ZaptecCableLock(ZaptecLock):
         await self.coordinator.async_request_refresh()
 
     async def async_lock(self, **kwargs) -> None:
+        """Lock the cable lock."""
         _LOGGER.debug(
             "Turn off %s in %s",
             self.entity_id,
@@ -66,13 +70,14 @@ class ZaptecCableLock(ZaptecLock):
         await self.coordinator.async_request_refresh()
 
 
-@dataclass
+@dataclass(frozen=True, kw_only=True)
 class ZapLockEntityDescription(LockEntityDescription):
+    """Class describing Zaptec lock entities."""
+
     cls: type | None = None
 
 
-INSTALLATION_ENTITIES: list[ZapLockEntityDescription] = [
-]
+INSTALLATION_ENTITIES: list[ZapLockEntityDescription] = []
 
 CHARGER_ENTITIES: list[ZapLockEntityDescription] = [
     ZapLockEntityDescription(
@@ -87,6 +92,7 @@ CHARGER_ENTITIES: list[ZapLockEntityDescription] = [
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
+    """Set up the Zaptec locks."""
     _LOGGER.debug("Setup lock entry")
 
     coordinator: ZaptecUpdateCoordinator = hass.data[DOMAIN][entry.entry_id]
