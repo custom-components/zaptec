@@ -93,7 +93,7 @@ class ZaptecFlowHandler(ConfigFlow, domain=DOMAIN):
                     await self.zaptec.build()
 
                 # Get all chargers
-                chargers = self.zaptec.get_chargers()
+                chargers = list(self.zaptec.chargers)
 
         except (RequestConnectionError, RequestTimeoutError, RequestDataError):
             errors["base"] = "cannot_connect"
@@ -105,9 +105,9 @@ class ZaptecFlowHandler(ConfigFlow, domain=DOMAIN):
 
         def charger_text(charger: Charger):
             """Format the charger text for display."""
-            text = f"{charger.name} ({getattr(charger, 'device_id', '-')})"
-            if charger.circuit_name:
-                text += f" in {charger.circuit_name} circuit"
+            text = f"{charger.name} ({charger.get('device_id', '-')})"
+            if circuit := charger.get("circuit_name"):
+                text += f" in {circuit} circuit"
             if charger.installation:
                 text += f" of {charger.installation.name} installation"
             return text

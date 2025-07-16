@@ -196,7 +196,7 @@ async def async_get_device_diagnostics(
     #  PRE SEED OBJECT IDS FOR REDACTION
     #
     try:
-        for id, obj in zaptec.map.items():
+        for id, obj in zaptec.items():
             red.add_redact(id, ctx="preseed", redact=f"<--{obj.qual_id}-->")
     except Exception as err:
         add_failure(out, err)
@@ -273,7 +273,7 @@ async def async_get_device_diagnostics(
 
         out.setdefault(
             "maps",
-            [red.redact(addmap(k, v), ctx="maps") for k, v in zaptec.map.items()],
+            [red.redact(addmap(k, v), ctx="maps") for k, v in zaptec.items()],
         )
     except Exception as err:
         add_failure(out, err)
@@ -284,7 +284,7 @@ async def async_get_device_diagnostics(
     try:
 
         def add_key(k):
-            v = zaptec.map.get(k)
+            v = zaptec.get(k)
             if v is None:
                 return k
             return v.qual_id
@@ -342,14 +342,13 @@ if __name__ == "__main__":
     async def gogo():
         username = os.environ.get("zaptec_username")
         password = os.environ.get("zaptec_password")
-        zaptec = Zaptec(
-            username,
-            password,
-            client=aiohttp.ClientSession(connector=aiohttp.TCPConnector(ssl=False)),
-        )
-        await zaptec.build()
 
-        try:
+        async with (
+            aiohttp.ClientSession(connector=aiohttp.TCPConnector(ssl=False)) as session,
+            Zaptec(username, password, client=session) as zaptec,
+        ):
+            await zaptec.build()
+
             #
             # Mocking to pretend to be a hass instance
             #
@@ -376,8 +375,5 @@ if __name__ == "__main__":
             # Get the diagnostics info
             out = await async_get_device_diagnostics(hass, config, None)
             pprint(out)
-
-        finally:
-            await zaptec._client.close()
 
     asyncio.run(gogo())
