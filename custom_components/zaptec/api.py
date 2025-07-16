@@ -1092,7 +1092,7 @@ class Zaptec:
                 raise log_exc(error)
 
     # =======================================================================
-    #   API METHODS
+    #   UPDATE METHODS
 
     async def build(self):
         """Make the python interface."""
