@@ -5,7 +5,6 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 import asyncio
 from collections.abc import AsyncGenerator, Callable, Iterable
-from concurrent.futures import CancelledError
 from contextlib import aclosing
 import json
 import logging
@@ -99,16 +98,14 @@ class ZaptecBase(ABC):
 
     id: str
     name: str
-    _account: Account
-    _attrs: TDict
 
     # Type definitions and convertions on the attributes
     ATTR_TYPES: dict[str, Callable] = {}
 
-    def __init__(self, data: TDict, account: Account) -> None:
+    def __init__(self, data: TDict, zaptec: Zaptec) -> None:
         """Initialize the ZaptecBase object."""
-        self._account = account
-        self._attrs = {}
+        self.zaptec: Zaptec = zaptec
+        self._attrs: TDict = {}
         self.set_attributes(data)
 
     def set_attributes(self, data: TDict) -> bool:
@@ -225,8 +222,6 @@ class ZaptecBase(ABC):
 class Installation(ZaptecBase):
     """Represents an installation."""
 
-    chargers: list[Charger]
-
     # Type conversions for the named attributes (keep sorted)
     ATTR_TYPES = {
         "active": bool,
@@ -236,12 +231,11 @@ class Installation(ZaptecBase):
         "network_type": ZCONST.type_network_type,
     }
 
-    def __init__(self, data, account) -> None:
+    def __init__(self, data: TDict, zaptec: Zaptec) -> None:
         """Initialize the installation object."""
-        super().__init__(data, account)
+        super().__init__(data, zaptec)
         self.connection_details = None
-        self.chargers = []
-
+        self.chargers: list[Charger] = []
         self._stream_task = None
         self._stream_receiver = None
         self._stream_running = False
@@ -251,9 +245,7 @@ class Installation(ZaptecBase):
 
         # Get the hierarchy of circurits and chargers
         try:
-            hierarchy = await self._account._request(
-                f"installation/{self.id}/hierarchy"
-            )
+            hierarchy = await self.zaptec._request(f"installation/{self.id}/hierarchy")
         except RequestError as err:
             if err.error_code == 403:
                 _LOGGER.warning(
@@ -272,8 +264,8 @@ class Installation(ZaptecBase):
                 charger_item["CircuitId"] = circuit_item["Id"]
                 charger_item["CircuitName"] = circuit_item["Name"]
                 charger_item["CircuitMaxCurrent"] = circuit_item["MaxCurrent"]
-                chg = Charger(charger_item, self._account, installation=self)
-                self._account.register(charger_item["Id"], chg)
+                chg = Charger(charger_item, self.zaptec, installation=self)
+                self.zaptec.register(charger_item["Id"], chg)
                 await chg.build()
                 chargers.append(chg)
 
@@ -293,7 +285,7 @@ class Installation(ZaptecBase):
     async def live_stream_connection_details(self):
         """Get the live stream connection details for the installation."""
         # NOTE: API call deprecated
-        data = await self._account._request(
+        data = await self.zaptec._request(
             f"installation/{self.id}/messagingConnectionDetails"
         )
         self.connection_details = data
@@ -479,7 +471,7 @@ class Installation(ZaptecBase):
         """Raw request for installation data."""
 
         # Get the installation data
-        data = await self._account._request(f"installation/{self.id}")
+        data = await self.zaptec._request(f"installation/{self.id}")
 
         # Remove data fields with excessive data, making it bigger than the
         # HA database appreciates for the size of attributes.
@@ -515,7 +507,7 @@ class Installation(ZaptecBase):
                 "availableCurrentPhase2, availableCurrentPhase3 must be set"
             )
 
-        data = await self._account._request(
+        data = await self.zaptec._request(
             f"installation/{self.id}/update", method="post", data=kwargs
         )
         return data
@@ -534,7 +526,7 @@ class Installation(ZaptecBase):
             "IsRequiredAuthentication": required,
         }
         # NOTE: Undocumented API call
-        result = await self._account._request(
+        result = await self.zaptec._request(
             f"installation/{self.id}", method="put", data=data
         )
         return result
@@ -574,10 +566,10 @@ class Charger(ZaptecBase):
     }
 
     def __init__(
-        self, data: TDict, account: Account, installation: Installation | None = None
+        self, data: TDict, zaptec: Zaptec, installation: Installation | None = None
     ) -> None:
         """Initialize the Charger object."""
-        super().__init__(data, account)
+        super().__init__(data, zaptec)
 
         self.installation = installation
 
@@ -604,7 +596,7 @@ class Charger(ZaptecBase):
             if err.error_code != 403:
                 raise
             _LOGGER.debug("Access denied to charger %s, attempting list", self.id)
-            chargers = await self._account._request("chargers")
+            chargers = await self.zaptec._request("chargers")
             for chg in chargers["Data"]:
                 if chg["Id"] == self.id:
                     self.set_attributes(chg)
@@ -612,7 +604,7 @@ class Charger(ZaptecBase):
 
         # Get the state from the charger
         try:
-            state = await self._account._request(f"chargers/{self.id}/state")
+            state = await self.zaptec._request(f"chargers/{self.id}/state")
             data = self.state_to_attrs(
                 state, "StateId", ZCONST.observations, excludes=CHARGER_EXCLUDES
             )
@@ -627,12 +619,11 @@ class Charger(ZaptecBase):
         # I couldn't find a way to see if it was up to date..
         # maybe remove this later if it dont interest ppl.
 
-        if self.installation_id in self._account.map:
+        if self.installation_id in self.zaptec.map:
             try:
-                firmware_info = await self._account._request(
+                firmware_info = await self.zaptec._request(
                     f"chargerFirmware/installation/{self.installation_id}"
                 )
-
                 for fm in firmware_info:
                     if fm["ChargerId"] == self.id:
                         self.set_attributes(
@@ -653,7 +644,7 @@ class Charger(ZaptecBase):
         # This don't seems to be documented but the portal uses it
         # FIXME check what it returns and parse it to attributes
         # NOTE: Undocumented API call
-        data = await self._account._request(f"chargers/{self.id}/live")
+        data = await self.zaptec._request(f"chargers/{self.id}/live")
         # FIXME: Missing validator (see validate)
         return data
 
@@ -662,7 +653,7 @@ class Charger(ZaptecBase):
 
     async def charger_info(self) -> TDict:
         """Get the charger info."""
-        data = await self._account._request(f"chargers/{self.id}")
+        data = await self.zaptec._request(f"chargers/{self.id}")
         return data
 
     async def command(self, command: str | int):
@@ -681,7 +672,7 @@ class Charger(ZaptecBase):
             cmdid = ZCONST.commands.get(command)
 
         _LOGGER.debug("Command %s (%s)", command, cmdid)
-        data = await self._account._request(
+        data = await self.zaptec._request(
             f"chargers/{self.id}/SendCommand/{cmdid}", method="post"
         )
         return data
@@ -740,7 +731,7 @@ class Charger(ZaptecBase):
             raise ValueError(f"Unknown setting '{settings}'")
 
         _LOGGER.debug("Settings %s", settings)
-        data = await self._account._request(
+        data = await self.zaptec._request(
             f"chargers/{self.id}/update", method="post", data=settings
         )
         return data
@@ -769,7 +760,7 @@ class Charger(ZaptecBase):
         """Authorize the charger to charge."""
         _LOGGER.debug("Authorize charge")
         # NOTE: Undocumented API call
-        data = await self._account._request(
+        data = await self.zaptec._request(
             f"chargers/{self.id}/authorizecharge", method="post"
         )
         return data
@@ -783,7 +774,7 @@ class Charger(ZaptecBase):
             },
         }
         # NOTE: Undocumented API call
-        result = await self._account._request(
+        result = await self.zaptec._request(
             f"chargers/{self.id}/localSettings", method="post", data=data
         )
         return result
@@ -797,14 +788,14 @@ class Charger(ZaptecBase):
             },
         }
         # NOTE: Undocumented API call
-        result = await self._account._request(
+        result = await self.zaptec._request(
             f"chargers/{self.id}/localSettings", method="post", data=data
         )
         return result
 
 
-class Account:
-    """This class represent an zaptec account."""
+class Zaptec:
+    """This class represent a Zaptec account."""
 
     def __init__(
         self,
@@ -815,7 +806,6 @@ class Account:
         max_time: float = API_RETRY_MAXTIME,
     ) -> None:
         """Initialize the Zaptec account handler."""
-        _LOGGER.debug("Account init")
         self._username = username
         self._password = password
         self._client = client or aiohttp.ClientSession()
@@ -830,6 +820,9 @@ class Account:
             max_rate=API_RATELIMIT_MAX_REQUEST_RATE, time_period=API_RATELIMIT_PERIOD
         )
 
+    # =======================================================================
+    #   MAPPING METHODS
+
     def register(self, id: str, data: ZaptecBase):
         """Register an object data with id."""
         self.map[id] = data
@@ -839,7 +832,7 @@ class Account:
         del self.map[id]
 
     # =======================================================================
-    #   API METHODS
+    #   REQUEST METHODS
 
     @staticmethod
     def _request_log(url, method, iteration, **kwargs):
@@ -1098,8 +1091,8 @@ class Account:
                 # All other error codes will be raised
                 raise log_exc(error)
 
-    #   API METHODS DONE
     # =======================================================================
+    #   API METHODS
 
     async def build(self):
         """Make the python interface."""
@@ -1170,23 +1163,22 @@ if __name__ == "__main__":
     async def gogo():
         username = os.environ.get("zaptec_username")
         password = os.environ.get("zaptec_password")
-        acc = Account(
+        zaptec = Zaptec(
             username,
             password,
         )
 
         try:
             # Builds the interface.
-            await acc.login()
-            await acc.build()
-            await acc.update_states()
+            await zaptec.login()
+            await zaptec.build()
+            await zaptec.update_states()
 
             # Print all the attributes.
-            for obj in acc.map.values():
-                await obj.state()
+            for obj in zaptec.map.values():
                 pprint(obj.asdict())
 
         finally:
-            await acc._client.close()
+            await zaptec._client.close()
 
     asyncio.run(gogo())

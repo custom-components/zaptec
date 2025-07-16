@@ -1,4 +1,5 @@
 """Diagnostics support for Zaptec."""
+
 from __future__ import annotations
 
 import traceback
@@ -11,7 +12,7 @@ if __name__ != "__main__":
     from homeassistant.helpers.device_registry import DeviceEntry
 
 from . import ZaptecUpdateCoordinator
-from .api import ZCONST, Account
+from .api import ZCONST, Zaptec
 from .const import DOMAIN
 
 T = TypeVar("T")
@@ -177,7 +178,7 @@ async def async_get_device_diagnostics(
 
     out = {}
     coordinator: ZaptecUpdateCoordinator = hass.data[DOMAIN][config_entry.entry_id]
-    acc: Account = coordinator.account
+    zaptec: Zaptec = coordinator.zaptec
 
     # Helper to redact the output data
     red = Redactor(DO_REDACT, ZCONST.observations)
@@ -195,7 +196,7 @@ async def async_get_device_diagnostics(
     #  PRE SEED OBJECT IDS FOR REDACTION
     #
     try:
-        for id, obj in acc.map.items():
+        for id, obj in zaptec.map.items():
             red.add_redact(id, ctx="preseed", redact=f"<--{obj.qual_id}-->")
     except Exception as err:
         add_failure(out, err)
@@ -208,7 +209,7 @@ async def async_get_device_diagnostics(
 
         async def req(url):
             try:
-                result = await acc._request(url)
+                result = await zaptec._request(url)
                 if not isinstance(result, (dict, list)):
                     return {
                         "type error": f"Expected dict, got type {type(result).__name__}, value {result}",
@@ -233,7 +234,7 @@ async def async_get_device_diagnostics(
             data = await req(url := f"installation/{inst_id}/hierarchy")
 
             for circuit in data.get("Circuits", []):
-                add(f"circuits/{circuit["Id"]}", circuit, ctx="circuit")
+                add(f"circuits/{circuit['Id']}", circuit, ctx="circuit")
                 for charger in circuit.get("Chargers", []):
                     charger_in_circuits_ids.append(charger["Id"])
 
@@ -272,7 +273,7 @@ async def async_get_device_diagnostics(
 
         out.setdefault(
             "maps",
-            [red.redact(addmap(k, v), ctx="maps") for k, v in acc.map.items()],
+            [red.redact(addmap(k, v), ctx="maps") for k, v in zaptec.map.items()],
         )
     except Exception as err:
         add_failure(out, err)
@@ -283,7 +284,7 @@ async def async_get_device_diagnostics(
     try:
 
         def add_key(k):
-            v = acc.map.get(k)
+            v = zaptec.map.get(k)
             if v is None:
                 return k
             return v.qual_id
@@ -341,12 +342,12 @@ if __name__ == "__main__":
     async def gogo():
         username = os.environ.get("zaptec_username")
         password = os.environ.get("zaptec_password")
-        acc = Account(
+        zaptec = Zaptec(
             username,
             password,
             client=aiohttp.ClientSession(connector=aiohttp.TCPConnector(ssl=False)),
         )
-        await acc.build()
+        await zaptec.build()
 
         try:
             #
@@ -362,11 +363,11 @@ if __name__ == "__main__":
 
             @dataclass
             class FakeCoordinator:
-                account: Account
+                zaptec: Zaptec
                 entity_maps: dict[str, dict[str, Any]]
 
             coordinator = FakeCoordinator(
-                account=acc,
+                zaptec=zaptec,
                 entity_maps={},
             )
             config = FakeConfig(entry_id="")
@@ -377,6 +378,6 @@ if __name__ == "__main__":
             pprint(out)
 
         finally:
-            await acc._client.close()
+            await zaptec._client.close()
 
     asyncio.run(gogo())

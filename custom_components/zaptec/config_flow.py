@@ -22,13 +22,13 @@ from homeassistant.helpers.selector import (
 )
 
 from .api import (
-    Account,
     AuthenticationError,
     Charger,
     RequestConnectionError,
     RequestDataError,
     RequestRetryError,
     RequestTimeoutError,
+    Zaptec,
 )
 from .const import (
     CONF_CHARGERS,
@@ -48,21 +48,21 @@ class ZaptecFlowHandler(ConfigFlow, domain=DOMAIN):
 
     def __init__(self) -> None:
         """Initialize the config flow handler."""
-        self.account: Account | None = None
+        self.zaptec: Zaptec | None = None
         self.user_input: dict[str, Any] = {}
         self.chargers: tuple[dict[str, str], dict[str, str]] | None = None
 
     async def _validate_account(self, user_input: dict[str, Any]) -> dict[str, str]:
-        """Validate the account credentials and return any errors."""
+        """Validate the Zaptec account credentials and return any errors."""
         errors: dict[str, str] = {}
 
         try:
-            self.account = Account(
+            self.zaptec = Zaptec(
                 username=user_input[CONF_USERNAME],
                 password=user_input[CONF_PASSWORD],
                 client=async_get_clientsession(self.hass),
             )
-            await self.account.login()
+            await self.zaptec.login()
         except (RequestConnectionError, RequestTimeoutError):
             errors["base"] = "cannot_connect"
         except AuthenticationError:
@@ -83,17 +83,17 @@ class ZaptecFlowHandler(ConfigFlow, domain=DOMAIN):
             return self.chargers
 
         # This sets up a new account if it doesn't exist
-        if not self.account:
+        if not self.zaptec:
             errors = await self._validate_account(self.user_input)
 
         try:
             if not errors:
                 # Build the hierarchy, but don't fetch any detailed data yet
-                if not self.account.is_built:
-                    await self.account.build()
+                if not self.zaptec.is_built:
+                    await self.zaptec.build()
 
                 # Get all chargers
-                chargers = self.account.get_chargers()
+                chargers = self.zaptec.get_chargers()
 
         except (RequestConnectionError, RequestTimeoutError, RequestDataError):
             errors["base"] = "cannot_connect"
