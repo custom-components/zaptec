@@ -36,12 +36,12 @@ from homeassistant.helpers.update_coordinator import (
 from homeassistant.util.ssl import get_default_context
 
 from .api import (
-    Account,
     AuthenticationError,
     Charger,
     Installation,
     RequestConnectionError,
     RequestTimeoutError,
+    Zaptec,
     ZaptecApiError,
     ZaptecBase,
 )
@@ -92,14 +92,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     _LOGGER.debug("Setting up entry %s: %s", entry.entry_id, redacted_data)
 
     # Create the Zaptec account object and log in
-    account = Account(
+    zaptec = Zaptec(
         entry.data[CONF_USERNAME],
         entry.data[CONF_PASSWORD],
         client=async_get_clientsession(hass),
         max_time=entry.data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL),
     )
     try:
-        await account.login()
+        await zaptec.login()
     except AuthenticationError as err:
         _LOGGER.error("Authentication failed: %s", err)
         raise ConfigEntryAuthFailed from err
@@ -114,7 +114,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     coordinator = ZaptecUpdateCoordinator(
         hass,
         entry=entry,
-        account=account,
+        zaptec=zaptec,
     )
     await coordinator.async_config_entry_first_refresh()
 
@@ -131,8 +131,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Dump the full entity map to the debug log
     coordinator.log_entity_map()
 
-    # Get a set of the circuit ids in the account to check for deprecated Circuit-devices
-    circuit_id_set = coordinator.account.get_circuit_ids()
+    # Get a set of the circuit ids from zaptec to check for deprecated Circuit-devices
+    circuit_id_set = coordinator.zaptec.get_circuit_ids()
 
     # Clean up unused device entries with no entities
     device_registry = dr.async_get(hass)
@@ -185,10 +185,10 @@ class ZaptecUpdateCoordinator(DataUpdateCoordinator[None]):
     """Coordinator for Zaptec data updates."""
 
     def __init__(
-        self, hass: HomeAssistant, *, entry: ConfigEntry, account: Account
+        self, hass: HomeAssistant, *, entry: ConfigEntry, zaptec: Zaptec
     ) -> None:
         """Initialize account-wide Zaptec data updater."""
-        self.account: Account = account
+        self.zaptec: Zaptec = zaptec
         self.streams: list[tuple[asyncio.Task, Installation]] = []
         self.entity_maps: dict[str, dict[str, ZaptecBaseEntity]] = {}
 
@@ -217,7 +217,7 @@ class ZaptecUpdateCoordinator(DataUpdateCoordinator[None]):
         """Log all registered entities."""
         _LOGGER.debug("Entity map:")
         for apiid, entitymap in self.entity_maps.items():
-            zap_obj = self.account.map.get(apiid)
+            zap_obj = self.zaptec.map.get(apiid)
             if zap_obj:
                 _LOGGER.debug("    %s  (%s, %s)", apiid, zap_obj.qual_id, zap_obj.name)
             else:
@@ -227,8 +227,8 @@ class ZaptecUpdateCoordinator(DataUpdateCoordinator[None]):
 
     def create_streams(self):
         """Create the streams for all installations."""
-        for install in self.account.installations:
-            if install.id in self.account.map:
+        for install in self.zaptec.installations:
+            if install.id in self.zaptec.map:
                 task = self.config_entry.async_create_background_task(
                     self.hass,
                     install.stream_main(
@@ -268,7 +268,7 @@ class ZaptecUpdateCoordinator(DataUpdateCoordinator[None]):
         _LOGGER.debug("Running first time setup")
 
         # Build the Zaptec hierarchy
-        await self.account.build()
+        await self.zaptec.build()
 
         # Get the list if chargers to include
         chargers = None
@@ -279,7 +279,7 @@ class ZaptecUpdateCoordinator(DataUpdateCoordinator[None]):
         if chargers is not None:
             _LOGGER.debug("Configured chargers: %s", chargers)
             want = set(chargers)
-            all_objects = set(self.account.map.keys())
+            all_objects = set(self.zaptec.map.keys())
 
             # Log if there are any objects listed not found in Zaptec
             not_present = want - all_objects
@@ -289,7 +289,7 @@ class ZaptecUpdateCoordinator(DataUpdateCoordinator[None]):
             # Calculate the objects to keep. From the list of chargers we
             # want to keep, we also want to keep the installation objects.
             keep = set()
-            for charger in self.account.get_chargers():
+            for charger in self.zaptec.get_chargers():
                 if charger.id in want:
                     keep.add(charger.id)
                     if charger.installation:
@@ -302,7 +302,7 @@ class ZaptecUpdateCoordinator(DataUpdateCoordinator[None]):
             for objid in all_objects:
                 if objid not in keep:
                     _LOGGER.debug("Unregistering: %s", objid)
-                    self.account.unregister(objid)
+                    self.zaptec.unregister(objid)
 
         # Setup the stream subscription
         self.create_streams()
@@ -316,12 +316,12 @@ class ZaptecUpdateCoordinator(DataUpdateCoordinator[None]):
             async with asyncio.timeout(10 * API_TIMEOUT):
                 # Run this only once, when the coordinator is first set up
                 # to fetch the zaptec account data
-                if not self.account.is_built:
+                if not self.zaptec.is_built:
                     await self._first_time_setup()
 
                 # Fetch updates
                 _LOGGER.debug("Polling from Zaptec")
-                await self.account.update_states()
+                await self.zaptec.update_states()
 
         except ZaptecApiError as err:
             _LOGGER.exception(
@@ -501,7 +501,7 @@ class ZaptecBaseEntity(CoordinatorEntity[ZaptecUpdateCoordinator]):
 
         # Iterate over every zaptec object in the account mapping and add
         # the listed entities for each object type
-        for obj in coordinator.account.map.values():
+        for obj in coordinator.zaptec.map.values():
             if isinstance(obj, Installation):
                 info = DeviceInfo(model=f"{obj.name} Installation")
 

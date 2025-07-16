@@ -5,7 +5,6 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 import asyncio
 from collections.abc import AsyncGenerator, Callable, Iterable
-from concurrent.futures import CancelledError
 from contextlib import aclosing
 import json
 import logging
@@ -99,16 +98,14 @@ class ZaptecBase(ABC):
 
     id: str
     name: str
-    _account: Account
-    _attrs: TDict
 
     # Type definitions and convertions on the attributes
     ATTR_TYPES: dict[str, Callable] = {}
 
-    def __init__(self, data: TDict, account: Account) -> None:
+    def __init__(self, data: TDict, zaptec: Zaptec) -> None:
         """Initialize the ZaptecBase object."""
-        self._account = account
-        self._attrs = {}
+        self.zaptec: Zaptec = zaptec
+        self._attrs: TDict = {}
         self.set_attributes(data)
 
     def set_attributes(self, data: TDict) -> bool:
@@ -225,8 +222,6 @@ class ZaptecBase(ABC):
 class Installation(ZaptecBase):
     """Represents an installation."""
 
-    chargers: list[Charger]
-
     # Type conversions for the named attributes (keep sorted)
     ATTR_TYPES = {
         "active": bool,
@@ -236,12 +231,11 @@ class Installation(ZaptecBase):
         "network_type": ZCONST.type_network_type,
     }
 
-    def __init__(self, data, account) -> None:
+    def __init__(self, data: TDict, zaptec: Zaptec) -> None:
         """Initialize the installation object."""
-        super().__init__(data, account)
+        super().__init__(data, zaptec)
         self.connection_details = None
-        self.chargers = []
-
+        self.chargers: list[Charger] = []
         self._stream_task = None
         self._stream_receiver = None
         self._stream_running = False
@@ -270,8 +264,8 @@ class Installation(ZaptecBase):
                 charger_item["CircuitId"] = circuit_item["Id"]
                 charger_item["CircuitName"] = circuit_item["Name"]
                 charger_item["CircuitMaxCurrent"] = circuit_item["MaxCurrent"]
-                chg = Charger(charger_item, self._account, installation=self)
-                self._account.register(charger_item["Id"], chg)
+                chg = Charger(charger_item, self.zaptec, installation=self)
+                self.zaptec.register(charger_item["Id"], chg)
                 await chg.build()
                 chargers.append(chg)
 
@@ -572,10 +566,10 @@ class Charger(ZaptecBase):
     }
 
     def __init__(
-        self, data: TDict, account: Account, installation: Installation | None = None
+        self, data: TDict, zaptec: Zaptec, installation: Installation | None = None
     ) -> None:
         """Initialize the Charger object."""
-        super().__init__(data, account)
+        super().__init__(data, zaptec)
 
         self.installation = installation
 
@@ -625,12 +619,11 @@ class Charger(ZaptecBase):
         # I couldn't find a way to see if it was up to date..
         # maybe remove this later if it dont interest ppl.
 
-        if self.installation_id in self._account.map:
+        if self.installation_id in self.zaptec.map:
             try:
                 firmware_info = await self.zaptec.request(
                     f"chargerFirmware/installation/{self.installation_id}"
                 )
-
                 for fm in firmware_info:
                     if fm["ChargerId"] == self.id:
                         self.set_attributes(
@@ -801,8 +794,8 @@ class Charger(ZaptecBase):
         return result
 
 
-class Account:
-    """This class represent an zaptec account."""
+class Zaptec:
+    """This class represent a Zaptec account."""
 
     def __init__(
         self,
@@ -813,7 +806,6 @@ class Account:
         max_time: float = API_RETRY_MAXTIME,
     ) -> None:
         """Initialize the Zaptec account handler."""
-        _LOGGER.debug("Account init")
         self._username = username
         self._password = password
         self._client = client or aiohttp.ClientSession()
@@ -828,6 +820,9 @@ class Account:
             max_rate=API_RATELIMIT_MAX_REQUEST_RATE, time_period=API_RATELIMIT_PERIOD
         )
 
+    # =======================================================================
+    #   MAPPING METHODS
+
     def register(self, id: str, data: ZaptecBase):
         """Register an object data with id."""
         self.map[id] = data
@@ -837,7 +832,7 @@ class Account:
         del self.map[id]
 
     # =======================================================================
-    #   API METHODS
+    #   REQUEST METHODS
 
     @staticmethod
     def _request_log(url, method, iteration, **kwargs):
@@ -1096,8 +1091,8 @@ class Account:
                 # All other error codes will be raised
                 raise log_exc(error)
 
-    #   API METHODS DONE
     # =======================================================================
+    #   UPDATE METHODS
 
     async def build(self):
         """Make the python interface."""
@@ -1168,23 +1163,22 @@ if __name__ == "__main__":
     async def gogo():
         username = os.environ.get("zaptec_username")
         password = os.environ.get("zaptec_password")
-        acc = Account(
+        zaptec = Zaptec(
             username,
             password,
         )
 
         try:
             # Builds the interface.
-            await acc.login()
-            await acc.build()
-            await acc.update_states()
+            await zaptec.login()
+            await zaptec.build()
+            await zaptec.update_states()
 
             # Print all the attributes.
-            for obj in acc.map.values():
-                await obj.state()
+            for obj in zaptec.map.values():
                 pprint(obj.asdict())
 
         finally:
-            await acc._client.close()
+            await zaptec._client.close()
 
     asyncio.run(gogo())
