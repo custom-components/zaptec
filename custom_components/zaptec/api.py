@@ -261,9 +261,8 @@ class Installation(ZaptecBase):
         for circuit in hierarchy["Circuits"]:
             _LOGGER.debug("    Circuit %s", circuit["Id"])
             for charger_item in circuit["Chargers"]:
-
                 # Inject additional attributes
-                charger_item["InstallationId"] = self.id  # So the relationship is ready at build
+                charger_item["InstallationId"] = self.id
                 charger_item["CircuitId"] = circuit["Id"]
                 charger_item["CircuitName"] = circuit["Name"]
                 charger_item["CircuitMaxCurrent"] = circuit["MaxCurrent"]
