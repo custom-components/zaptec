@@ -251,9 +251,7 @@ class Installation(ZaptecBase):
 
         # Get the hierarchy of circurits and chargers
         try:
-            hierarchy = await self._account._request(
-                f"installation/{self.id}/hierarchy"
-            )
+            hierarchy = await self.zaptec.request(f"installation/{self.id}/hierarchy")
         except RequestError as err:
             if err.error_code == 403:
                 _LOGGER.warning(
@@ -293,7 +291,7 @@ class Installation(ZaptecBase):
     async def live_stream_connection_details(self):
         """Get the live stream connection details for the installation."""
         # NOTE: API call deprecated
-        data = await self._account._request(
+        data = await self.zaptec.request(
             f"installation/{self.id}/messagingConnectionDetails"
         )
         self.connection_details = data
@@ -479,7 +477,7 @@ class Installation(ZaptecBase):
         """Raw request for installation data."""
 
         # Get the installation data
-        data = await self._account._request(f"installation/{self.id}")
+        data = await self.zaptec.request(f"installation/{self.id}")
 
         # Remove data fields with excessive data, making it bigger than the
         # HA database appreciates for the size of attributes.
@@ -515,7 +513,7 @@ class Installation(ZaptecBase):
                 "availableCurrentPhase2, availableCurrentPhase3 must be set"
             )
 
-        data = await self._account._request(
+        data = await self.zaptec.request(
             f"installation/{self.id}/update", method="post", data=kwargs
         )
         return data
@@ -534,7 +532,7 @@ class Installation(ZaptecBase):
             "IsRequiredAuthentication": required,
         }
         # NOTE: Undocumented API call
-        result = await self._account._request(
+        result = await self.zaptec.request(
             f"installation/{self.id}", method="put", data=data
         )
         return result
@@ -604,7 +602,7 @@ class Charger(ZaptecBase):
             if err.error_code != 403:
                 raise
             _LOGGER.debug("Access denied to charger %s, attempting list", self.id)
-            chargers = await self._account._request("chargers")
+            chargers = await self.zaptec.request("chargers")
             for chg in chargers["Data"]:
                 if chg["Id"] == self.id:
                     self.set_attributes(chg)
@@ -612,7 +610,7 @@ class Charger(ZaptecBase):
 
         # Get the state from the charger
         try:
-            state = await self._account._request(f"chargers/{self.id}/state")
+            state = await self.zaptec.request(f"chargers/{self.id}/state")
             data = self.state_to_attrs(
                 state, "StateId", ZCONST.observations, excludes=CHARGER_EXCLUDES
             )
@@ -629,7 +627,7 @@ class Charger(ZaptecBase):
 
         if self.installation_id in self._account.map:
             try:
-                firmware_info = await self._account._request(
+                firmware_info = await self.zaptec.request(
                     f"chargerFirmware/installation/{self.installation_id}"
                 )
 
@@ -653,7 +651,7 @@ class Charger(ZaptecBase):
         # This don't seems to be documented but the portal uses it
         # FIXME check what it returns and parse it to attributes
         # NOTE: Undocumented API call
-        data = await self._account._request(f"chargers/{self.id}/live")
+        data = await self.zaptec.request(f"chargers/{self.id}/live")
         # FIXME: Missing validator (see validate)
         return data
 
@@ -662,7 +660,7 @@ class Charger(ZaptecBase):
 
     async def charger_info(self) -> TDict:
         """Get the charger info."""
-        data = await self._account._request(f"chargers/{self.id}")
+        data = await self.zaptec.request(f"chargers/{self.id}")
         return data
 
     async def command(self, command: str | int):
@@ -681,7 +679,7 @@ class Charger(ZaptecBase):
             cmdid = ZCONST.commands.get(command)
 
         _LOGGER.debug("Command %s (%s)", command, cmdid)
-        data = await self._account._request(
+        data = await self.zaptec.request(
             f"chargers/{self.id}/SendCommand/{cmdid}", method="post"
         )
         return data
@@ -740,7 +738,7 @@ class Charger(ZaptecBase):
             raise ValueError(f"Unknown setting '{settings}'")
 
         _LOGGER.debug("Settings %s", settings)
-        data = await self._account._request(
+        data = await self.zaptec.request(
             f"chargers/{self.id}/update", method="post", data=settings
         )
         return data
@@ -769,7 +767,7 @@ class Charger(ZaptecBase):
         """Authorize the charger to charge."""
         _LOGGER.debug("Authorize charge")
         # NOTE: Undocumented API call
-        data = await self._account._request(
+        data = await self.zaptec.request(
             f"chargers/{self.id}/authorizecharge", method="post"
         )
         return data
@@ -783,7 +781,7 @@ class Charger(ZaptecBase):
             },
         }
         # NOTE: Undocumented API call
-        result = await self._account._request(
+        result = await self.zaptec.request(
             f"chargers/{self.id}/localSettings", method="post", data=data
         )
         return result
@@ -797,7 +795,7 @@ class Charger(ZaptecBase):
             },
         }
         # NOTE: Undocumented API call
-        result = await self._account._request(
+        result = await self.zaptec.request(
             f"chargers/{self.id}/localSettings", method="post", data=data
         )
         return result
@@ -1028,7 +1026,7 @@ class Account:
                     )
                 )
 
-    async def _request(self, url: str, method="get", data=None):
+    async def request(self, url: str, method="get", data=None):
         """Make a request to the API."""
 
         full_url = API_URL + url
@@ -1106,12 +1104,12 @@ class Account:
         _LOGGER.debug("Discover and build hierarchy")
 
         # Get the API constants
-        const = await self._request("constants")
+        const = await self.request("constants")
         ZCONST.clear()
         ZCONST.update(const)
 
         # Get list of installations
-        installations = await self._request("installation")
+        installations = await self.request("installation")
 
         installs = []
         for data in installations["Data"]:
@@ -1125,7 +1123,7 @@ class Account:
 
         # Get list of chargers
         # Will also report chargers listed in installation hierarchy above
-        chargers = await self._request("chargers")
+        chargers = await self.request("chargers")
 
         for data in chargers["Data"]:
             if data["Id"] not in self.map:
