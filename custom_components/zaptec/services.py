@@ -190,7 +190,7 @@ async def async_setup_services(hass: HomeAssistant) -> None:
             matches = set(
                 (coord, obj)
                 for coord in hass.data[DOMAIN].values()
-                for obj in coord.account.map.values()
+                for obj in coord.zaptec.map.values()
                 if obj.id == uid
             )
             # Filter out the objects that doesn't match the expected type
