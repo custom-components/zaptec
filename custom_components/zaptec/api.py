@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
 import asyncio
-from collections.abc import AsyncGenerator, Callable, Iterable
+from collections.abc import AsyncGenerator, Callable, Iterable, Iterator, Mapping
 from contextlib import aclosing
 import json
 import logging
@@ -93,11 +92,8 @@ class RequestDataError(ZaptecApiError):
     """Data is not valid."""
 
 
-class ZaptecBase(ABC):
+class ZaptecBase(Mapping[str, TValue]):
     """Base class for Zaptec objects."""
-
-    id: str
-    name: str
 
     # Type definitions and convertions on the attributes
     ATTR_TYPES: dict[str, Callable] = {}
@@ -107,6 +103,52 @@ class ZaptecBase(ABC):
         self.zaptec: Zaptec = zaptec
         self._attrs: TDict = {}
         self.set_attributes(data)
+
+    # =======================================================================
+    #   MAPPING METHODS
+
+    def __getitem__(self, key: str) -> TValue:
+        """Get an attribute by name."""
+        return self._attrs[to_under(key)]
+
+    def __len__(self) -> int:
+        """Return the number of attributes."""
+        return len(self._attrs)
+
+    def __iter__(self) -> Iterator[str]:
+        """Iterate over the attribute names."""
+        return iter(self._attrs)
+
+    @property
+    def id(self) -> str:
+        """Return the id of the object."""
+        return self._attrs["id"]
+
+    @property
+    def name(self) -> str:
+        """Return the name of the object."""
+        return self._attrs["name"]
+
+    @property
+    def qual_id(self):
+        """Return a qualified name for the object."""
+        qn = self.__class__.__qualname__
+        if "id" not in self._attrs:
+            return qn
+        return f"{qn}[{self.id[-6:]}]"
+
+    def asdict(self):
+        """Return the attributes as a dict."""
+        return self._attrs
+
+    # =======================================================================
+    #   UPDATE METHODS
+
+    async def build(self) -> None:
+        """Build the object."""
+
+    async def state(self) -> None:
+        """Update the state of the object."""
 
     def set_attributes(self, data: TDict) -> bool:
         """Set the class attributes from the given data."""
@@ -130,7 +172,7 @@ class ZaptecBase(ABC):
             new_vt = type(new_v).__qualname__
             if new_key not in self._attrs:
                 _LOGGER.debug(
-                    ">>>   Adding %s.%s (%s)  =  <%s> %s",
+                    ">>>     Adding %s.%s (%s)  =  <%s> %s",
                     self.qual_id,
                     new_key,
                     k,
@@ -139,7 +181,7 @@ class ZaptecBase(ABC):
                 )
             elif self._attrs[new_key] != new_v:
                 _LOGGER.debug(
-                    ">>>   Updating %s.%s (%s)  =  <%s> %s  (was %s)",
+                    ">>>     Updating %s.%s (%s)  =  <%s> %s  (was %s)",
                     self.qual_id,
                     new_key,
                     k,
@@ -148,44 +190,6 @@ class ZaptecBase(ABC):
                     self._attrs[new_key],
                 )
             self._attrs[new_key] = new_v
-
-    def __getattr__(self, key):
-        """Get an attribute by name."""
-        try:
-            return self._attrs[to_under(key)]
-        except KeyError as exc:
-            raise AttributeError(exc) from exc
-
-    def get(self, key, default=MISSING):
-        """Get an attribute by name, with a default value.
-
-        Unlike dict.get, this function will return AttributeError if the key
-        is not found and no default is provided.
-        """
-        if default is MISSING:
-            return self._attrs[to_under(key)]
-        else:
-            return self._attrs.get(to_under(key), default)
-
-    @property
-    def qual_id(self):
-        """Return a qualified name for the object."""
-        qn = self.__class__.__qualname__
-        if "id" not in self._attrs:
-            return qn
-        return f"{qn}[{self.id[-6:]}]"
-
-    def asdict(self):
-        """Return the attributes as a dict."""
-        return self._attrs
-
-    @abstractmethod
-    async def build(self) -> None:
-        """Build the object."""
-
-    @abstractmethod
-    async def state(self) -> None:
-        """Update the state of the object."""
 
     @staticmethod
     def state_to_attrs(
@@ -256,20 +260,29 @@ class Installation(ZaptecBase):
                 return
             raise
 
-        chargers = []
-        for circuit_item in hierarchy["Circuits"]:
-            _LOGGER.debug("    Circuit %s", circuit_item["Id"])
-            for charger_item in circuit_item["Chargers"]:
-                _LOGGER.debug("      Charger %s", charger_item["Id"])
-                charger_item["CircuitId"] = circuit_item["Id"]
-                charger_item["CircuitName"] = circuit_item["Name"]
-                charger_item["CircuitMaxCurrent"] = circuit_item["MaxCurrent"]
-                chg = Charger(charger_item, self.zaptec, installation=self)
-                self.zaptec.register(charger_item["Id"], chg)
-                await chg.build()
-                chargers.append(chg)
+        self.chargers = []
+        for circuit in hierarchy["Circuits"]:
+            _LOGGER.debug("    Circuit %s", circuit["Id"])
+            for charger_item in circuit["Chargers"]:
 
-        self.chargers = chargers
+                # Inject additional attributes
+                charger_item["InstallationId"] = self.id  # So the relationship is ready at build
+                charger_item["CircuitId"] = circuit["Id"]
+                charger_item["CircuitName"] = circuit["Name"]
+                charger_item["CircuitMaxCurrent"] = circuit["MaxCurrent"]
+
+                # Add or update the charger
+                if charger_item["Id"] in self.zaptec:
+                    _LOGGER.debug("      Charger %s  (existing)", charger_item["Id"])
+                    charger: Charger = self.zaptec[charger_item["Id"]]
+                    charger.set_attributes(charger_item)
+                else:
+                    _LOGGER.debug("      Charger %s", charger_item["Id"])
+                    charger = Charger(charger_item, self.zaptec, installation=self)
+                    self.zaptec.register(charger_item["Id"], charger)
+
+                await charger.build()
+                self.chargers.append(charger)
 
     async def state(self):
         """Update the installation state."""
@@ -573,12 +586,6 @@ class Charger(ZaptecBase):
 
         self.installation = installation
 
-    async def build(self) -> None:
-        """Build the object."""
-
-        # Don't update state at build, because the state and settings ids
-        # is not loaded yet.
-
     async def state(self):
         """Update the charger state."""
         _LOGGER.debug(
@@ -619,10 +626,10 @@ class Charger(ZaptecBase):
         # I couldn't find a way to see if it was up to date..
         # maybe remove this later if it dont interest ppl.
 
-        if self.installation_id in self.zaptec.map:
+        if (installation_id := self["installation_id"]) in self.zaptec:
             try:
                 firmware_info = await self.zaptec.request(
-                    f"chargerFirmware/installation/{self.installation_id}"
+                    f"chargerFirmware/installation/{installation_id}"
                 )
                 for fm in firmware_info:
                     if fm["ChargerId"] == self.id:
@@ -637,16 +644,6 @@ class Charger(ZaptecBase):
                 if err.error_code != 403:
                     raise
                 _LOGGER.debug("Access denied to charger %s firmware info", self.id)
-
-    async def live(self):
-        # FIXME: Is this an experiment? Omit?
-
-        # This don't seems to be documented but the portal uses it
-        # FIXME check what it returns and parse it to attributes
-        # NOTE: Undocumented API call
-        data = await self.zaptec.request(f"chargers/{self.id}/live")
-        # FIXME: Missing validator (see validate)
-        return data
 
     #   API METHODS
     # =======================================================================
@@ -794,7 +791,7 @@ class Charger(ZaptecBase):
         return result
 
 
-class Zaptec:
+class Zaptec(Mapping[str, ZaptecBase]):
     """This class represent a Zaptec account."""
 
     def __init__(
@@ -809,27 +806,81 @@ class Zaptec:
         self._username = username
         self._password = password
         self._client = client or aiohttp.ClientSession()
+        self._client_internal = client is None
         self._token_info = {}
         self._access_token = None
-        self.installations: list[Installation] = []
-        self.map: dict[str, ZaptecBase] = {}
-        self.is_built = False
+        self._map: dict[str, ZaptecBase] = {}
         self._timeout = aiohttp.ClientTimeout(total=API_TIMEOUT)
         self._max_time = max_time
         self._ratelimiter = AsyncLimiter(
             max_rate=API_RATELIMIT_MAX_REQUEST_RATE, time_period=API_RATELIMIT_PERIOD
         )
 
+        self.is_built: bool = False
+        """Flag to indicate if the structure of objectes is built and ready to use."""
+
+    async def __aenter__(self) -> Zaptec:
+        """Enter the context manager."""
+        return self
+
+    async def __aexit__(self, exc_type, exc_value, traceback):
+        """Exit the context manager."""
+        if self._client_internal:
+            # If the client was created internally, close it
+            await self._client.close()
+        return False
+
     # =======================================================================
     #   MAPPING METHODS
 
+    def __getitem__(self, id: str) -> ZaptecBase:
+        """Get an object data by id."""
+        return self._map[id]
+
+    def __iter__(self) -> Iterator[str]:
+        """Return an iterator over the object ids."""
+        return iter(self._map)
+
+    def __len__(self) -> int:
+        """Return the number of registered objects."""
+        return len(self._map)
+
+    def __contains__(self, key: str | ZaptecBase) -> bool:
+        """Check if an object with the given id is registered."""
+        # Overload the default implementation to support checking of objects using "in" operator.
+        if isinstance(key, ZaptecBase):
+            for obj in self._map.values():
+                if obj is key:
+                    return True
+            return False
+        return key in self._map
+
     def register(self, id: str, data: ZaptecBase):
         """Register an object data with id."""
-        self.map[id] = data
+        if id in self._map:
+            raise ValueError(
+                f"Object with id {id} already registered. "
+                "Use unregister() to remove it first."
+            )
+        self._map[id] = data
 
     def unregister(self, id: str):
         """Unregister an object data with id."""
-        del self.map[id]
+        del self._map[id]
+
+    def objects(self) -> Iterable[ZaptecBase]:
+        """Return an iterable of all registered objects."""
+        return self._map.values()
+
+    @property
+    def installations(self) -> Iterable[Installation]:
+        """Return a list of all installations."""
+        return [v for v in self._map.values() if isinstance(v, Installation)]
+
+    @property
+    def chargers(self) -> Iterable[Charger]:
+        """Return a list of all chargers."""
+        return [v for v in self._map.values() if isinstance(v, Charger)]
 
     # =======================================================================
     #   REQUEST METHODS
@@ -1106,50 +1157,54 @@ class Zaptec:
         # Get list of installations
         installations = await self.request("installation")
 
-        installs = []
-        for data in installations["Data"]:
-            _LOGGER.debug("  Installation %s", data["Id"])
-            inst = Installation(data, self)
-            self.register(data["Id"], inst)
-            await inst.build()
-            installs.append(inst)
+        for inst_item in installations["Data"]:
+            # Add or update the installation object.
+            if inst_item["Id"] in self:
+                _LOGGER.debug("  Installation %s  (existing)", inst_item["Id"])
+                installation = self[inst_item["Id"]]
+                installation.set_attributes(inst_item)
+            else:
+                _LOGGER.debug("  Installation %s", inst_item["Id"])
+                installation = Installation(inst_item, self)
+                self.register(inst_item["Id"], installation)
 
-        self.installations = installs
+            await installation.build()
 
-        # Get list of chargers
-        # Will also report chargers listed in installation hierarchy above
+        # Check for installations that are no longer available
+        new_installations = {d["Id"] for d in installations["Data"]}
+        have_installations = {o.id for o in self.installations}
+        if missing_installations := (have_installations - new_installations):
+            _LOGGER.warning(
+                "These installations are no longer available but remain in use: %s",
+                missing_installations,
+            )
+            _LOGGER.warning("To remove them, please restart the integration.")
+
+        # Check for standalone charger or chargers that are not available any more.
         chargers = await self.request("chargers")
-
-        for data in chargers["Data"]:
-            if data["Id"] not in self.map:
-                _LOGGER.warning(
-                    "Standalone Charger %s will not be added as a device", data["Id"]
-                )
-
-        # Find the charger device types
-        device_types = set(
-            chg.device_type for chg in self.map.values() if isinstance(chg, Charger)
-        )
+        new_chargers = {d["Id"] for d in chargers["Data"]}
+        have_chargers = {c.id for c in self.chargers}
+        if missing_chargers := (have_chargers - new_chargers):
+            _LOGGER.warning(
+                "These chargers are no longer available: %s", missing_chargers
+            )
+            _LOGGER.warning("To remove them, please restart the integration.")
+        if extra_chargers := (new_chargers - have_chargers):
+            _LOGGER.warning(
+                "These standalone chargers will not added: %s", extra_chargers
+            )
 
         # Update the observation, settings and commands ids based on the
         # discovered device types.
-        ZCONST.update_ids_from_schema(device_types)
+        ZCONST.update_ids_from_schema({chg["device_type"] for chg in self.chargers})
 
         self.is_built = True
 
     async def update_states(self, id: str | None = None):
         """Update the state for the given id or update all."""
-        for data in self.map.values():
-            if id is None or data.id == id:
-                await data.state()
-
-    def get_chargers(self):
-        """Return a list of all chargers."""
-        return [v for v in self.map.values() if isinstance(v, Charger)]
-
-    def get_circuit_ids(self) -> set[str]:
-        """Return a set of all circuit ids for all chargers."""
-        return set(c.circuit_id for c in self.get_chargers() if c.get("circuit_id", ""))
+        for obj in self.objects():
+            if id is None or obj.id == id:
+                await obj.state()
 
 
 if __name__ == "__main__":
@@ -1163,22 +1218,15 @@ if __name__ == "__main__":
     async def gogo():
         username = os.environ.get("zaptec_username")
         password = os.environ.get("zaptec_password")
-        zaptec = Zaptec(
-            username,
-            password,
-        )
 
-        try:
+        async with Zaptec(username, password) as zaptec:
             # Builds the interface.
             await zaptec.login()
             await zaptec.build()
             await zaptec.update_states()
 
             # Print all the attributes.
-            for obj in zaptec.map.values():
+            for obj in zaptec.objects():
                 pprint(obj.asdict())
-
-        finally:
-            await zaptec._client.close()
 
     asyncio.run(gogo())

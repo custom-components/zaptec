@@ -131,8 +131,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Dump the full entity map to the debug log
     coordinator.log_entity_map()
 
-    # Get a set of the circuit ids from zaptec to check for deprecated Circuit-devices
-    circuit_id_set = coordinator.zaptec.get_circuit_ids()
+    # Make a set of the circuit ids from zaptec to check for deprecated Circuit-devices
+    circuit_ids = {
+        cid for c in coordinator.zaptec.chargers if (cid := c.get("circuit_id", ""))
+    }
 
     # Clean up unused device entries with no entities
     device_registry = dr.async_get(hass)
@@ -149,7 +151,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         zap_dev_id = list(dev.identifiers)[0][1]
         if not dev_entities:
             device_registry.async_remove_device(dev.id)
-        elif zap_dev_id in circuit_id_set:
+        elif zap_dev_id in circuit_ids:
             _LOGGER.warning(
                 f"Detected deprecated Circuit device {zap_dev_id}, removing device and associated entities"
             )
@@ -217,7 +219,7 @@ class ZaptecUpdateCoordinator(DataUpdateCoordinator[None]):
         """Log all registered entities."""
         _LOGGER.debug("Entity map:")
         for apiid, entitymap in self.entity_maps.items():
-            zap_obj = self.zaptec.map.get(apiid)
+            zap_obj = self.zaptec.get(apiid)
             if zap_obj:
                 _LOGGER.debug("    %s  (%s, %s)", apiid, zap_obj.qual_id, zap_obj.name)
             else:
@@ -228,7 +230,7 @@ class ZaptecUpdateCoordinator(DataUpdateCoordinator[None]):
     def create_streams(self):
         """Create the streams for all installations."""
         for install in self.zaptec.installations:
-            if install.id in self.zaptec.map:
+            if install.id in self.zaptec:
                 task = self.config_entry.async_create_background_task(
                     self.hass,
                     install.stream_main(
@@ -279,7 +281,7 @@ class ZaptecUpdateCoordinator(DataUpdateCoordinator[None]):
         if chargers is not None:
             _LOGGER.debug("Configured chargers: %s", chargers)
             want = set(chargers)
-            all_objects = set(self.zaptec.map.keys())
+            all_objects = set(self.zaptec)
 
             # Log if there are any objects listed not found in Zaptec
             not_present = want - all_objects
@@ -289,7 +291,7 @@ class ZaptecUpdateCoordinator(DataUpdateCoordinator[None]):
             # Calculate the objects to keep. From the list of chargers we
             # want to keep, we also want to keep the installation objects.
             keep = set()
-            for charger in self.zaptec.get_chargers():
+            for charger in self.zaptec.chargers:
                 if charger.id in want:
                     keep.add(charger.id)
                     if charger.installation:
@@ -406,18 +408,17 @@ class ZaptecBaseEntity(CoordinatorEntity[ZaptecUpdateCoordinator]):
         obj = self.zaptec_obj
         key = key or self.key
         for k in key.split("."):
-            # Do dict because some object contains sub-dicts which must
-            # be handled differently than attributes
-            if isinstance(obj, dict):
-                if default is MISSING:
-                    obj = obj[k]
-                else:
-                    obj = obj.get(k, default)
+            # Also do dict because some object contains sub-dicts
+            if isinstance(obj, (ZaptecBase, dict)):
+                obj = obj.get(k, default)
             else:
-                if default is MISSING:
-                    obj = getattr(obj, k)
-                else:
-                    obj = getattr(obj, k, default)
+                raise HomeAssistantError(
+                    f"Object {type(obj).__qualname__} is not supported"
+                )
+            if obj is MISSING:
+                raise HomeAssistantError(
+                    f"Zaptec object {self.zaptec_obj.qual_id} does not have key {key}"
+                )
             if obj is default:
                 return obj
         return obj
@@ -501,7 +502,7 @@ class ZaptecBaseEntity(CoordinatorEntity[ZaptecUpdateCoordinator]):
 
         # Iterate over every zaptec object in the account mapping and add
         # the listed entities for each object type
-        for obj in coordinator.zaptec.map.values():
+        for obj in coordinator.zaptec.objects():
             if isinstance(obj, Installation):
                 info = DeviceInfo(model=f"{obj.name} Installation")
 
