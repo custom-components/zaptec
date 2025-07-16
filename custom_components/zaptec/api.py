@@ -144,9 +144,6 @@ class ZaptecBase(Mapping[str, TValue]):
     # =======================================================================
     #   UPDATE METHODS
 
-    async def build(self) -> None:
-        """Build the object."""
-
     async def state(self) -> None:
         """Update the state of the object."""
 
@@ -281,7 +278,6 @@ class Installation(ZaptecBase):
                     charger = Charger(charger_item, self.zaptec, installation=self)
                     self.zaptec.register(charger_item["Id"], charger)
 
-                await charger.build()
                 self.chargers.append(charger)
 
     async def state(self):
@@ -1191,7 +1187,7 @@ class Zaptec(Mapping[str, ZaptecBase]):
             _LOGGER.warning("To remove them, please restart the integration.")
         if extra_chargers := (new_chargers - have_chargers):
             _LOGGER.warning(
-                "These standalone chargers will not added: %s", extra_chargers
+                "These standalone chargers will not be added: %s", extra_chargers
             )
 
         # Update the observation, settings and commands ids based on the
