@@ -209,7 +209,7 @@ async def async_get_device_diagnostics(
 
         async def req(url):
             try:
-                result = await zaptec._request(url)
+                result = await zaptec.request(url)
                 if not isinstance(result, (dict, list)):
                     return {
                         "type error": f"Expected dict, got type {type(result).__name__}, value {result}",
