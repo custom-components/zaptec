@@ -64,11 +64,11 @@ class ZaptecChargeSwitch(ZaptecSwitch):
         )
 
         try:
-            await self.zaptec_obj.resume_charging()
+            await self.zaptec_obj.command("resume_charging")
         except Exception as exc:
             raise HomeAssistantError("Resuming charging failed") from exc
 
-        await self.coordinator.async_request_refresh()
+        await self.trigger_poll()
 
     async def async_turn_off(self, **kwargs):  # pylint: disable=unused-argument
         """Turn off the switch."""
@@ -79,11 +79,11 @@ class ZaptecChargeSwitch(ZaptecSwitch):
         )
 
         try:
-            await self.zaptec_obj.stop_charging_final()
+            await self.zaptec_obj.command("stop_charging_final")
         except Exception as exc:
             raise HomeAssistantError("Stop/pausing charging failed") from exc
 
-        await self.coordinator.async_request_refresh()
+        await self.trigger_poll()
 
 
 @dataclass(frozen=True, kw_only=True)

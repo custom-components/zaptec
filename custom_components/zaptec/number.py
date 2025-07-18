@@ -49,7 +49,7 @@ class ZaptecAvailableCurrentNumber(ZaptecNumber):
     def _post_init(self):
         # Get the max current rating from the reported max current
         self.entity_description.native_max_value = self.zaptec_obj.get(
-            "max_current", 32
+            "MaxCurrent", 32
         )
 
     async def async_set_native_value(self, value: float) -> None:
@@ -67,7 +67,7 @@ class ZaptecAvailableCurrentNumber(ZaptecNumber):
         except Exception as exc:
             raise HomeAssistantError(f"Set current limit to {value} failed") from exc
 
-        await self.coordinator.async_request_refresh()
+        await self.trigger_poll()
 
 
 class ZaptecSettingNumber(ZaptecNumber):
@@ -79,7 +79,7 @@ class ZaptecSettingNumber(ZaptecNumber):
     def _post_init(self):
         # Get the max current rating from the reported max current
         self.entity_description.native_max_value = self.zaptec_obj.get(
-            "charge_current_installation_max_limit", 32
+            "ChargeCurrentInstallationMaxLimit", 32
         )
 
     async def async_set_native_value(self, value: float) -> None:
@@ -100,7 +100,7 @@ class ZaptecSettingNumber(ZaptecNumber):
                 f"Setting {self.entity_description.setting} to {value} failed"
             ) from exc
 
-        await self.coordinator.async_request_refresh()
+        await self.trigger_poll()
 
 
 class ZaptecHmiBrightness(ZaptecNumber):
@@ -134,7 +134,7 @@ class ZaptecHmiBrightness(ZaptecNumber):
         except Exception as exc:
             raise HomeAssistantError(f"Set HmiBrightness to {value} failed") from exc
 
-        await self.coordinator.async_request_refresh()
+        await self.trigger_poll()
 
 
 # FIXME: Using @dataclass(frozen=True, kw_only=True) doesn't work when using

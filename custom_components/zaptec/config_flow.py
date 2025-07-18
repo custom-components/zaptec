@@ -105,8 +105,8 @@ class ZaptecFlowHandler(ConfigFlow, domain=DOMAIN):
 
         def charger_text(charger: Charger):
             """Format the charger text for display."""
-            text = f"{charger.name} ({charger.get('device_id', '-')})"
-            if circuit := charger.get("circuit_name"):
+            text = f"{charger.name} ({charger.get('DeviceId', '-')})"
+            if circuit := charger.get("CircuitName"):
                 text += f" in {circuit} circuit"
             if charger.installation:
                 text += f" of {charger.installation.name} installation"
