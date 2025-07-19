@@ -336,7 +336,7 @@ class ZaptecUpdateCoordinator(DataUpdateCoordinator[None]):
             raise UpdateFailed(err) from err
 
     async def _trigger_poll(self, obj: ZaptecBase) -> None:
-        """Trigger a poll update sequence for the given object or all objects.
+        """Trigger a poll update sequence for the given object.
 
         This sequence is useful to ensure that the state is fully synced after a
         HA initiated update.
@@ -353,13 +353,13 @@ class ZaptecUpdateCoordinator(DataUpdateCoordinator[None]):
         # Calculcate the deltas for the delays. E.g. [2, 5, 10] -> [2, 3, 5]
         deltas = [b - a for a, b in zip([0] + delays[:-1], delays)]
 
-        for i, delay in enumerate(deltas, start=1):
-            await asyncio.sleep(delay)
+        for i, delta in enumerate(deltas, start=1):
+            await asyncio.sleep(delta)
             _LOGGER.debug(
                 "Triggering poll %s of %s after %s seconds. %s",
                 i,
                 obj.qual_id,
-                delay,
+                delta,
                 kw,
             )
             await self.zaptec.poll(what, **kw)

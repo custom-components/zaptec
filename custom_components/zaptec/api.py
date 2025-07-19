@@ -32,7 +32,7 @@ from .const import (
 )
 from .misc import mc_nbfx_decoder, to_under
 from .validate import validate
-from .zconst import ZConst
+from .zconst import ZConst, CommandType
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -644,7 +644,7 @@ class Charger(ZaptecBase):
     #   API METHODS
     # =======================================================================
 
-    async def command(self, command: str | int):
+    async def command(self, command: str | int | CommandType):
         """Send a command to the charger.
 
         Any command or command id can be used. Zaptec supports a number of
