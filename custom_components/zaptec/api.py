@@ -283,8 +283,8 @@ class Installation(ZaptecBase):
                 self.chargers.append(charger)
 
     async def poll_info(self):
-        """Update the installation state."""
-        _LOGGER.debug("Polling state for %s (%s)", self.qual_id, self.get("Name"))
+        """Update the installation info."""
+        _LOGGER.debug("Poll info from %s (%s)", self.qual_id, self.get("Name"))
 
         # Get the installation data
         data = await self.zaptec.request(f"installation/{self.id}")
@@ -304,7 +304,7 @@ class Installation(ZaptecBase):
     async def poll_firmware_info(self):
         """Update the installation firmware info."""
         _LOGGER.debug(
-            "Polling firmware info for %s (%s)", self.qual_id, self.get("Name")
+            "Poll firmware info from %s (%s)", self.qual_id, self.get("Name")
         )
 
         try:
@@ -627,7 +627,7 @@ class Charger(ZaptecBase):
 
     async def poll_state(self):
         """Update the charger state"""
-        _LOGGER.debug("Poll state for %s (%s)", self.qual_id, self.get("Name"))
+        _LOGGER.debug("Poll state from %s (%s)", self.qual_id, self.get("Name"))
 
         # Get the state from the charger
         try:
@@ -661,7 +661,7 @@ class Charger(ZaptecBase):
         - authorize_charge: Authorize the charger to charge
         """
 
-        if command == "authorize_charge":
+        if command in ("authorize_charge", "AuthorizeCharge"):
             return await self.authorize_charge()
 
         # Look up the command and its command id
@@ -670,7 +670,8 @@ class Charger(ZaptecBase):
             cmdid = command
             command = ZCONST.commands.get(cmdid)
         else:
-            cmdid = ZCONST.commands.get(command)
+            # Support using the CommandName as a string
+            cmdid = ZCONST.commands.get(to_under(command))
 
         # Make sure we have a valid command
         if not cmdid or not command:

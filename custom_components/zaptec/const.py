@@ -37,11 +37,11 @@ API_RATELIMIT_PERIOD = 1
 API_RATELIMIT_MAX_REQUEST_RATE = 10
 """Maximum number of requests allowed per API rate limit period."""
 
-ZAPTEC_POLL_CHARGER_TRIGGER_DELAYS = [2, 5, 7]
-""" Sequence of delays in seconds for state updates to a charger after a change."""
+ZAPTEC_POLL_CHARGER_TRIGGER_DELAYS = [2, 7, 15]
+"""Delays in seconds for charger state updates after a change."""
 
-ZAPTEC_POLL_INSTALLATION_TRIGGER_DELAYS = [2, 5]
-""" Sequence of delays in seconds for state updates to a installation after a change."""
+ZAPTEC_POLL_INSTALLATION_TRIGGER_DELAYS = [2, 7]
+"""Delays in seconds for installation state updates after a change."""
 
 DEFAULT_SCAN_INTERVAL = 60
 """Default scan interval for state updates."""

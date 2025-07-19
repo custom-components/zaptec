@@ -344,13 +344,16 @@ class ZaptecUpdateCoordinator(DataUpdateCoordinator[None]):
 
         what = {obj.id}
         if isinstance(obj, Installation):
-            delay_list = ZAPTEC_POLL_INSTALLATION_TRIGGER_DELAYS
+            delays = ZAPTEC_POLL_INSTALLATION_TRIGGER_DELAYS
             kw = {"state": True, "info": True}
         else:
-            delay_list = ZAPTEC_POLL_CHARGER_TRIGGER_DELAYS
+            delays = ZAPTEC_POLL_CHARGER_TRIGGER_DELAYS
             kw = {"state": True}
 
-        for i, delay in enumerate(delay_list, start=1):
+        # Calculcate the deltas for the delays. E.g. [2, 5, 10] -> [2, 3, 5]
+        deltas = [b - a for a, b in zip([0] + delays[:-1], delays)]
+
+        for i, delay in enumerate(deltas, start=1):
             await asyncio.sleep(delay)
             _LOGGER.debug(
                 "Triggering poll %s of %s after %s seconds. %s",
@@ -372,7 +375,7 @@ class ZaptecUpdateCoordinator(DataUpdateCoordinator[None]):
         self.config_entry.async_create_background_task(
             self.hass,
             self._trigger_poll(obj),
-            f"Zaptec Poll Update for {obj.qual_id if obj else 'all'}",
+            f"Zaptec Poll Update for {obj.qual_id}",
         )
 
 
