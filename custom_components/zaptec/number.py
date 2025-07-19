@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 import logging
 
 from homeassistant import const
@@ -11,16 +11,14 @@ from homeassistant.components.number import (
     NumberEntity,
     NumberEntityDescription,
 )
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity import EntityDescription
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from . import ZaptecBaseEntity, ZaptecUpdateCoordinator
+from . import ZaptecBaseEntity, ZaptecConfigEntry
 from .api import Charger, Installation
-from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -48,8 +46,11 @@ class ZaptecAvailableCurrentNumber(ZaptecNumber):
 
     def _post_init(self):
         # Get the max current rating from the reported max current
-        self.entity_description.native_max_value = self.zaptec_obj.get(
-            "MaxCurrent", 32
+        self.entity_description = replace(
+            self.entity_description,
+            native_max_value = self.zaptec_obj.get(
+                "MaxCurrent", 32
+            ),
         )
 
     async def async_set_native_value(self, value: float) -> None:
@@ -78,8 +79,11 @@ class ZaptecSettingNumber(ZaptecNumber):
 
     def _post_init(self):
         # Get the max current rating from the reported max current
-        self.entity_description.native_max_value = self.zaptec_obj.get(
-            "ChargeCurrentInstallationMaxLimit", 32
+        self.entity_description = replace(
+            self.entity_description,
+            native_max_value = self.zaptec_obj.get(
+                "ChargeCurrentInstallationMaxLimit", 32
+            ),
         )
 
     async def async_set_native_value(self, value: float) -> None:
@@ -137,14 +141,11 @@ class ZaptecHmiBrightness(ZaptecNumber):
         await self.trigger_poll()
 
 
-# FIXME: Using @dataclass(frozen=True, kw_only=True) doesn't work when using
-# _post_init() to update the value. This must be fixed. Either the _post_init()
-# should be removed or the dataclass should be changed to non-frozen class.
-@dataclass
+@dataclass(frozen=True, kw_only=True)
 class ZapNumberEntityDescription(NumberEntityDescription):
     """Class describing Zaptec number entities."""
 
-    cls: type | None = None
+    cls: type[NumberEntity]
     setting: str | None = None
 
 
@@ -198,15 +199,12 @@ CHARGER_ENTITIES: list[EntityDescription] = [
 
 
 async def async_setup_entry(
-    hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
+    hass: HomeAssistant,
+    entry: ZaptecConfigEntry,
+    async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up the Zaptec numbers."""
-    _LOGGER.debug("Setup numbers")
-
-    coordinator: ZaptecUpdateCoordinator = hass.data[DOMAIN][entry.entry_id]
-
-    entities = ZaptecNumber.create_from_zaptec(
-        coordinator,
+    entities = entry.runtime_data.create_entities_from_zaptec(
         INSTALLATION_ENTITIES,
         CHARGER_ENTITIES,
     )

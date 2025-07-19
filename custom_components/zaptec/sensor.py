@@ -12,17 +12,12 @@ from homeassistant.components.sensor import (
     SensorEntityDescription,
     SensorStateClass,
 )
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity import EntityDescription
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from . import ZaptecBaseEntity, ZaptecUpdateCoordinator
+from . import ZaptecBaseEntity, ZaptecConfigEntry
 from .api import ZCONST
-from .const import DOMAIN
-
-# pylint: disable=missing-function-docstring
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -73,7 +68,7 @@ class ZaptecChargeSensor(ZaptecSensor):
 class ZapSensorEntityDescription(SensorEntityDescription):
     """Provide a description of a Zaptec sensor."""
 
-    cls: type | None = None
+    cls: type[SensorEntity]
 
 
 INSTALLATION_ENTITIES: list[EntityDescription] = [
@@ -84,6 +79,7 @@ INSTALLATION_ENTITIES: list[EntityDescription] = [
         icon="mdi:current-ac",
         native_unit_of_measurement=const.UnitOfElectricCurrent.AMPERE,
         state_class=SensorStateClass.MEASUREMENT,
+        cls=ZaptecSensor,
     ),
     ZapSensorEntityDescription(
         key="available_current_phase2",
@@ -92,6 +88,7 @@ INSTALLATION_ENTITIES: list[EntityDescription] = [
         icon="mdi:current-ac",
         native_unit_of_measurement=const.UnitOfElectricCurrent.AMPERE,
         state_class=SensorStateClass.MEASUREMENT,
+        cls=ZaptecSensor,
     ),
     ZapSensorEntityDescription(
         key="available_current_phase3",
@@ -100,6 +97,7 @@ INSTALLATION_ENTITIES: list[EntityDescription] = [
         icon="mdi:current-ac",
         native_unit_of_measurement=const.UnitOfElectricCurrent.AMPERE,
         state_class=SensorStateClass.MEASUREMENT,
+        cls=ZaptecSensor,
     ),
     ZapSensorEntityDescription(
         key="max_current",
@@ -109,6 +107,7 @@ INSTALLATION_ENTITIES: list[EntityDescription] = [
         icon="mdi:current-ac",
         native_unit_of_measurement=const.UnitOfElectricCurrent.AMPERE,
         state_class=SensorStateClass.MEASUREMENT,
+        cls=ZaptecSensor,
     ),
     ZapSensorEntityDescription(
         key="authentication_type",
@@ -117,6 +116,7 @@ INSTALLATION_ENTITIES: list[EntityDescription] = [
         entity_category=const.EntityCategory.DIAGNOSTIC,
         options=ZCONST.installation_authentication_type_list,
         icon="mdi:key-change",
+        cls=ZaptecSensor,
         # No state class as its not a numeric value
     ),
     ZapSensorEntityDescription(
@@ -126,6 +126,7 @@ INSTALLATION_ENTITIES: list[EntityDescription] = [
         entity_category=const.EntityCategory.DIAGNOSTIC,
         options=ZCONST.installation_types_list,
         icon="mdi:shape-outline",
+        cls=ZaptecSensor,
         # No state class as its not a numeric value
     ),
     ZapSensorEntityDescription(
@@ -135,6 +136,7 @@ INSTALLATION_ENTITIES: list[EntityDescription] = [
         entity_category=const.EntityCategory.DIAGNOSTIC,
         options=ZCONST.network_types_list,
         icon="mdi:waves-arrow-up",
+        cls=ZaptecSensor,
         # No state class as its not a numeric value
     ),
 ]
@@ -156,6 +158,7 @@ CHARGER_ENTITIES: list[EntityDescription] = [
         icon="mdi:current-ac",
         native_unit_of_measurement=const.UnitOfElectricCurrent.AMPERE,
         state_class=SensorStateClass.MEASUREMENT,
+        cls=ZaptecSensor,
     ),
     ZapSensorEntityDescription(
         key="current_phase2",
@@ -164,6 +167,7 @@ CHARGER_ENTITIES: list[EntityDescription] = [
         icon="mdi:current-ac",
         native_unit_of_measurement=const.UnitOfElectricCurrent.AMPERE,
         state_class=SensorStateClass.MEASUREMENT,
+        cls=ZaptecSensor,
     ),
     ZapSensorEntityDescription(
         key="current_phase3",
@@ -172,6 +176,7 @@ CHARGER_ENTITIES: list[EntityDescription] = [
         icon="mdi:current-ac",
         native_unit_of_measurement=const.UnitOfElectricCurrent.AMPERE,
         state_class=SensorStateClass.MEASUREMENT,
+        cls=ZaptecSensor,
     ),
     ZapSensorEntityDescription(
         key="voltage_phase1",
@@ -180,6 +185,7 @@ CHARGER_ENTITIES: list[EntityDescription] = [
         icon="mdi:sine-wave",
         native_unit_of_measurement=const.UnitOfElectricPotential.VOLT,
         state_class=SensorStateClass.MEASUREMENT,
+        cls=ZaptecSensor,
     ),
     ZapSensorEntityDescription(
         key="voltage_phase2",
@@ -188,6 +194,7 @@ CHARGER_ENTITIES: list[EntityDescription] = [
         icon="mdi:sine-wave",
         native_unit_of_measurement=const.UnitOfElectricPotential.VOLT,
         state_class=SensorStateClass.MEASUREMENT,
+        cls=ZaptecSensor,
     ),
     ZapSensorEntityDescription(
         key="voltage_phase3",
@@ -196,6 +203,7 @@ CHARGER_ENTITIES: list[EntityDescription] = [
         icon="mdi:sine-wave",
         native_unit_of_measurement=const.UnitOfElectricPotential.VOLT,
         state_class=SensorStateClass.MEASUREMENT,
+        cls=ZaptecSensor,
     ),
     ZapSensorEntityDescription(
         key="total_charge_power",
@@ -204,6 +212,7 @@ CHARGER_ENTITIES: list[EntityDescription] = [
         icon="mdi:flash",
         native_unit_of_measurement=const.UnitOfPower.WATT,
         state_class=SensorStateClass.MEASUREMENT,
+        cls=ZaptecSensor,
     ),
     ZapSensorEntityDescription(
         key="total_charge_power_session",
@@ -212,6 +221,7 @@ CHARGER_ENTITIES: list[EntityDescription] = [
         icon="mdi:counter",
         native_unit_of_measurement=const.UnitOfEnergy.KILO_WATT_HOUR,
         state_class=SensorStateClass.TOTAL_INCREASING,
+        cls=ZaptecSensor,
     ),
     ZapSensorEntityDescription(
         key="signed_meter_value_kwh",
@@ -220,6 +230,7 @@ CHARGER_ENTITIES: list[EntityDescription] = [
         icon="mdi:counter",
         native_unit_of_measurement=const.UnitOfEnergy.KILO_WATT_HOUR,
         state_class=SensorStateClass.TOTAL_INCREASING,
+        cls=ZaptecSensor,
     ),
     ZapSensorEntityDescription(
         key="completed_session.Energy",
@@ -228,6 +239,7 @@ CHARGER_ENTITIES: list[EntityDescription] = [
         icon="mdi:counter",
         native_unit_of_measurement=const.UnitOfEnergy.KILO_WATT_HOUR,
         state_class=SensorStateClass.TOTAL_INCREASING,
+        cls=ZaptecSensor,
     ),
     ZapSensorEntityDescription(
         key="humidity",
@@ -237,6 +249,7 @@ CHARGER_ENTITIES: list[EntityDescription] = [
         native_unit_of_measurement=const.PERCENTAGE,
         entity_category=const.EntityCategory.DIAGNOSTIC,
         state_class=SensorStateClass.MEASUREMENT,
+        cls=ZaptecSensor,
     ),
     ZapSensorEntityDescription(
         key="temperature_internal5",
@@ -246,6 +259,7 @@ CHARGER_ENTITIES: list[EntityDescription] = [
         native_unit_of_measurement=const.UnitOfTemperature.CELSIUS,
         entity_category=const.EntityCategory.DIAGNOSTIC,
         state_class=SensorStateClass.MEASUREMENT,
+        cls=ZaptecSensor,
     ),
     ZapSensorEntityDescription(
         key="charge_current_set",
@@ -254,6 +268,7 @@ CHARGER_ENTITIES: list[EntityDescription] = [
         icon="mdi:current-ac",
         native_unit_of_measurement=const.UnitOfElectricCurrent.AMPERE,
         state_class=SensorStateClass.MEASUREMENT,
+        cls=ZaptecSensor,
     ),
     ZapSensorEntityDescription(
         key="device_type",
@@ -262,21 +277,19 @@ CHARGER_ENTITIES: list[EntityDescription] = [
         entity_category=const.EntityCategory.DIAGNOSTIC,
         options=ZCONST.device_types_list,
         icon="mdi:shape-outline",
+        cls=ZaptecSensor,
         # No state class as its not a numeric value
     ),
 ]
 
 
 async def async_setup_entry(
-    hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
+    hass: HomeAssistant,
+    entry: ZaptecConfigEntry,
+    async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up the Zaptec sensors."""
-    _LOGGER.debug("Setup sensors")
-
-    coordinator: ZaptecUpdateCoordinator = hass.data[DOMAIN][entry.entry_id]
-
-    entities = ZaptecSensor.create_from_zaptec(
-        coordinator,
+    entities = entry.runtime_data.create_entities_from_zaptec(
         INSTALLATION_ENTITIES,
         CHARGER_ENTITIES,
     )

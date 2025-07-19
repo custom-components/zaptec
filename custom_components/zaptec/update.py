@@ -11,15 +11,13 @@ from homeassistant.components.update import (
     UpdateEntity,
     UpdateEntityDescription,
 )
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity import EntityDescription
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from . import ZaptecBaseEntity, ZaptecUpdateCoordinator
+from . import ZaptecBaseEntity, ZaptecConfigEntry
 from .api import Charger
-from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -45,7 +43,7 @@ class ZaptecUpdate(ZaptecBaseEntity, UpdateEntity):
             self._attr_available = False
             self._log_unavailable()
 
-    async def async_install(self, version, backup):
+    async def async_install(self, version, backup, **kwargs):
         """Install the update."""
         _LOGGER.debug(
             "Updating firmware %s of %s",
@@ -65,7 +63,7 @@ class ZaptecUpdate(ZaptecBaseEntity, UpdateEntity):
 class ZapUpdateEntityDescription(UpdateEntityDescription):
     """Class describing Zaptec update entities."""
 
-    cls: type | None = None
+    cls: type[UpdateEntity]
 
 
 INSTALLATION_ENTITIES: list[EntityDescription] = []
@@ -77,20 +75,18 @@ CHARGER_ENTITIES: list[EntityDescription] = [
         device_class=UpdateDeviceClass.FIRMWARE,
         entity_category=const.EntityCategory.DIAGNOSTIC,
         # icon="mdi:lock",  # FIXME: Find how icons work for firmware
+        cls=ZaptecUpdate,
     ),
 ]
 
 
 async def async_setup_entry(
-    hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
+    hass: HomeAssistant,
+    entry: ZaptecConfigEntry,
+    async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up the Zaptec update entities."""
-    _LOGGER.debug("Setup binary sensors")
-
-    coordinator: ZaptecUpdateCoordinator = hass.data[DOMAIN][entry.entry_id]
-
-    entities = ZaptecUpdate.create_from_zaptec(
-        coordinator,
+    entities = entry.runtime_data.create_entities_from_zaptec(
         INSTALLATION_ENTITIES,
         CHARGER_ENTITIES,
     )

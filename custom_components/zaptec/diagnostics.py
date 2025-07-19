@@ -11,7 +11,7 @@ if __name__ != "__main__":
     from homeassistant.core import HomeAssistant
     from homeassistant.helpers.device_registry import DeviceEntry
 
-from . import ZaptecUpdateCoordinator
+from . import ZaptecConfigEntry, ZaptecManager
 from .api import ZCONST, Zaptec
 from .const import DOMAIN
 
@@ -172,13 +172,13 @@ class Redactor:
 
 
 async def async_get_device_diagnostics(
-    hass: HomeAssistant, config_entry: ConfigEntry, device: DeviceEntry
+    hass: HomeAssistant, config_entry: ZaptecConfigEntry, device: DeviceEntry
 ) -> dict[str, Any]:
     """Return diagnostics for a device."""
 
     out = {}
-    coordinator: ZaptecUpdateCoordinator = hass.data[DOMAIN][config_entry.entry_id]
-    zaptec: Zaptec = coordinator.zaptec
+    manager: ZaptecManager = config_entry.runtime_data
+    zaptec: Zaptec = manager.zaptec
 
     # Helper to redact the output data
     red = Redactor(DO_REDACT, ZCONST.observations)

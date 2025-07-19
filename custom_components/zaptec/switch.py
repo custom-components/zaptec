@@ -10,15 +10,13 @@ from homeassistant.components.switch import (
     SwitchEntity,
     SwitchEntityDescription,
 )
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity import EntityDescription
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from . import ZaptecBaseEntity, ZaptecUpdateCoordinator
+from . import ZaptecBaseEntity, ZaptecConfigEntry
 from .api import Charger
-from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -90,12 +88,12 @@ class ZaptecChargeSwitch(ZaptecSwitch):
 class ZapSwitchEntityDescription(SwitchEntityDescription):
     """Class describing Zaptec switch entities."""
 
-    cls: type | None = None
+    cls: type[SwitchEntity]
 
 
-INSTALLATION_SWITCH_TYPES: list[EntityDescription] = []
+INSTALLATION_ENTITIES: list[EntityDescription] = []
 
-CHARGER_SWITCH_TYPES: list[EntityDescription] = [
+CHARGER_ENTITIES: list[EntityDescription] = [
     ZapSwitchEntityDescription(
         key="operating_mode",
         translation_key="operating_mode",
@@ -106,16 +104,13 @@ CHARGER_SWITCH_TYPES: list[EntityDescription] = [
 
 
 async def async_setup_entry(
-    hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
+    hass: HomeAssistant,
+    entry: ZaptecConfigEntry,
+    async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up the Zaptec switches."""
-    _LOGGER.debug("Setup switches")
-
-    coordinator: ZaptecUpdateCoordinator = hass.data[DOMAIN][entry.entry_id]
-
-    entities = ZaptecSwitch.create_from_zaptec(
-        coordinator,
-        INSTALLATION_SWITCH_TYPES,
-        CHARGER_SWITCH_TYPES,
+    entities = entry.runtime_data.create_entities_from_zaptec(
+        INSTALLATION_ENTITIES,
+        CHARGER_ENTITIES,
     )
     async_add_entities(entities, True)
