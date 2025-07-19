@@ -52,7 +52,7 @@ class ZaptecCableLock(ZaptecLock):
         except Exception as exc:
             raise HomeAssistantError("Removing permanent cable lock failed") from exc
 
-        await self.coordinator.async_request_refresh()
+        await self.trigger_poll()
 
     async def async_lock(self, **kwargs) -> None:
         """Lock the cable lock."""
@@ -67,7 +67,7 @@ class ZaptecCableLock(ZaptecLock):
         except Exception as exc:
             raise HomeAssistantError("Setting permanent cable lock failed") from exc
 
-        await self.coordinator.async_request_refresh()
+        await self.trigger_poll()
 
 
 @dataclass(frozen=True, kw_only=True)

@@ -32,7 +32,7 @@ from .const import (
 )
 from .misc import mc_nbfx_decoder, to_under
 from .validate import validate
-from .zconst import ZConst
+from .zconst import ZConst, CommandType
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -144,8 +144,11 @@ class ZaptecBase(Mapping[str, TValue]):
     # =======================================================================
     #   UPDATE METHODS
 
-    async def state(self) -> None:
-        """Update the state of the object."""
+    async def poll_info(self) -> None:
+        """Poll information about the object"""
+
+    async def poll_state(self) -> None:
+        """Poll the state of the object"""
 
     def set_attributes(self, data: TDict) -> bool:
         """Set the class attributes from the given data."""
@@ -279,13 +282,50 @@ class Installation(ZaptecBase):
 
                 self.chargers.append(charger)
 
-    async def state(self):
-        """Update the installation state."""
-        _LOGGER.debug(
-            "Polling state for %s (%s)", self.qual_id, self._attrs.get("name")
-        )
-        data = await self.installation_info()
+    async def poll_info(self):
+        """Update the installation info."""
+        _LOGGER.debug("Poll info from %s (%s)", self.qual_id, self.get("Name"))
+
+        # Get the installation data
+        data = await self.zaptec.request(f"installation/{self.id}")
+
+        # Remove data fields with excessive data, making it bigger than the
+        # HA database appreciates for the size of attributes.
+        # FIXME: SupportGroup is sub dict. This is not within the declared type
+        supportgroup = data.get("SupportGroup")
+        if supportgroup is not None:
+            if "LogoBase64" in supportgroup:
+                logo = supportgroup["LogoBase64"]
+                supportgroup["LogoBase64"] = f"<Removed, was {len(logo)} bytes>"
+
+        # Set the attributes
         self.set_attributes(data)
+
+    async def poll_firmware_info(self):
+        """Update the installation firmware info."""
+        _LOGGER.debug(
+            "Poll firmware info from %s (%s)", self.qual_id, self.get("Name")
+        )
+
+        try:
+            firmware_info = await self.zaptec.request(
+                f"chargerFirmware/installation/{self.id}"
+            )
+            for fm in firmware_info:
+                charger = self.zaptec.get(fm["ChargerId"])
+                if charger is None:
+                    continue
+                charger.set_attributes(
+                    {
+                        "firmware_current_version": fm["CurrentVersion"],
+                        "firmware_available_version": fm["AvailableVersion"],
+                        "firmware_update_to_date": fm["IsUpToDate"],
+                    }
+                )
+        except RequestError as err:
+            if err.error_code != 403:
+                raise
+            _LOGGER.debug("Access denied to installation %s firmware info", self.id)
 
     #   STREAM METHODS
     # =======================================================================
@@ -475,23 +515,6 @@ class Installation(ZaptecBase):
     #   API METHODS
     # =======================================================================
 
-    async def installation_info(self) -> TDict:
-        """Raw request for installation data."""
-
-        # Get the installation data
-        data = await self.zaptec.request(f"installation/{self.id}")
-
-        # Remove data fields with excessive data, making it bigger than the
-        # HA database appreciates for the size of attributes.
-        # FIXME: SupportGroup is sub dict. This is not within the declared type
-        supportgroup = data.get("SupportGroup")
-        if supportgroup is not None:
-            if "LogoBase64" in supportgroup:
-                logo = supportgroup["LogoBase64"]
-                supportgroup["LogoBase64"] = f"<Removed, was {len(logo)} bytes>"
-
-        return data
-
     async def set_limit_current(self, **kwargs):
         """Set current limit for the installation.
 
@@ -581,15 +604,13 @@ class Charger(ZaptecBase):
 
         self.installation = installation
 
-    async def state(self):
-        """Update the charger state."""
-        _LOGGER.debug(
-            "Polling state for %s (%s)", self.qual_id, self._attrs.get("name")
-        )
+    async def poll_info(self) -> None:
+        """Refresh the charger data"""
+        _LOGGER.debug("Poll info from %s (%s)", self.qual_id, self.get("Name"))
 
         try:
             # Get the main charger info
-            charger = await self.charger_info()
+            charger = await self.zaptec.request(f"chargers/{self.id}")
             self.set_attributes(charger)
         except RequestError as err:
             # An unprivileged user will get a 403 error, but the user is able
@@ -604,6 +625,10 @@ class Charger(ZaptecBase):
                     self.set_attributes(chg)
                     break
 
+    async def poll_state(self):
+        """Update the charger state"""
+        _LOGGER.debug("Poll state from %s (%s)", self.qual_id, self.get("Name"))
+
         # Get the state from the charger
         try:
             state = await self.zaptec.request(f"chargers/{self.id}/state")
@@ -616,52 +641,44 @@ class Charger(ZaptecBase):
                 raise
             _LOGGER.debug("Access denied to charger %s state", self.id)
 
-        # Firmware version is called. SmartMainboardSoftwareApplicationVersion,
-        # stateid 908
-        # I couldn't find a way to see if it was up to date..
-        # maybe remove this later if it dont interest ppl.
-
-        if (installation_id := self["installation_id"]) in self.zaptec:
-            try:
-                firmware_info = await self.zaptec.request(
-                    f"chargerFirmware/installation/{installation_id}"
-                )
-                for fm in firmware_info:
-                    if fm["ChargerId"] == self.id:
-                        self.set_attributes(
-                            {
-                                "current_firmware_version": fm["CurrentVersion"],
-                                "available_firmware_version": fm["AvailableVersion"],
-                                "firmware_update_to_date": fm["IsUpToDate"],
-                            }
-                        )
-            except RequestError as err:
-                if err.error_code != 403:
-                    raise
-                _LOGGER.debug("Access denied to charger %s firmware info", self.id)
-
     #   API METHODS
     # =======================================================================
 
-    async def charger_info(self) -> TDict:
-        """Get the charger info."""
-        data = await self.zaptec.request(f"chargers/{self.id}")
-        return data
+    async def command(self, command: str | int | CommandType):
+        """Send a command to the charger.
 
-    async def command(self, command: str | int):
-        """Send a command to the charger."""
+        Any command or command id can be used. Zaptec supports a number of
+        commands, which is found https://api.zaptec.com/help/index.html
+        under CommandId shema. The most used commands are:
 
-        if command == "authorize_charge":
+        - deauthorize_and_stop: Deauthorize the charger and stop it
+        - restart_charger: Restart the charger
+        - resume_charging: Resume charging
+        - stop_charging_final: Stop charging and set final stop
+        - upgrade_firmware: Upgrade the firmware
+
+        Special commands which is special to this implementation:
+        - authorize_charge: Authorize the charger to charge
+        """
+
+        if command in ("authorize_charge", "AuthorizeCharge"):
             return await self.authorize_charge()
 
-        self.is_command_valid(command, raise_value_error_if_invalid=True)
-
+        # Look up the command and its command id
         if isinstance(command, int):
             # If int, look up the command name
             cmdid = command
-            command = ZCONST.commands.get(command)
+            command = ZCONST.commands.get(cmdid)
         else:
-            cmdid = ZCONST.commands.get(command)
+            # Support using the CommandName as a string
+            cmdid = ZCONST.commands.get(to_under(command))
+
+        # Make sure we have a valid command
+        if not cmdid or not command:
+            raise ValueError(f"Unknown command {command!r}")
+
+        # Check that we can run the command at this time
+        self.is_command_valid(command, raise_value_error_if_invalid=True)
 
         _LOGGER.debug("Command %s (%s)", command, cmdid)
         data = await self.zaptec.request(
@@ -670,19 +687,9 @@ class Charger(ZaptecBase):
         return data
 
     def is_command_valid(
-        self, command: str | int, raise_value_error_if_invalid=False
+        self, command: str, raise_value_error_if_invalid=False
     ) -> bool:
         """Check if the command is valid."""
-
-        # Fetching the name from the ZCONST is perhaps not a good idea if Zaptec is changing them.
-        if command not in ZCONST.commands and command != "authorize_charge":
-            if raise_value_error_if_invalid:
-                raise ValueError(f"Unknown command '{command}'")
-            return False
-
-        if isinstance(command, int):
-            # If int, look up the command name
-            command = ZCONST.commands.get(command)
 
         valid_command = True
         msg = ""
@@ -727,26 +734,6 @@ class Charger(ZaptecBase):
             f"chargers/{self.id}/update", method="post", data=settings
         )
         return data
-
-    async def stop_charging_final(self):
-        """Send stop charging command."""
-        return await self.command("stop_charging_final")
-
-    async def resume_charging(self):
-        """Send resume charging command."""
-        return await self.command("resume_charging")
-
-    async def deauthorize_and_stop(self):
-        """Deauthorize the charger and stop it."""
-        return await self.command("deauthorize_and_stop")
-
-    async def restart_charger(self):
-        """Restart the charger."""
-        return await self.command("restart_charger")
-
-    async def upgrade_firmware(self):
-        """Send command to upgrade firmware."""
-        return await self.command("upgrade_firmware")
 
     async def authorize_charge(self):
         """Authorize the charger to charge."""
@@ -1156,7 +1143,7 @@ class Zaptec(Mapping[str, ZaptecBase]):
             # Add or update the installation object.
             if inst_item["Id"] in self:
                 _LOGGER.debug("  Installation %s  (existing)", inst_item["Id"])
-                installation = self[inst_item["Id"]]
+                installation: Installation = self[inst_item["Id"]]
                 installation.set_attributes(inst_item)
             else:
                 _LOGGER.debug("  Installation %s", inst_item["Id"])
@@ -1191,15 +1178,32 @@ class Zaptec(Mapping[str, ZaptecBase]):
 
         # Update the observation, settings and commands ids based on the
         # discovered device types.
-        ZCONST.update_ids_from_schema({chg["device_type"] for chg in self.chargers})
+        ZCONST.update_ids_from_schema({chg["DeviceType"] for chg in self.chargers})
 
         self.is_built = True
 
-    async def update_states(self, id: str | None = None):
-        """Update the state for the given id or update all."""
-        for obj in self.objects():
-            if id is None or obj.id == id:
-                await obj.state()
+    async def poll(
+        self,
+        objs: Iterable[str] | None = None,
+        *,
+        info: bool = False,
+        state: bool = True,
+        firmware: bool = False,
+    ):
+        """Update the info and state from Zaptec."""
+        if objs is None:
+            objs = iter(self)
+
+        for objid in objs:
+            obj = self.get(objid)
+            if obj is None:
+                raise ValueError(f"Object with id {objid} not found")
+            if info:
+                await obj.poll_info()
+            if state:
+                await obj.poll_state()
+            if firmware and isinstance(obj, Installation):
+                await obj.poll_firmware_info()
 
 
 if __name__ == "__main__":

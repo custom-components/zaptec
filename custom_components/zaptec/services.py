@@ -225,24 +225,24 @@ async def async_setup_services(hass: HomeAssistant) -> None:
         for coordinator, obj in iter_objects(service_call, Charger):
             _LOGGER.debug("  >> to %s", obj.id)
             try:
-                await obj.stop_charging_final()
+                await obj.command("stop_charging_final")
             except Exception as exc:
                 raise HomeAssistantError(
                     f"Command 'stop_charging_final' failed: {exc}"
                 ) from exc
-            await coordinator.async_request_refresh()
+            await coordinator.trigger_poll(obj)
 
     async def service_handle_resume_charging(service_call: ServiceCall) -> None:
         _LOGGER.debug("Called resume charging")
         for coordinator, obj in iter_objects(service_call, mustbe=Charger):
             _LOGGER.debug("  >> to %s", obj.id)
             try:
-                await obj.resume_charging()
+                await obj.command("resume_charging")
             except Exception as exc:
                 raise HomeAssistantError(
                     f"Command 'resume_charging' failed: {exc}"
                 ) from exc
-            await coordinator.async_request_refresh()
+            await coordinator.trigger_poll(obj)
 
     async def service_handle_authorize_charging(service_call: ServiceCall) -> None:
         _LOGGER.debug("Called authorize charging")
@@ -254,43 +254,43 @@ async def async_setup_services(hass: HomeAssistant) -> None:
                 raise HomeAssistantError(
                     f"Command 'authorize_charge' failed: {exc}"
                 ) from exc
-            await coordinator.async_request_refresh()
+            await coordinator.trigger_poll(obj)
 
     async def service_handle_deauthorize_charging(service_call: ServiceCall) -> None:
         _LOGGER.debug("Called deauthorize charging and stop")
         for coordinator, obj in iter_objects(service_call, mustbe=Charger):
             _LOGGER.debug("  >> to %s", obj.id)
             try:
-                await obj.deauthorize_and_stop()
+                await obj.command("deauthorize_and_stop")
             except Exception as exc:
                 raise HomeAssistantError(
                     f"Command 'deauthorize_and_stop' failed: {exc}"
                 ) from exc
-            await coordinator.async_request_refresh()
+            await coordinator.trigger_poll(obj)
 
     async def service_handle_restart_charger(service_call: ServiceCall) -> None:
         _LOGGER.debug("Called restart charger")
         for coordinator, obj in iter_objects(service_call, mustbe=Charger):
             _LOGGER.debug("  >> to %s", obj.id)
             try:
-                await obj.restart_charger()
+                await obj.command("restart_charger")
             except Exception as exc:
                 raise HomeAssistantError(
                     f"Command 'restart_charger' failed: {exc}"
                 ) from exc
-            await coordinator.async_request_refresh()
+            await coordinator.trigger_poll(obj)
 
     async def service_handle_upgrade_firmware(service_call: ServiceCall) -> None:
         _LOGGER.debug("Called update firmware")
         for coordinator, obj in iter_objects(service_call, mustbe=Charger):
             _LOGGER.debug("  >> to %s", obj.id)
             try:
-                await obj.upgrade_firmware()
+                await obj.command("upgrade_firmware")
             except Exception as exc:
                 raise HomeAssistantError(
                     f"Command 'upgrade_firmware' failed: {exc}"
                 ) from exc
-            await coordinator.async_request_refresh()
+            await coordinator.trigger_poll(obj)
 
     async def service_handle_limit_current(service_call: ServiceCall) -> None:
         _LOGGER.debug("Called set current limit")
@@ -309,7 +309,7 @@ async def async_setup_services(hass: HomeAssistant) -> None:
                 )
             except Exception as exc:
                 raise HomeAssistantError(f"Limit current failed: {exc}") from exc
-            await coordinator.async_request_refresh()
+            await coordinator.trigger_poll(obj)
 
     async def service_handle_send_command(service_call: ServiceCall) -> None:
         _LOGGER.debug("Called send command")
@@ -320,7 +320,7 @@ async def async_setup_services(hass: HomeAssistant) -> None:
                 await obj.command(command)
             except Exception as exc:
                 raise HomeAssistantError(f"Command '{command}' failed: {exc}") from exc
-            await coordinator.async_request_refresh()
+            await coordinator.trigger_poll(obj)
 
     # LIST OF SERVICES
     services: list[tuple[str, vol.Schema, TServiceHandler]] = [

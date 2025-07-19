@@ -28,11 +28,7 @@ class ZaptecButton(ZaptecBaseEntity, ButtonEntity):
     @property
     def available(self) -> bool:
         """Return True if entity is available."""
-        if not self._attr_available:
-            return False
-        else:
-            # Disable/gray out button if the command is invalid in the current state
-            return self.zaptec_obj.is_command_valid(self.key)
+        return super().available and self.zaptec_obj.is_command_valid(self.key)
 
     async def async_press(self) -> None:
         """Press the button."""
@@ -47,7 +43,7 @@ class ZaptecButton(ZaptecBaseEntity, ButtonEntity):
         except Exception as exc:
             raise HomeAssistantError(f"Running command '{self.key}' failed") from exc
 
-        await self.coordinator.async_request_refresh()
+        await self.trigger_poll()
 
 
 @dataclass(frozen=True, kw_only=True)

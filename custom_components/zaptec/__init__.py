@@ -55,6 +55,8 @@ from .const import (
     MANUFACTURER,
     MISSING,
     REQUEST_REFRESH_DELAY,
+    ZAPTEC_POLL_CHARGER_TRIGGER_DELAYS,
+    ZAPTEC_POLL_INSTALLATION_TRIGGER_DELAYS,
 )
 from .services import async_setup_services, async_unload_services
 
@@ -133,7 +135,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     # Make a set of the circuit ids from zaptec to check for deprecated Circuit-devices
     circuit_ids = {
-        cid for c in coordinator.zaptec.chargers if (cid := c.get("circuit_id", ""))
+        cid for c in coordinator.zaptec.chargers if (cid := c.get("CircuitId"))
     }
 
     # Clean up unused device entries with no entities
@@ -193,6 +195,7 @@ class ZaptecUpdateCoordinator(DataUpdateCoordinator[None]):
         self.zaptec: Zaptec = zaptec
         self.streams: list[tuple[asyncio.Task, Installation]] = []
         self.entity_maps: dict[str, dict[str, ZaptecBaseEntity]] = {}
+        self.updateable_objects: set[str] = set()
 
         super().__init__(
             hass,
@@ -277,11 +280,13 @@ class ZaptecUpdateCoordinator(DataUpdateCoordinator[None]):
         if self.config_entry.data.get(CONF_MANUAL_SELECT, False):
             chargers = self.config_entry.data.get(CONF_CHARGERS)
 
+        all_objects = set(self.zaptec)
+        self.updateable_objects = all_objects
+
         # Selected chargers to add
         if chargers is not None:
             _LOGGER.debug("Configured chargers: %s", chargers)
             want = set(chargers)
-            all_objects = set(self.zaptec)
 
             # Log if there are any objects listed not found in Zaptec
             not_present = want - all_objects
@@ -300,11 +305,8 @@ class ZaptecUpdateCoordinator(DataUpdateCoordinator[None]):
             if not keep:
                 _LOGGER.error("No zaptec objects will be added")
 
-            # Unregister all discovered objects not in the keep list
-            for objid in all_objects:
-                if objid not in keep:
-                    _LOGGER.debug("Unregistering: %s", objid)
-                    self.zaptec.unregister(objid)
+            # These objects will be updated by the coordinator
+            self.updateable_objects = want
 
         # Setup the stream subscription
         self.create_streams()
@@ -323,13 +325,58 @@ class ZaptecUpdateCoordinator(DataUpdateCoordinator[None]):
 
                 # Fetch updates
                 _LOGGER.debug("Polling from Zaptec")
-                await self.zaptec.update_states()
+                await self.zaptec.poll(
+                    self.updateable_objects, state=True, info=True, firmware=True
+                )
 
         except ZaptecApiError as err:
             _LOGGER.exception(
                 "Fetching data failed: %s: %s", type(err).__qualname__, err
             )
             raise UpdateFailed(err) from err
+
+    async def _trigger_poll(self, obj: ZaptecBase) -> None:
+        """Trigger a poll update sequence for the given object.
+
+        This sequence is useful to ensure that the state is fully synced after a
+        HA initiated update.
+        """
+
+        what = {obj.id}
+        if isinstance(obj, Installation):
+            delays = ZAPTEC_POLL_INSTALLATION_TRIGGER_DELAYS
+            kw = {"state": True, "info": True}
+        else:
+            delays = ZAPTEC_POLL_CHARGER_TRIGGER_DELAYS
+            kw = {"state": True}
+
+        # Calculcate the deltas for the delays. E.g. [2, 5, 10] -> [2, 3, 5]
+        deltas = [b - a for a, b in zip([0] + delays[:-1], delays)]
+
+        for i, delta in enumerate(deltas, start=1):
+            await asyncio.sleep(delta)
+            _LOGGER.debug(
+                "Triggering poll %s of %s after %s seconds. %s",
+                i,
+                obj.qual_id,
+                delta,
+                kw,
+            )
+            await self.zaptec.poll(what, **kw)
+            self.async_update_listeners()
+
+    async def trigger_poll(self, obj: ZaptecBase) -> None:
+        """Trigger a poll update sequence."""
+
+        # FIXME: The current imeplementation will create a new background task
+        # no matter if a task is already running. If they are updating the same
+        # object, this can cause too many updates for the same object.
+        # A single task per device will be needed.
+        self.config_entry.async_create_background_task(
+            self.hass,
+            self._trigger_poll(obj),
+            f"Zaptec Poll Update for {obj.qual_id}",
+        )
 
 
 class ZaptecBaseEntity(CoordinatorEntity[ZaptecUpdateCoordinator]):
@@ -533,3 +580,7 @@ class ZaptecBaseEntity(CoordinatorEntity[ZaptecUpdateCoordinator]):
                 _LOGGER.error("Unknown zaptec object type: %s", type(obj).__qualname__)
 
         return entities
+
+    async def trigger_poll(self) -> None:
+        """Trigger a poll for this entity."""
+        await self.coordinator.trigger_poll(self.zaptec_obj)

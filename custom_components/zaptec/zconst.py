@@ -1,13 +1,25 @@
 """Main API for Zaptec."""
+
 from __future__ import annotations
 
+from collections import UserDict
 import json
 import logging
-from collections import UserDict
+from typing import Literal
 
 from .misc import to_under
 
 _LOGGER = logging.getLogger(__name__)
+
+type CommandType = Literal[
+    "RestartCharger",
+    "UpgradeFirmware",
+    "StopChargingFinal",
+    "ResumeCharging",
+    "DeauthorizeAndStop",
+    "AuthorizeCharge",  # Not official command, used by the integration
+]
+"""Approved API commands."""
 
 
 #
@@ -19,14 +31,17 @@ class ZConst(UserDict):
     observations: dict[str, int]
     settings: dict[str, int]
     commands: dict[str, int]
-    update_params=[
+    """Mapping of command name to command id and id to name."""
+
+    update_params = [
         "maxChargeCurrent",
         "maxChargePhases",
         "minChargeCurrent",
         "offlineChargeCurrent",
         "offlineChargePhase",
         "meterValueInterval",
-    ] # valid parameters for api/chargers/{id}/update
+    ]
+    """Valid parameters for charger settings (`chargers/{id}/update`)."""
 
     def get_remap(self, wanted, device_types=None) -> dict:
         """Parse the given zaptec constants record `CONST` and generate

@@ -34,10 +34,10 @@ class ZaptecUpdate(ZaptecBaseEntity, UpdateEntity):
         """Update the entity from Zaptec data."""
         try:
             self._attr_installed_version = self._get_zaptec_value(
-                key="current_firmware_version"
+                key="firmware_current_version"
             )
             self._attr_latest_version = self._get_zaptec_value(
-                key="available_firmware_version"
+                key="firmware_available_version"
             )
             self._attr_available = True
             self._log_value(self._attr_installed_version)
@@ -54,11 +54,11 @@ class ZaptecUpdate(ZaptecBaseEntity, UpdateEntity):
         )
 
         try:
-            await self.zaptec_obj.upgrade_firmware()
+            await self.zaptec_obj.command("upgrade_firmware")
         except Exception as exc:
             raise HomeAssistantError("Sending update firmware command failed") from exc
 
-        await self.coordinator.async_request_refresh()
+        await self.trigger_poll()
 
 
 @dataclass(frozen=True, kw_only=True)
