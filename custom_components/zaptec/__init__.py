@@ -80,7 +80,7 @@ class KeyUnavailableError(Exception):
 
 @dataclass(frozen=True, kw_only=True)
 class ZaptecEntityDescription(EntityDescription):
-    """Class describing Zaptec binary sensor entities."""
+    """Class describing Zaptec entities."""
 
     cls: type[ZaptecBaseEntity]
 
