@@ -26,16 +26,15 @@ _LOGGER = logging.getLogger(__name__)
 class ZaptecNumber(ZaptecBaseEntity, NumberEntity):
     """Base class for Zaptec number entities."""
 
+    # What to log on entity update
+    _log_attribute = "_attr_native_value"
+
     @callback
     def _update_from_zaptec(self) -> None:
         """Update the entity from Zaptec data."""
-        try:
-            self._attr_native_value = self._get_zaptec_value()
-            self._attr_available = True
-            self._log_value(self._attr_native_value)
-        except (KeyError, AttributeError):
-            self._attr_available = False
-            self._log_unavailable()
+        # Called from ZaptecBaseEntity._handle_coordinator_update()
+        self._attr_native_value = self._get_zaptec_value()
+        self._attr_available = True
 
 
 class ZaptecAvailableCurrentNumber(ZaptecNumber):
@@ -48,9 +47,7 @@ class ZaptecAvailableCurrentNumber(ZaptecNumber):
         # Get the max current rating from the reported max current
         self.entity_description = replace(
             self.entity_description,
-            native_max_value = self.zaptec_obj.get(
-                "MaxCurrent", 32
-            ),
+            native_max_value=self.zaptec_obj.get("MaxCurrent", 32),
         )
 
     async def async_set_native_value(self, value: float) -> None:
@@ -81,7 +78,7 @@ class ZaptecSettingNumber(ZaptecNumber):
         # Get the max current rating from the reported max current
         self.entity_description = replace(
             self.entity_description,
-            native_max_value = self.zaptec_obj.get(
+            native_max_value=self.zaptec_obj.get(
                 "ChargeCurrentInstallationMaxLimit", 32
             ),
         )
@@ -112,16 +109,14 @@ class ZaptecHmiBrightness(ZaptecNumber):
 
     zaptec_obj: Charger
     entity_description: ZapNumberEntityDescription
+    _log_attribute = "_attr_native_value"
 
     @callback
     def _update_from_zaptec(self) -> None:
-        try:
-            self._attr_native_value = float(self._get_zaptec_value()) * 100
-            self._attr_available = True
-            self._log_value(self._attr_native_value)
-        except (KeyError, AttributeError):
-            self._attr_available = False
-            self._log_unavailable()
+        """Update the entity from Zaptec data."""
+        # Called from ZaptecBaseEntity._handle_coordinator_update()
+        self._attr_native_value = float(self._get_zaptec_value()) * 100
+        self._attr_available = True
 
     async def async_set_native_value(self, value: float) -> None:
         """Update to Zaptec."""

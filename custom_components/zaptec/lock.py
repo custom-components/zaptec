@@ -20,16 +20,15 @@ _LOGGER = logging.getLogger(__name__)
 class ZaptecLock(ZaptecBaseEntity, LockEntity):
     """Base class for Zaptec locks."""
 
+    # What to log on entity update
+    _log_attribute = "_attr_is_locked"
+
     @callback
     def _update_from_zaptec(self) -> None:
         """Update the entity from Zaptec data."""
-        try:
-            self._attr_is_locked = self._get_zaptec_value()
-            self._attr_available = True
-            self._log_value(self._attr_is_locked)
-        except (KeyError, AttributeError):
-            self._attr_available = False
-            self._log_unavailable()
+        # Called from ZaptecBaseEntity._handle_coordinator_update()
+        self._attr_is_locked = self._get_zaptec_value()
+        self._attr_available = True
 
 
 class ZaptecCableLock(ZaptecLock):

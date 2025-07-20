@@ -2,18 +2,21 @@
 
 from __future__ import annotations
 
+import logging
 import traceback
 from typing import Any, TypeVar, cast
 
 # to Support running this as a script.
 if __name__ != "__main__":
-    from homeassistant.config_entries import ConfigEntry
     from homeassistant.core import HomeAssistant
-    from homeassistant.helpers.device_registry import DeviceEntry
+    from homeassistant.helpers import device_registry as dr, entity_registry as er
 
 from . import ZaptecConfigEntry, ZaptecManager
 from .api import ZCONST, Zaptec
 from .const import DOMAIN
+
+_LOGGER = logging.getLogger(__name__)
+
 
 T = TypeVar("T")
 
@@ -171,8 +174,29 @@ class Redactor:
         return objs
 
 
+async def async_get_config_entry_diagnostics(
+    hass: HomeAssistant, config_entry: ZaptecConfigEntry
+) -> dict[str, Any]:
+    """Return diagnostics for a config entry."""
+    try:
+        return await _get_diagnostics(hass, config_entry)
+    except Exception:
+        _LOGGER.exception("Error getting diagnostics")
+
+
 async def async_get_device_diagnostics(
-    hass: HomeAssistant, config_entry: ZaptecConfigEntry, device: DeviceEntry
+    hass: HomeAssistant, config_entry: ZaptecConfigEntry, device: dr.DeviceEntry
+) -> dict[str, Any]:
+    """Return diagnostics for a device."""
+    try:
+        return await _get_diagnostics(hass, config_entry)
+    except Exception:
+        _LOGGER.exception("Error getting diagnostics for device %s", device.id)
+
+
+async def _get_diagnostics(
+    hass: HomeAssistant,
+    config_entry: ZaptecConfigEntry,
 ) -> dict[str, Any]:
     """Return diagnostics for a device."""
 
@@ -259,7 +283,7 @@ async def async_get_device_diagnostics(
         add_failure(out, err)
 
     #
-    #  MAPPINGS
+    #  ZAPTEC OBJECTS
     #
     try:
 
@@ -272,39 +296,39 @@ async def async_get_device_diagnostics(
             return obj
 
         out.setdefault(
-            "maps",
-            [red.redact(addmap(k, v), ctx="maps") for k, v in zaptec.items()],
+            "zaptec",
+            [red.redact(addmap(k, v), ctx="zaptec") for k, v in zaptec.items()],
         )
     except Exception as err:
         add_failure(out, err)
 
     #
-    #  ENTITY MAP
+    #  ENTITIES
     #
     try:
+        # Clean up unused device entries with no entities
+        device_registry = dr.async_get(hass)
+        entity_registry = er.async_get(hass)
 
-        def add_key(k):
-            v = zaptec.get(k)
-            if v is None:
-                return k
-            return v.qual_id
-
-        def entity_info(entity):
-            return {
-                "entity_id": entity.entity_id,
-                "name": entity.name,
-                "unique_id": entity.unique_id,
-            }
-
-        out.setdefault(
-            "entity_map",
-            {
-                red.redact(add_key(k), ctx="entity_map"): red.redact(
-                    {a: entity_info(b) for a, b in v.items()}
+        device_map = out.setdefault("entities", {})
+        for dev in dr.async_entries_for_config_entry(
+            device_registry, config_entry_id=config_entry.entry_id
+        ):
+            for _, zap_dev_id in dev.identifiers:
+                entity_list = device_map.setdefault(
+                    red.redact(zap_dev_id, ctx="entities"), []
                 )
-                for k, v in coordinator.entity_maps.items()
-            },
-        )
+
+                dev_entities = er.async_entries_for_device(
+                    entity_registry, dev.id, include_disabled_entities=True
+                )
+                for ent in dev_entities:
+                    entity_list.append(
+                        {
+                            "entity_id": ent.entity_id,
+                            "unique_id": ent.unique_id,
+                        }
+                    )
     except Exception as err:
         add_failure(out, err)
 
@@ -333,8 +357,8 @@ if __name__ == "__main__":
     # Just to execute the script manually. Must be run using
     # python -m custom_components.zaptec.diagnostics
     import asyncio
-    import os
     from dataclasses import dataclass
+    import os
     from pprint import pprint
 
     import aiohttp
@@ -351,29 +375,27 @@ if __name__ == "__main__":
 
             #
             # Mocking to pretend to be a hass instance
+            # NOTE: This fails on getting entity lists in the output, but that's
+            # ok for this test.
             #
             @dataclass
-            class FakeHass:
-                data: dict
-
-            @dataclass
             class FakeConfig:
-                entry_id: str
+                runtime_data: FakeZaptecManager
 
             @dataclass
-            class FakeCoordinator:
+            class FakeZaptecManager:
                 zaptec: Zaptec
-                entity_maps: dict[str, dict[str, Any]]
 
-            coordinator = FakeCoordinator(
+            manager = FakeZaptecManager(
                 zaptec=zaptec,
-                entity_maps={},
             )
-            config = FakeConfig(entry_id="")
-            hass = FakeHass(data={DOMAIN: {config.entry_id: coordinator}})
+            config = FakeConfig(
+                runtime_data=manager,
+            )
+            hass = None
 
             # Get the diagnostics info
-            out = await async_get_device_diagnostics(hass, config, None)
+            out = await _get_diagnostics(hass, config)
             pprint(out)
 
     asyncio.run(gogo())

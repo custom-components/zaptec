@@ -24,34 +24,30 @@ _LOGGER = logging.getLogger(__name__)
 class ZaptecSwitch(ZaptecBaseEntity, SwitchEntity):
     """Base class for Zaptec switches."""
 
+    # What to log on entity update
+    _log_attribute = "_attr_is_on"
+
     @callback
     def _update_from_zaptec(self) -> None:
         """Update the entity from Zaptec data."""
-        try:
-            self._attr_is_on = self._get_zaptec_value()
-            self._attr_available = True
-            self._log_value(self._attr_is_on)
-        except (KeyError, AttributeError):
-            self._attr_available = False
-            self._log_unavailable()
+        # Called from ZaptecBaseEntity._handle_coordinator_update()
+        self._attr_is_on = self._get_zaptec_value()
+        self._attr_available = True
 
 
 class ZaptecChargeSwitch(ZaptecSwitch):
     """Zaptec charge switch entity."""
 
     zaptec_obj: Charger
+    _log_attribute = "_attr_is_on"
 
     @callback
     def _update_from_zaptec(self) -> None:
         """Update the entity from Zaptec data."""
-        try:
-            state = self._get_zaptec_value()
-            self._attr_is_on = state in ["Connected_Charging"]
-            self._attr_available = True
-            self._log_value(self._attr_is_on)
-        except (KeyError, AttributeError):
-            self._attr_available = False
-            self._log_unavailable()
+        # Called from ZaptecBaseEntity._handle_coordinator_update()
+        state = self._get_zaptec_value()
+        self._attr_is_on = state in ["Connected_Charging"]
+        self._attr_available = True
 
     async def async_turn_on(self, **kwargs):  # pylint: disable=unused-argument
         """Turn on the switch."""

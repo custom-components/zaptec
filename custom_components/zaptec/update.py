@@ -25,23 +25,21 @@ _LOGGER = logging.getLogger(__name__)
 class ZaptecUpdate(ZaptecBaseEntity, UpdateEntity):
     """Base class for Zaptec update entities."""
 
+    # What to log on entity update
+    _log_attribute = "_attr_installed_version"
     zaptec_obj: Charger
 
     @callback
     def _update_from_zaptec(self) -> None:
         """Update the entity from Zaptec data."""
-        try:
-            self._attr_installed_version = self._get_zaptec_value(
-                key="firmware_current_version"
-            )
-            self._attr_latest_version = self._get_zaptec_value(
-                key="firmware_available_version"
-            )
-            self._attr_available = True
-            self._log_value(self._attr_installed_version)
-        except (KeyError, AttributeError):
-            self._attr_available = False
-            self._log_unavailable()
+        # Called from ZaptecBaseEntity._handle_coordinator_update()
+        self._attr_installed_version = self._get_zaptec_value(
+            key="firmware_current_version"
+        )
+        self._attr_latest_version = self._get_zaptec_value(
+            key="firmware_available_version"
+        )
+        self._attr_available = True
 
     async def async_install(self, version, backup, **kwargs):
         """Install the update."""

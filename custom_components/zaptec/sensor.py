@@ -25,20 +25,21 @@ _LOGGER = logging.getLogger(__name__)
 class ZaptecSensor(ZaptecBaseEntity, SensorEntity):
     """Base class for Zaptec sensors."""
 
+    # What to log on entity update
+    _log_attribute = "_attr_native_value"
+
     @callback
     def _update_from_zaptec(self) -> None:
         """Update the entity from Zaptec data."""
-        try:
-            self._attr_native_value = self._get_zaptec_value()
-            self._attr_available = True
-            self._log_value(self._attr_native_value)
-        except (KeyError, AttributeError):
-            self._attr_available = False
-            self._log_unavailable()
+        # Called from ZaptecBaseEntity._handle_coordinator_update()
+        self._attr_native_value = self._get_zaptec_value()
+        self._attr_available = True
 
 
 class ZaptecChargeSensor(ZaptecSensor):
     """Zaptec charge sensor entity."""
+
+    _log_attribute = "_attr_native_value"
 
     # See ZCONST.charger_operation_modes for possible values
     CHARGE_MODE_MAP = {
@@ -52,16 +53,12 @@ class ZaptecChargeSensor(ZaptecSensor):
     @callback
     def _update_from_zaptec(self) -> None:
         """Update the entity from Zaptec data."""
-        try:
-            state = self._get_zaptec_value()
-            mode = self.CHARGE_MODE_MAP.get(state, self.CHARGE_MODE_MAP["Unknown"])
-            self._attr_native_value = mode[0]
-            self._attr_icon = mode[1]
-            self._attr_available = True
-            self._log_value(self._attr_native_value)
-        except (KeyError, AttributeError):
-            self._attr_available = False
-            self._log_unavailable()
+        # Called from ZaptecBaseEntity._handle_coordinator_update()
+        state = self._get_zaptec_value()
+        mode = self.CHARGE_MODE_MAP.get(state, self.CHARGE_MODE_MAP["Unknown"])
+        self._attr_native_value = mode[0]
+        self._attr_icon = mode[1]
+        self._attr_available = True
 
 
 @dataclass(frozen=True, kw_only=True)

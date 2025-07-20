@@ -74,6 +74,10 @@ PLATFORMS = [
 ]
 
 
+class KeyUnavailableError(Exception):
+    """Exception raised when a key is not available in the Zaptec object."""
+
+
 @dataclass(frozen=True, kw_only=True)
 class ZaptecEntityDescription(EntityDescription):
     """Class describing Zaptec binary sensor entities."""
@@ -241,7 +245,7 @@ class ZaptecManager:
     coordinator: ZaptecUpdateCoordinator
     """The coordinator for the Zaptec account."""
 
-    streams: list[tuple[asyncio.Task, Installation]] = []
+    streams: list[tuple[asyncio.Task, Installation]]
     """List of active streams for the installations."""
 
     def __init__(
@@ -282,16 +286,32 @@ class ZaptecManager:
             # Use provided class if it exists, otherwise use the class this
             # function was called from
             cls: type[ZaptecBaseEntity] = description.cls
-            # NOTE! In later versions, this needs to loop up which coordinator
+
+            # NOTE: In later versions, this needs to look up which coordinator
             # the entity should be registered to.
-            entities.append(
-                cls(
-                    coordinator=self.coordinator,
-                    zaptec_object=zaptec_obj,
-                    description=copy(description),
-                    device_info=dev_info,
-                )
+            entity = cls(
+                coordinator=self.coordinator,
+                zaptec_object=zaptec_obj,
+                description=copy(description),
+                device_info=dev_info,
             )
+
+            # Check if the zaptec data for the object is available before
+            # adding it to the list of entities. The caveat is that if the
+            # entity have been added earlier, it will now be listed as
+            # "This entity is no longer being provided by the zaptec integration."
+            updater = getattr(entity, "_update_from_zaptec", lambda: None)
+            try:
+                updater()
+            except Exception:
+                _LOGGER.exception(
+                    "Failed to add entity %s keys %s, skipping entity",
+                    cls.__name__,
+                    description.key,
+                )
+                continue
+
+            entities.append(entity)
 
         return entities
 
@@ -512,6 +532,8 @@ class ZaptecBaseEntity(CoordinatorEntity[ZaptecUpdateCoordinator]):
     entity_description: EntityDescription
     _attr_has_entity_name = True
     _prev_value: Any = MISSING
+    _log_attribute: str | None = None
+    """The attribute to log when the value changes."""
 
     def __init__(
         self,
@@ -539,32 +561,21 @@ class ZaptecBaseEntity(CoordinatorEntity[ZaptecUpdateCoordinator]):
         custom light-weight init in the inheriting class.
         """
 
-    async def async_added_to_hass(self) -> None:
-        """Callback when entity is registered in HA."""
-        await super().async_added_to_hass()
-
-        _LOGGER.debug("Adding entity  %s  -->  %s.%s",
-                      self.entity_id, self.zaptec_obj.qual_id, self.key,
-                     )
-
     @callback
     def _handle_coordinator_update(self) -> None:
+        """Update the entity from Zaptec data."""
+        available = self._attr_available
+        update_from_zaptec = getattr(self, "_update_from_zaptec", lambda: None)
         try:
-            self._update_from_zaptec()
-        except Exception as exc:
-            raise HomeAssistantError(f"Error updating entity {self.key}") from exc
+            update_from_zaptec()
+            self._log_value(self._log_attribute)
+        except KeyUnavailableError as exc:
+            self._attr_available = False
+            self._log_unavailable(exc, available)
         super()._handle_coordinator_update()
 
     @callback
-    def _update_from_zaptec(self) -> None:
-        """Update the entity state from the Zaptec object.
-
-        Called when the coordinator has new data. Implement this in the
-        inheriting class to update the entity state.
-        """
-
-    @callback
-    def _get_zaptec_value(self, *, default=MISSING, key=None):
+    def _get_zaptec_value(self, *, default=MISSING, key=None) -> Any:
         """Retrieve a value from the Zaptec object.
 
         Helper to retrieve the value from the Zaptec object. This is to
@@ -574,24 +585,28 @@ class ZaptecBaseEntity(CoordinatorEntity[ZaptecUpdateCoordinator]):
         obj = self.zaptec_obj
         key = key or self.key
         for k in key.split("."):
-            # Also do dict because some object contains sub-dicts
-            if isinstance(obj, (ZaptecBase, dict)):
+            try:
                 obj = obj.get(k, default)
-            else:
-                raise HomeAssistantError(
-                    f"Object {type(obj).__qualname__} is not supported"
-                )
+            except AttributeError:
+                # This means that obj doesn't have `.get()`, which indicates that obj isn't a
+                # a Mapping-like object.
+                raise KeyUnavailableError(
+                    f"Failed to retrieve {key!r} from {self.zaptec_obj.qual_id}. Failed getting {k!r}"
+                ) from None
             if obj is MISSING:
-                raise HomeAssistantError(
-                    f"Zaptec object {self.zaptec_obj.qual_id} does not have key {key}"
+                raise KeyUnavailableError(
+                    f"Failed to retrieve {key!r} from {self.zaptec_obj.qual_id}. Key {k!r} doesn't exist"
                 )
             if obj is default:
                 return obj
         return obj
 
     @callback
-    def _log_value(self, value, force=False):
+    def _log_value(self, attribute: str | None, force=False):
         """Helper to log a new value."""
+        if attribute is None:
+            return
+        value = getattr(self, attribute, MISSING)
         prev = self._prev_value
         if force or value != prev:
             self._prev_value = value
@@ -605,13 +620,28 @@ class ZaptecBaseEntity(CoordinatorEntity[ZaptecUpdateCoordinator]):
             )
 
     @callback
-    def _log_unavailable(self):
+    def _log_unavailable(
+        self, exception: Exception | None = None, prev_available: bool | None = None
+    ):
         """Helper to log when unavailable."""
-        _LOGGER.debug(
-            "    %s  =  UNAVAILABLE   in %s",
-            self.entity_id,
-            self.zaptec_obj.qual_id,
+        prev_available = (
+            prev_available if prev_available is not None else self._attr_available
         )
+        available = self._attr_available
+
+        # Log when the entity becomes unavailable
+        if not available:
+            exc_text = f"   (Error: {exception})" if exception else ""
+            _LOGGER.debug(
+                "    %s  =  UNAVAILABLE   in %s%s",
+                self.entity_id,
+                self.zaptec_obj.qual_id,
+                exc_text,
+            )
+
+        # Dump the traceback only once when the error occurs
+        if exception is not None and prev_available and not available:
+            _LOGGER.error("Getting value failed", exc_info=exception)
 
     @property
     def key(self):
