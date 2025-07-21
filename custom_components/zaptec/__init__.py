@@ -683,13 +683,13 @@ class ZaptecBaseEntity(CoordinatorEntity[ZaptecUpdateCoordinator]):
     @callback
     def _handle_coordinator_update(self) -> None:
         """Update the entity from Zaptec data.
-        
+
         If the class have an attribute callback `_update_from_zaptec`, it will
         be called to update the entity data from the Zaptec data. The method is
         expected to call `_get_zaptec_value()` to retrieve the value for the
         entity, which may raise `KeyUnavailableError` if the key is not
         available. This function will log the value if it changes or becomes
-        unavailable.        
+        unavailable.
         """
         prev_available = self._attr_available
         update_from_zaptec = getattr(self, "_update_from_zaptec", lambda: None)
