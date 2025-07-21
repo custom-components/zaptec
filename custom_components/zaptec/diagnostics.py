@@ -306,7 +306,6 @@ async def _get_diagnostics(
     #  ENTITIES
     #
     try:
-        # Clean up unused device entries with no entities
         device_registry = dr.async_get(hass)
         entity_registry = er.async_get(hass)
 

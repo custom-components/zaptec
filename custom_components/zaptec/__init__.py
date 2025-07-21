@@ -165,7 +165,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     )
     await manager.coordinator.async_config_entry_first_refresh()
 
-    # Install the local data for later retrieval
+    # Attach the local data to the HA config entry so it can be accessed later
+    # in various HA functions.
     entry.runtime_data = manager
 
     # Setup services
@@ -563,15 +564,23 @@ class ZaptecBaseEntity(CoordinatorEntity[ZaptecUpdateCoordinator]):
 
     @callback
     def _handle_coordinator_update(self) -> None:
-        """Update the entity from Zaptec data."""
-        available = self._attr_available
+        """Update the entity from Zaptec data.
+        
+        If the class have an attribute callback `_update_from_zaptec`, it will
+        be called to update the entity data from the Zaptec data. The method is
+        expected to call `_get_zaptec_value()` to retrieve the value for the
+        entity, which may raise `KeyUnavailableError` if the key is not
+        available. This function will log the value if it changes or becomes
+        unavailable.        
+        """
+        prev_available = self._attr_available
         update_from_zaptec = getattr(self, "_update_from_zaptec", lambda: None)
         try:
             update_from_zaptec()
             self._log_value(self._log_attribute)
         except KeyUnavailableError as exc:
             self._attr_available = False
-            self._log_unavailable(exc, available)
+            self._log_unavailable(exc, prev_available)
         super()._handle_coordinator_update()
 
     @callback
@@ -581,6 +590,10 @@ class ZaptecBaseEntity(CoordinatorEntity[ZaptecUpdateCoordinator]):
         Helper to retrieve the value from the Zaptec object. This is to
         be called from _handle_coordinator_update() in the inheriting class.
         It will fetch the attr given by the entity description key.
+
+        Raises:
+            KeyUnavailableError: If key doesn't exist or obj doesn't have
+            `.get()`, which indicates that obj isn't a Mapping-like object
         """
         obj = self.zaptec_obj
         key = key or self.key
