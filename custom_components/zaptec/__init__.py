@@ -66,7 +66,6 @@ type ZaptecConfigEntry = ConfigEntry[ZaptecManager]
 PLATFORMS = [
     Platform.BINARY_SENSOR,
     Platform.BUTTON,
-    Platform.LOCK,
     Platform.NUMBER,
     Platform.SENSOR,
     Platform.SWITCH,

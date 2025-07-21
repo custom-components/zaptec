@@ -121,13 +121,11 @@
         },
         "switch": {
             "authorization_required": { "name": "Wymagane uprawnienia" },
-            "operating_mode": { "name": "Ładowanie" }
+            "operating_mode": { "name": "Ładowanie" },
+            "permanent_cable_lock": { "name": "Stała blokada kabla" }
         },
         "update": {
             "firmware_update": { "name": "Aktualizacja oprogramowania" }
-        },
-        "lock": {
-            "permanent_cable_lock": { "name": "Stała blokada kabla" }
         }
     }
 }

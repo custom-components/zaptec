@@ -121,13 +121,11 @@
         },
         "switch": {
             "authorization_required": { "name": "Auktorisering krävs" },
-            "operating_mode": { "name": "Laddar" }
+            "operating_mode": { "name": "Laddar" },
+            "permanent_cable_lock": { "name": "Permanent kabellås" }
         },
         "update": {
             "firmware_update": { "name": "Uppdatera mjukvara" }
-        },
-        "lock": {
-            "permanent_cable_lock": { "name": "Permanent kabellås" }
         }
     }
 }
