@@ -301,6 +301,11 @@ information in the old Circuit device is now included with the full data of the
 charger in the attributes of the `<name> Charger` diagnostics sensor. If you rely on
 this information, it can be retrieved using [Templates](#templates)
 
+The permanent cable lock has been changed to a Switch entity (from
+`lock.*_permanent_cable_lock` to `switch.*_permanent_cable_lock`). This is to conform
+to the HA convention that the Lock entity type should only be used for physical locks
+that's used to enter the house.
+
 
 ## Changes from older versions <0.7.0
 

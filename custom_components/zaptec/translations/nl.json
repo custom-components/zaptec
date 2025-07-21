@@ -32,7 +32,7 @@
     },
     "entity": {
         "sensor": {
-            "authentication_type": { 
+            "authentication_type": {
                 "name": "Authenticatie type",
                 "state": {
                     "Native": "Handmatig",
@@ -67,7 +67,7 @@
             "humidity": { "name": "Vochtigheid" },
             "installation_type": { "name": "Installatie type" },
             "max_current": { "name": "Max stroom per fase" },
-            "network_type": { 
+            "network_type": {
                 "name": "Netwerk type",
                 "state": {
                     "Unknown": "Onbekend",
@@ -121,13 +121,11 @@
         },
         "switch": {
             "authorization_required": { "name": "Autorisatie vereist" },
-            "operating_mode": { "name": "Opladen" }
+            "operating_mode": { "name": "Opladen" },
+            "permanent_cable_lock": { "name": "Laadkabel vergrendeling" }
         },
         "update": {
             "firmware_update": { "name": "Firmware" }
-        },
-        "lock": {
-            "permanent_cable_lock": { "name": "Laadkabel vergrendeling" }
         }
     }
 }

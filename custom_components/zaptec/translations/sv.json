@@ -32,7 +32,7 @@
     },
     "entity": {
         "sensor": {
-            "authentication_type": { 
+            "authentication_type": {
                 "name": "Autensieringstyp",
                 "state": {
                     "Native": "Native",
@@ -67,7 +67,7 @@
             "humidity": { "name": "Luftfuktighet" },
             "installation_type": { "name": "Installationstyp" },
             "max_current": { "name": "Max ström" },
-            "network_type": { 
+            "network_type": {
                 "name": "Nätverkstyp",
                 "state": {
                     "Unknown": "Okänd",
@@ -121,13 +121,11 @@
         },
         "switch": {
             "authorization_required": { "name": "Auktorisering krävs" },
-            "operating_mode": { "name": "Laddar" }
+            "operating_mode": { "name": "Laddar" },
+            "permanent_cable_lock": { "name": "Permanent kabellås" }
         },
         "update": {
             "firmware_update": { "name": "Uppdatera mjukvara" }
-        },
-        "lock": {
-            "permanent_cable_lock": { "name": "Permanent kabellås" }
         }
     }
 }

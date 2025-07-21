@@ -10,6 +10,7 @@ from homeassistant.components.switch import (
     SwitchEntity,
     SwitchEntityDescription,
 )
+from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity import EntityDescription
@@ -80,6 +81,42 @@ class ZaptecChargeSwitch(ZaptecSwitch):
         await self.trigger_poll()
 
 
+class ZaptecCableLockSwitch(ZaptecSwitch):
+    """Zaptec cable lock entity."""
+
+    zaptec_obj: Charger
+
+    async def async_turn_off(self, **kwargs) -> None:
+        """Unlock the cable lock."""
+        _LOGGER.debug(
+            "Turn off %s in %s",
+            self.entity_id,
+            self.zaptec_obj.qual_id,
+        )
+
+        try:
+            await self.zaptec_obj.set_permanent_cable_lock(False)
+        except Exception as exc:
+            raise HomeAssistantError("Removing permanent cable lock failed") from exc
+
+        await self.trigger_poll()
+
+    async def async_turn_on(self, **kwargs) -> None:
+        """Lock the cable lock."""
+        _LOGGER.debug(
+            "Turn on %s in %s",
+            self.entity_id,
+            self.zaptec_obj.qual_id,
+        )
+
+        try:
+            await self.zaptec_obj.set_permanent_cable_lock(True)
+        except Exception as exc:
+            raise HomeAssistantError("Setting permanent cable lock failed") from exc
+
+        await self.trigger_poll()
+
+
 @dataclass(frozen=True, kw_only=True)
 class ZapSwitchEntityDescription(SwitchEntityDescription):
     """Class describing Zaptec switch entities."""
@@ -95,6 +132,12 @@ CHARGER_ENTITIES: list[EntityDescription] = [
         translation_key="operating_mode",
         device_class=SwitchDeviceClass.SWITCH,
         cls=ZaptecChargeSwitch,
+    ),
+    ZapSwitchEntityDescription(
+        key="permanent_cable_lock",
+        translation_key="permanent_cable_lock",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        cls=ZaptecCableLockSwitch,
     ),
 ]
 

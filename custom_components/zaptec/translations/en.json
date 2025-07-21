@@ -32,7 +32,7 @@
     },
     "entity": {
         "sensor": {
-            "authentication_type": { 
+            "authentication_type": {
                 "name": "Authentication type",
                 "state": {
                     "Native": "Native",
@@ -67,7 +67,7 @@
             "humidity": { "name": "Humidity" },
             "installation_type": { "name": "Installation type" },
             "max_current": { "name": "Max current" },
-            "network_type": { 
+            "network_type": {
                 "name": "Network type",
                 "state": {
                     "Unknown": "Unknown",
@@ -121,13 +121,11 @@
         },
         "switch": {
             "authorization_required": { "name": "Authorization required" },
-            "operating_mode": { "name": "Charging" }
+            "operating_mode": { "name": "Charging" },
+            "permanent_cable_lock": { "name": "Permanent cable lock" }
         },
         "update": {
             "firmware_update": { "name": "Firmware update" }
-        },
-        "lock": {
-            "permanent_cable_lock": { "name": "Permanent cable lock" }
         }
     }
 }
