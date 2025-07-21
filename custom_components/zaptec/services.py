@@ -17,7 +17,7 @@ from .api import Charger, Installation
 from .const import DOMAIN
 
 if TYPE_CHECKING:
-    from . import ZaptecUpdateCoordinator
+    from . import ZaptecUpdateCoordinator, ZaptecManager
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -116,7 +116,7 @@ SEND_COMMAND_SCHEMA = vol.Schema(
 )
 
 
-async def async_setup_services(hass: HomeAssistant) -> None:
+async def async_setup_services(hass: HomeAssistant, manager: ZaptecManager) -> None:
     """Set up services for zaptec."""
     _LOGGER.debug("Set up services")
 
@@ -188,9 +188,8 @@ async def async_setup_services(hass: HomeAssistant) -> None:
 
             # Get all coordinators and objects that matches the uid from all coordinator objects
             matches = set(
-                (coord, obj)
-                for coord in hass.data[DOMAIN].values()
-                for obj in coord.zaptec.objects()
+                (manager.coordinator, obj)
+                for obj in manager.zaptec.objects()
                 if obj.id == uid
             )
             # Filter out the objects that doesn't match the expected type

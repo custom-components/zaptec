@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 from collections.abc import Iterable
 from copy import copy
+from dataclasses import dataclass
 from datetime import timedelta
 import logging
 from typing import Any
@@ -27,7 +28,6 @@ from homeassistant.helpers import device_registry as dr, entity_registry as er
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.debounce import Debouncer
 from homeassistant.helpers.entity import DeviceInfo, EntityDescription
-from homeassistant.helpers.typing import ConfigType
 from homeassistant.helpers.update_coordinator import (
     CoordinatorEntity,
     DataUpdateCoordinator,
@@ -46,7 +46,6 @@ from .api import (
     ZaptecBase,
 )
 from .const import (
-    API_TIMEOUT,
     CONF_CHARGERS,
     CONF_MANUAL_SELECT,
     CONF_PREFIX,
@@ -62,25 +61,38 @@ from .services import async_setup_services, async_unload_services
 
 _LOGGER = logging.getLogger(__name__)
 
+type ZaptecConfigEntry = ConfigEntry[ZaptecManager]
+
 PLATFORMS = [
     Platform.BINARY_SENSOR,
     Platform.BUTTON,
-    # Platform.DEVICE_TRACKER,
     Platform.LOCK,
-    # Platform.NOTIFY,
     Platform.NUMBER,
-    # Platform.SELECT,
     Platform.SENSOR,
     Platform.SWITCH,
     Platform.UPDATE,
 ]
 
 
-async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
-    """Set up integration."""
-    if DOMAIN in hass.data:
-        _LOGGER.info("Delete zaptec from your yaml")
-    return True
+class KeyUnavailableError(Exception):
+    """Exception raised when a key is not available in the Zaptec object."""
+
+
+@dataclass(frozen=True, kw_only=True)
+class ZaptecEntityDescription(EntityDescription):
+    """Class describing Zaptec entities."""
+
+    cls: type[ZaptecBaseEntity]
+
+
+@dataclass(frozen=True, kw_only=True)
+class ZaptecUpdateOptions:
+    """Options for the Zaptec update coordinator."""
+
+    name: str
+    update_interval: int
+    tracked_devices: set[str]
+    poll_args: dict[str, bool]
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -93,13 +105,25 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     _LOGGER.debug("Setting up entry %s: %s", entry.entry_id, redacted_data)
 
-    # Create the Zaptec account object and log in
+    configured_chargers = None
+    if entry.data.get(CONF_MANUAL_SELECT, False):
+        configured_chargers = entry.data.get(CONF_CHARGERS)
+
+    prefix = entry.data.get(CONF_PREFIX, "").rstrip()
+    if prefix:
+        prefix = prefix + " "
+
+    scan_interval = entry.data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
+
+    # Create the Zaptec object
     zaptec = Zaptec(
         entry.data[CONF_USERNAME],
         entry.data[CONF_PASSWORD],
         client=async_get_clientsession(hass),
-        max_time=entry.data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL),
+        max_time=scan_interval,
     )
+
+    # Login to the Zaptec account
     try:
         await zaptec.login()
     except AuthenticationError as err:
@@ -112,31 +136,51 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         _LOGGER.error("Zaptec API error: %s", err)
         raise ConfigEntryError from err
 
-    # Setup the coordinator handling the Zaptec data updates
-    coordinator = ZaptecUpdateCoordinator(
+    # Get the structure of devices from Zaptec and determine the zaptec objects to track
+    tracked_devices = await ZaptecManager.first_time_setup(
+        zaptec=zaptec,
+        configured_chargers=configured_chargers,
+    )
+
+    # Setup the manager which will be where all the instance data is stored
+    manager = ZaptecManager(
         hass,
         entry=entry,
         zaptec=zaptec,
+        name_prefix=prefix,
+        tracked_devices=tracked_devices,
     )
-    await coordinator.async_config_entry_first_refresh()
 
-    hass.data.setdefault(DOMAIN, {})
-    hass.data[DOMAIN][entry.entry_id] = coordinator
+    # Setup the update coordinator
+    manager.coordinator = ZaptecUpdateCoordinator(
+        hass,
+        entry=entry,
+        manager=manager,
+        options=ZaptecUpdateOptions(
+            name="zaptec",
+            update_interval=scan_interval,
+            tracked_devices=manager.tracked_devices,
+            poll_args={"state": True, "info": True, "firmware": True},
+        ),
+    )
+    await manager.coordinator.async_config_entry_first_refresh()
+
+    # Attach the local data to the HA config entry so it can be accessed later
+    # in various HA functions.
+    entry.runtime_data = manager
 
     # Setup services
-    await async_setup_services(hass)
+    await async_setup_services(hass, manager)
 
     # Setup all platforms
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     entry.async_on_unload(entry.add_update_listener(async_reload_entry))
 
-    # Dump the full entity map to the debug log
-    coordinator.log_entity_map()
+    # Setup the streams
+    manager.create_streams()
 
     # Make a set of the circuit ids from zaptec to check for deprecated Circuit-devices
-    circuit_ids = {
-        cid for c in coordinator.zaptec.chargers if (cid := c.get("CircuitId"))
-    }
+    circuit_ids = {cid for c in manager.zaptec.chargers if (cid := c.get("CircuitId"))}
 
     # Clean up unused device entries with no entities
     device_registry = dr.async_get(hass)
@@ -149,34 +193,31 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         dev_entities = er.async_entries_for_device(
             entity_registry, dev.id, include_disabled_entities=True
         )
-        # identifiers is a set with a single tuple ('zaptec', '<zaptec_id>')
-        zap_dev_id = list(dev.identifiers)[0][1]
         if not dev_entities:
             device_registry.async_remove_device(dev.id)
-        elif zap_dev_id in circuit_ids:
-            _LOGGER.warning(
-                f"Detected deprecated Circuit device {zap_dev_id}, removing device and associated entities"
-            )
-            for ent in dev_entities:
-                _LOGGER.debug(f"Deleting entity {ent.entity_id}")
-                entity_registry.async_remove(ent.entity_id)
-            device_registry.async_remove_device(dev.id)
+            continue
+        # identifiers is a set with a (single) tuple ('zaptec', '<zaptec_id>')
+        for _, zap_dev_id in dev.identifiers:
+            if zap_dev_id in circuit_ids:
+                _LOGGER.warning(
+                    "Detected deprecated Circuit device %s, removing device and associated entities",
+                    zap_dev_id,
+                )
+                for ent in dev_entities:
+                    _LOGGER.debug("Deleting entity %s", ent.entity_id)
+                    entity_registry.async_remove(ent.entity_id)
+                device_registry.async_remove_device(dev.id)
 
     return True
 
 
-async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+async def async_unload_entry(hass: HomeAssistant, entry: ZaptecConfigEntry) -> bool:
     """Unload a config entry."""
 
-    coordinator = hass.data[DOMAIN][entry.entry_id]
-    await coordinator.cancel_streams()
+    manager = entry.runtime_data
+    await manager.cancel_streams()
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
-
-    if unload_ok:
-        hass.data[DOMAIN].pop(entry.entry_id)
-
     await async_unload_services(hass)
-
     return unload_ok
 
 
@@ -185,50 +226,140 @@ async def async_reload_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
     await hass.config_entries.async_reload(entry.entry_id)
 
 
-class ZaptecUpdateCoordinator(DataUpdateCoordinator[None]):
-    """Coordinator for Zaptec data updates."""
+class ZaptecManager:
+    """Manager for Zaptec data."""
+
+    # NOTE: This class may appear excessive since there's currently only one
+    # coordinator. The data and methods could be placed directly in the
+    # coordinator class. However, using a separate manager makes it easier to
+    # expand and support multiple coordinators in the future.
+
+    zaptec: Zaptec
+    """The Zaptec account object."""
+
+    tracked_devices: set[str]
+    """Set of tracked device that will be used by the integration."""
+
+    name_prefix: str
+    """Name prefix to use for the entities."""
+
+    coordinator: ZaptecUpdateCoordinator
+    """The coordinator for the Zaptec account."""
+
+    streams: list[tuple[asyncio.Task, Installation]]
+    """List of active streams for the installations."""
 
     def __init__(
-        self, hass: HomeAssistant, *, entry: ConfigEntry, zaptec: Zaptec
+        self,
+        hass: HomeAssistant,
+        *,
+        entry: ZaptecConfigEntry,
+        zaptec: Zaptec,
+        tracked_devices: set[str] | None = None,
+        name_prefix: str = "",
     ) -> None:
-        """Initialize account-wide Zaptec data updater."""
-        self.zaptec: Zaptec = zaptec
-        self.streams: list[tuple[asyncio.Task, Installation]] = []
-        self.entity_maps: dict[str, dict[str, ZaptecBaseEntity]] = {}
-        self.updateable_objects: set[str] = set()
+        """Initialize the Zaptec manager."""
+        self.hass = hass
+        self.config_entry = entry
+        self.zaptec = zaptec
+        self.tracked_devices = tracked_devices or set()
+        self.name_prefix = name_prefix
+        self.streams = []
 
-        super().__init__(
-            hass,
-            _LOGGER,
-            name=f"{DOMAIN}-{entry.data['username']}",
-            update_interval=timedelta(
-                seconds=entry.data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
-            ),
-            request_refresh_debouncer=Debouncer(
-                hass,
-                _LOGGER,
-                cooldown=REQUEST_REFRESH_DELAY,
-                immediate=False,
-            ),
+    def create_entities_from_descriptions(
+        self,
+        descriptions: Iterable[ZaptecEntityDescription],
+        zaptec_obj: ZaptecBase,
+        device_info: DeviceInfo,
+    ) -> list[ZaptecBaseEntity]:
+        """Factory to create a list of entities from EntityDescription objects."""
+
+        # Start with the common device info and append the provided device info
+        dev_info = DeviceInfo(
+            manufacturer=MANUFACTURER,
+            identifiers={(DOMAIN, zaptec_obj.id)},
+            name=self.name_prefix + zaptec_obj.name,
         )
+        dev_info.update(device_info)
 
-    def register_entity(self, entity: ZaptecBaseEntity) -> None:
-        """Register a new entity."""
-        key = entity.zaptec_obj.id
-        entitymap = self.entity_maps.setdefault(key, {})
-        entitymap[entity.key] = entity
+        entities: list[ZaptecBaseEntity] = []
+        for description in descriptions:
+            # Use provided class if it exists, otherwise use the class this
+            # function was called from
+            cls: type[ZaptecBaseEntity] = description.cls
 
-    def log_entity_map(self) -> None:
-        """Log all registered entities."""
-        _LOGGER.debug("Entity map:")
-        for apiid, entitymap in self.entity_maps.items():
-            zap_obj = self.zaptec.get(apiid)
-            if zap_obj:
-                _LOGGER.debug("    %s  (%s, %s)", apiid, zap_obj.qual_id, zap_obj.name)
+            # NOTE: In later versions, this needs to look up which coordinator
+            # the entity should be registered to.
+            entity = cls(
+                coordinator=self.coordinator,
+                zaptec_object=zaptec_obj,
+                description=copy(description),
+                device_info=dev_info,
+            )
+
+            # Check if the zaptec data for the object is available before
+            # adding it to the list of entities. The caveat is that if the
+            # entity have been added earlier, it will now be listed as
+            # "This entity is no longer being provided by the zaptec integration."
+            updater = getattr(entity, "_update_from_zaptec", lambda: None)
+            try:
+                updater()
+            except Exception:
+                _LOGGER.exception(
+                    "Failed to add entity %s keys %s, skipping entity",
+                    cls.__name__,
+                    description.key,
+                )
+                continue
+
+            entities.append(entity)
+
+        return entities
+
+    def create_entities_from_zaptec(
+        self,
+        installation_descriptions: Iterable[EntityDescription],
+        charger_descriptions: Iterable[EntityDescription],
+    ) -> list[ZaptecBaseEntity]:
+        """Factory to entities from the discovered Zaptec objects.
+
+        Helper factory to populate the listed entities for the detected
+        Zaptec devices. It sets the proper device info on the installation
+        and charger objects in order for them to be grouped in HA.
+        """
+        entities = []
+
+        # Iterate over every zaptec object in the account mapping and add
+        # the listed entities for each object type
+        for obj in self.zaptec.objects():
+            if isinstance(obj, Installation):
+                info = DeviceInfo(model=f"{obj.name} Installation")
+
+                entities.extend(
+                    self.create_entities_from_descriptions(
+                        installation_descriptions,
+                        obj,
+                        info,
+                    )
+                )
+
+            elif isinstance(obj, Charger):
+                info = DeviceInfo(model=f"{obj.name} Charger")
+                if obj.installation:
+                    info["via_device"] = (DOMAIN, obj.installation.id)
+
+                entities.extend(
+                    self.create_entities_from_descriptions(
+                        charger_descriptions,
+                        obj,
+                        info,
+                    )
+                )
+
             else:
-                _LOGGER.debug("    %s", apiid)
-            for entity in sorted(entitymap.values(), key=lambda x: x.key):
-                _LOGGER.debug("        %s  ->  %s", entity.key, entity.entity_id)
+                _LOGGER.error("Unknown zaptec object type: %s", type(obj).__qualname__)
+
+        return entities
 
     def create_streams(self):
         """Create the streams for all installations."""
@@ -260,43 +391,36 @@ class ZaptecUpdateCoordinator(DataUpdateCoordinator[None]):
 
         The zaptec objects are updated in-place prior to this callback being called.
         """
-        self.async_update_listeners()
+        # FIXME: Later implementation will need to figure out which coordinator
+        # to update based on the event payload.
+        self.coordinator.async_update_listeners()
 
-        # FIXME: Seems its needed to poll for updates, however this should
-        # not be called every time a stream update is received. It should
-        # update immediately and then throttle the next updates.
-        #
-        # await self.async_request_refresh()
-
-    async def _first_time_setup(self) -> None:
-        """Run the first time setup for the coordinator."""
+    @staticmethod
+    async def first_time_setup(
+        zaptec: Zaptec, configured_chargers: set[str] | None
+    ) -> set[str]:
+        """Run the first time setup for the account."""
         _LOGGER.debug("Running first time setup")
 
         # Build the Zaptec hierarchy
-        await self.zaptec.build()
+        await zaptec.build()
 
-        # Get the list if chargers to include
-        chargers = None
-        if self.config_entry.data.get(CONF_MANUAL_SELECT, False):
-            chargers = self.config_entry.data.get(CONF_CHARGERS)
-
-        all_objects = set(self.zaptec)
-        self.updateable_objects = all_objects
+        all_objects = set(zaptec)
+        tracked_devices = all_objects
 
         # Selected chargers to add
-        if chargers is not None:
-            _LOGGER.debug("Configured chargers: %s", chargers)
-            want = set(chargers)
+        if configured_chargers is not None:
+            _LOGGER.debug("Configured chargers: %s", configured_chargers)
+            want = set(configured_chargers)
 
             # Log if there are any objects listed not found in Zaptec
-            not_present = want - all_objects
-            if not_present:
+            if not_present := want - all_objects:
                 _LOGGER.error("Charger objects %s not found", not_present)
 
             # Calculate the objects to keep. From the list of chargers we
             # want to keep, we also want to keep the installation objects.
             keep = set()
-            for charger in self.zaptec.chargers:
+            for charger in zaptec.chargers:
                 if charger.id in want:
                     keep.add(charger.id)
                     if charger.installation:
@@ -306,29 +430,50 @@ class ZaptecUpdateCoordinator(DataUpdateCoordinator[None]):
                 _LOGGER.error("No zaptec objects will be added")
 
             # These objects will be updated by the coordinator
-            self.updateable_objects = want
+            tracked_devices = keep
 
-        # Setup the stream subscription
-        self.create_streams()
+        return tracked_devices
+
+
+class ZaptecUpdateCoordinator(DataUpdateCoordinator[None]):
+    """Coordinator for Zaptec data updates."""
+
+    def __init__(
+        self,
+        hass: HomeAssistant,
+        *,
+        entry: ZaptecConfigEntry,
+        manager: ZaptecManager,
+        options: ZaptecUpdateOptions,
+    ) -> None:
+        """Initialize account-wide Zaptec data updater."""
+        self.manager: ZaptecManager = manager
+        self.options: ZaptecUpdateOptions = options
+        self.zaptec: Zaptec = manager.zaptec
+
+        super().__init__(
+            hass,
+            _LOGGER,
+            config_entry=entry,
+            name=f"{DOMAIN}-{entry.data['username']}-{options.name}",
+            update_interval=timedelta(seconds=self.options.update_interval),
+            request_refresh_debouncer=Debouncer(
+                hass,
+                _LOGGER,
+                cooldown=REQUEST_REFRESH_DELAY,
+                immediate=False,
+            ),
+        )
 
     async def _async_update_data(self) -> None:
-        """Fetch data from Zaptec."""
+        """Poll data from Zaptec."""
 
         try:
-            # This timeout is only a safeguard against the API methods locking
-            # up. The API methods themselves have their own timeouts.
-            async with asyncio.timeout(10 * API_TIMEOUT):
-                # Run this only once, when the coordinator is first set up
-                # to fetch the zaptec account data
-                if not self.zaptec.is_built:
-                    await self._first_time_setup()
-
-                # Fetch updates
-                _LOGGER.debug("Polling from Zaptec")
-                await self.zaptec.poll(
-                    self.updateable_objects, state=True, info=True, firmware=True
-                )
-
+            _LOGGER.debug("Polling from Zaptec")
+            await self.zaptec.poll(
+                self.options.tracked_devices,
+                **self.options.poll_args,
+            )
         except ZaptecApiError as err:
             _LOGGER.exception(
                 "Fetching data failed: %s: %s", type(err).__qualname__, err
@@ -372,6 +517,7 @@ class ZaptecUpdateCoordinator(DataUpdateCoordinator[None]):
         # no matter if a task is already running. If they are updating the same
         # object, this can cause too many updates for the same object.
         # A single task per device will be needed.
+
         self.config_entry.async_create_background_task(
             self.hass,
             self._trigger_poll(obj),
@@ -387,6 +533,8 @@ class ZaptecBaseEntity(CoordinatorEntity[ZaptecUpdateCoordinator]):
     entity_description: EntityDescription
     _attr_has_entity_name = True
     _prev_value: Any = MISSING
+    _log_attribute: str | None = None
+    """The attribute to log when the value changes."""
 
     def __init__(
         self,
@@ -414,65 +562,64 @@ class ZaptecBaseEntity(CoordinatorEntity[ZaptecUpdateCoordinator]):
         custom light-weight init in the inheriting class.
         """
 
-    async def async_added_to_hass(self) -> None:
-        """Callback when entity is registered in HA."""
-        await super().async_added_to_hass()
-
-        # Register the entity with the coordinator
-        self.coordinator.register_entity(self)
-
-        # Log the add of the entity
-        _LOGGER.debug(
-            "    Added %s from %s",
-            self.entity_id,
-            self.zaptec_obj.qual_id,
-        )
-
     @callback
     def _handle_coordinator_update(self) -> None:
+        """Update the entity from Zaptec data.
+        
+        If the class have an attribute callback `_update_from_zaptec`, it will
+        be called to update the entity data from the Zaptec data. The method is
+        expected to call `_get_zaptec_value()` to retrieve the value for the
+        entity, which may raise `KeyUnavailableError` if the key is not
+        available. This function will log the value if it changes or becomes
+        unavailable.        
+        """
+        prev_available = self._attr_available
+        update_from_zaptec = getattr(self, "_update_from_zaptec", lambda: None)
         try:
-            self._update_from_zaptec()
-        except Exception as exc:
-            raise HomeAssistantError(f"Error updating entity {self.key}") from exc
+            update_from_zaptec()
+            self._log_value(self._log_attribute)
+        except KeyUnavailableError as exc:
+            self._attr_available = False
+            self._log_unavailable(exc, prev_available)
         super()._handle_coordinator_update()
 
     @callback
-    def _update_from_zaptec(self) -> None:
-        """Update the entity state from the Zaptec object.
-
-        Called when the coordinator has new data. Implement this in the
-        inheriting class to update the entity state.
-        """
-
-    @callback
-    def _get_zaptec_value(self, *, default=MISSING, key=None):
+    def _get_zaptec_value(self, *, default=MISSING, key=None) -> Any:
         """Retrieve a value from the Zaptec object.
 
         Helper to retrieve the value from the Zaptec object. This is to
         be called from _handle_coordinator_update() in the inheriting class.
         It will fetch the attr given by the entity description key.
+
+        Raises:
+            KeyUnavailableError: If key doesn't exist or obj doesn't have
+            `.get()`, which indicates that obj isn't a Mapping-like object
         """
         obj = self.zaptec_obj
         key = key or self.key
         for k in key.split("."):
-            # Also do dict because some object contains sub-dicts
-            if isinstance(obj, (ZaptecBase, dict)):
+            try:
                 obj = obj.get(k, default)
-            else:
-                raise HomeAssistantError(
-                    f"Object {type(obj).__qualname__} is not supported"
-                )
+            except AttributeError:
+                # This means that obj doesn't have `.get()`, which indicates that obj isn't a
+                # a Mapping-like object.
+                raise KeyUnavailableError(
+                    f"Failed to retrieve {key!r} from {self.zaptec_obj.qual_id}. Failed getting {k!r}"
+                ) from None
             if obj is MISSING:
-                raise HomeAssistantError(
-                    f"Zaptec object {self.zaptec_obj.qual_id} does not have key {key}"
+                raise KeyUnavailableError(
+                    f"Failed to retrieve {key!r} from {self.zaptec_obj.qual_id}. Key {k!r} doesn't exist"
                 )
             if obj is default:
                 return obj
         return obj
 
     @callback
-    def _log_value(self, value, force=False):
+    def _log_value(self, attribute: str | None, force=False):
         """Helper to log a new value."""
+        if attribute is None:
+            return
+        value = getattr(self, attribute, MISSING)
         prev = self._prev_value
         if force or value != prev:
             self._prev_value = value
@@ -486,100 +633,33 @@ class ZaptecBaseEntity(CoordinatorEntity[ZaptecUpdateCoordinator]):
             )
 
     @callback
-    def _log_unavailable(self):
+    def _log_unavailable(
+        self, exception: Exception | None = None, prev_available: bool | None = None
+    ):
         """Helper to log when unavailable."""
-        _LOGGER.debug(
-            "    %s  =  UNAVAILABLE   in %s",
-            self.entity_id,
-            self.zaptec_obj.qual_id,
+        prev_available = (
+            prev_available if prev_available is not None else self._attr_available
         )
+        available = self._attr_available
+
+        # Log when the entity becomes unavailable
+        if not available:
+            exc_text = f"   (Error: {exception})" if exception else ""
+            _LOGGER.debug(
+                "    %s  =  UNAVAILABLE   in %s%s",
+                self.entity_id,
+                self.zaptec_obj.qual_id,
+                exc_text,
+            )
+
+        # Dump the traceback only once when the error occurs
+        if exception is not None and prev_available and not available:
+            _LOGGER.error("Getting value failed", exc_info=exception)
 
     @property
     def key(self):
         """Helper to retrieve the key from the entity description."""
         return self.entity_description.key
-
-    @classmethod
-    def create_from_descriptions(
-        cls,
-        descriptions: Iterable[EntityDescription],
-        coordinator: ZaptecUpdateCoordinator,
-        zaptec_obj: ZaptecBase,
-        device_info: DeviceInfo,
-    ) -> list[ZaptecBaseEntity]:
-        """Factory to create a list of entities from EntityDescription objects."""
-
-        # Calculate the prefix to use for the entity name
-        prefix = coordinator.config_entry.data.get(CONF_PREFIX, "").rstrip()
-        if prefix:
-            prefix = prefix + " "
-
-        # Start with the common device info and append the provided device info
-        dev_info = DeviceInfo(
-            manufacturer=MANUFACTURER,
-            identifiers={(DOMAIN, zaptec_obj.id)},
-            name=prefix + zaptec_obj.name,
-        )
-        dev_info.update(device_info)
-
-        entities: list[ZaptecBaseEntity] = []
-        for description in descriptions:
-            # Use provided class if it exists, otherwise use the class this
-            # function was called from
-            klass: type[ZaptecBaseEntity] = getattr(description, "cls", cls) or cls
-            entity = klass(coordinator, zaptec_obj, copy(description), dev_info)
-            entities.append(entity)
-
-        return entities
-
-    @classmethod
-    def create_from_zaptec(
-        cls,
-        coordinator: ZaptecUpdateCoordinator,
-        installation_descriptions: Iterable[EntityDescription],
-        charger_descriptions: Iterable[EntityDescription],
-    ) -> list[ZaptecBaseEntity]:
-        """Factory to entities from the discovered Zaptec objects.
-
-        Helper factory to populate the listed entities for the detected
-        Zaptec devices. It sets the proper device info on the installation
-        and charger objects in order for them to be grouped in HA.
-        """
-        entities = []
-
-        # Iterate over every zaptec object in the account mapping and add
-        # the listed entities for each object type
-        for obj in coordinator.zaptec.objects():
-            if isinstance(obj, Installation):
-                info = DeviceInfo(model=f"{obj.name} Installation")
-
-                entities.extend(
-                    cls.create_from_descriptions(
-                        installation_descriptions,
-                        coordinator,
-                        obj,
-                        info,
-                    )
-                )
-
-            elif isinstance(obj, Charger):
-                info = DeviceInfo(model=f"{obj.name} Charger")
-                if obj.installation:
-                    info["via_device"] = (DOMAIN, obj.installation.id)
-
-                entities.extend(
-                    cls.create_from_descriptions(
-                        charger_descriptions,
-                        coordinator,
-                        obj,
-                        info,
-                    )
-                )
-
-            else:
-                _LOGGER.error("Unknown zaptec object type: %s", type(obj).__qualname__)
-
-        return entities
 
     async def trigger_poll(self) -> None:
         """Trigger a poll for this entity."""

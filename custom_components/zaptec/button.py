@@ -7,15 +7,13 @@ import logging
 
 from homeassistant import const
 from homeassistant.components.button import ButtonEntity, ButtonEntityDescription
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity import EntityDescription
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from . import ZaptecBaseEntity, ZaptecUpdateCoordinator
+from . import ZaptecBaseEntity, ZaptecConfigEntry
 from .api import Charger
-from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -50,7 +48,7 @@ class ZaptecButton(ZaptecBaseEntity, ButtonEntity):
 class ZapButtonEntityDescription(ButtonEntityDescription):
     """Class describing Zaptec button entities."""
 
-    cls: type | None = None
+    cls: type[ButtonEntity]
 
 
 INSTALLATION_ENTITIES: list[EntityDescription] = []
@@ -60,47 +58,50 @@ CHARGER_ENTITIES: list[EntityDescription] = [
         key="resume_charging",
         translation_key="resume_charging",
         icon="mdi:play-circle-outline",
+        cls=ZaptecButton,
     ),
     ZapButtonEntityDescription(
         key="stop_charging_final",
         translation_key="stop_charging",
         icon="mdi:pause-circle-outline",
+        cls=ZaptecButton,
     ),
     ZapButtonEntityDescription(
         key="authorize_charge",
         translation_key="authorize_charge",
         icon="mdi:lock-check-outline",
+        cls=ZaptecButton,
     ),
     ZapButtonEntityDescription(
         key="deauthorize_and_stop",
         translation_key="deauthorize_and_stop",
         icon="mdi:lock-remove-outline",
+        cls=ZaptecButton,
     ),
     ZapButtonEntityDescription(
         key="restart_charger",
         translation_key="restart_charger",
         entity_category=const.EntityCategory.DIAGNOSTIC,
         icon="mdi:restart",
+        cls=ZaptecButton,
     ),
     ZapButtonEntityDescription(
         key="upgrade_firmware",
         translation_key="upgrade_firmware",
         entity_category=const.EntityCategory.DIAGNOSTIC,
         icon="mdi:memory",
+        cls=ZaptecButton,
     ),
 ]
 
 
 async def async_setup_entry(
-    hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
+    hass: HomeAssistant,
+    entry: ZaptecConfigEntry,
+    async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up the Zaptec buttons."""
-    _LOGGER.debug("Setup buttons")
-
-    coordinator: ZaptecUpdateCoordinator = hass.data[DOMAIN][entry.entry_id]
-
-    entities = ZaptecButton.create_from_zaptec(
-        coordinator,
+    entities = entry.runtime_data.create_entities_from_zaptec(
         INSTALLATION_ENTITIES,
         CHARGER_ENTITIES,
     )
