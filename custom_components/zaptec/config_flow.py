@@ -12,7 +12,7 @@ from homeassistant.config_entries import (
     ConfigFlow,
     ConfigFlowResult,
 )
-from homeassistant.const import CONF_PASSWORD, CONF_SCAN_INTERVAL, CONF_USERNAME
+from homeassistant.const import CONF_PASSWORD, CONF_USERNAME
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.selector import (
@@ -30,13 +30,7 @@ from .api import (
     RequestTimeoutError,
     Zaptec,
 )
-from .const import (
-    CONF_CHARGERS,
-    CONF_MANUAL_SELECT,
-    CONF_PREFIX,
-    DEFAULT_SCAN_INTERVAL,
-    DOMAIN,
-)
+from .const import CONF_CHARGERS, CONF_MANUAL_SELECT, CONF_PREFIX, DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -184,9 +178,6 @@ class ZaptecFlowHandler(ConfigFlow, domain=DOMAIN):
                     ),
                 ),
                 vol.Optional(CONF_PREFIX): str,
-                vol.Optional(
-                    CONF_SCAN_INTERVAL, default=DEFAULT_SCAN_INTERVAL
-                ): vol.Coerce(int),
                 vol.Optional(CONF_MANUAL_SELECT): bool,
             }
         )

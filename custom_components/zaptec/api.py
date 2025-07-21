@@ -32,7 +32,7 @@ from .const import (
 )
 from .misc import mc_nbfx_decoder, to_under
 from .validate import validate
-from .zconst import ZConst, CommandType
+from .zconst import CommandType, ZConst
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -303,9 +303,7 @@ class Installation(ZaptecBase):
 
     async def poll_firmware_info(self):
         """Update the installation firmware info."""
-        _LOGGER.debug(
-            "Poll firmware info from %s (%s)", self.qual_id, self.get("Name")
-        )
+        _LOGGER.debug("Poll firmware info from %s (%s)", self.qual_id, self.get("Name"))
 
         try:
             firmware_info = await self.zaptec.request(
@@ -439,7 +437,7 @@ class Installation(ZaptecBase):
                             _LOGGER.debug("---   Subscription: %s", json_log)
 
                             # Send result to the stream update method.
-                            self.stream_update(json_result)
+                            self.stream_update(json_result.copy())
 
                             # Execute the callback.
                             if cb:
@@ -772,6 +770,10 @@ class Charger(ZaptecBase):
         )
         return result
 
+    def is_charging(self) -> bool:
+        """Check if the charger is charging."""
+        return self.get("ChargerOperationMode") == "Charging"
+
 
 class Zaptec(Mapping[str, ZaptecBase]):
     """This class represent a Zaptec account."""
@@ -1088,7 +1090,7 @@ class Zaptec(Mapping[str, ZaptecBase]):
                     kwargs["headers"]["Authorization"] = f"Bearer {self._access_token}"
                     continue  # Retry request
 
-                elif response.status == 204:  # No content
+                elif response.status in (201, 204):  # Created, no content
                     content = await response.read()
                     return content
 

@@ -118,7 +118,6 @@ SEND_COMMAND_SCHEMA = vol.Schema(
 
 async def async_setup_services(hass: HomeAssistant, manager: ZaptecManager) -> None:
     """Set up services for zaptec."""
-    _LOGGER.debug("Set up services")
 
     def get_as_set(service_call: ServiceCall, key: str) -> set[str]:
         data = service_call.data.get(key, [])
