@@ -32,7 +32,7 @@
     },
     "entity": {
         "sensor": {
-            "authentication_type": { 
+            "authentication_type": {
                 "name": "Authentication type",
                 "state": {
                     "Native": "Native",
@@ -67,7 +67,7 @@
             "humidity": { "name": "Humidity" },
             "installation_type": { "name": "Installation type" },
             "max_current": { "name": "Max current" },
-            "network_type": { 
+            "network_type": {
                 "name": "Network type",
                 "state": {
                     "Unknown": "Unknown",

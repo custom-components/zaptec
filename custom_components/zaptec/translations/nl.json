@@ -32,7 +32,7 @@
     },
     "entity": {
         "sensor": {
-            "authentication_type": { 
+            "authentication_type": {
                 "name": "Authenticatie type",
                 "state": {
                     "Native": "Handmatig",
@@ -67,7 +67,7 @@
             "humidity": { "name": "Vochtigheid" },
             "installation_type": { "name": "Installatie type" },
             "max_current": { "name": "Max stroom per fase" },
-            "network_type": { 
+            "network_type": {
                 "name": "Netwerk type",
                 "state": {
                     "Unknown": "Onbekend",
