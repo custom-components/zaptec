@@ -667,6 +667,12 @@ class ZaptecBaseEntity(CoordinatorEntity[ZaptecUpdateCoordinator]):
         self._attr_unique_id = f"{zaptec_object.id}_{description.key}"
         self._attr_device_info = device_info
 
+        # Set the zaptec attribute for logging. Inheriting classes can override
+        # this to change the default behavior. None means that the entity
+        # doesn't use any attributes from Zaptec.
+        if not hasattr(self, "_log_zaptec_key"):
+            self._log_zaptec_key = description.key
+
         # Call this last if the inheriting class needs to do some addition
         # initialization
         self._post_init()
@@ -729,6 +735,18 @@ class ZaptecBaseEntity(CoordinatorEntity[ZaptecUpdateCoordinator]):
             if obj is default:
                 return obj
         return obj
+    
+    @property
+    def _log_zaptec_attribute(self) -> str:
+        """Get the zaptec attribute name for logging."""
+        v = self._log_zaptec_key
+        if v is None:
+            return ''
+        if isinstance(v, str):
+            return f'.{v}'
+        if isinstance(v, Iterable):
+            return '.' + ' and .'.join(v)
+        return f'.{v}'
 
     @callback
     def _log_value(self, attribute: str | None, force=False):
@@ -737,15 +755,17 @@ class ZaptecBaseEntity(CoordinatorEntity[ZaptecUpdateCoordinator]):
             return
         value = getattr(self, attribute, MISSING)
         prev = self._prev_value
+
+        # Only logs when the value changes
         if force or value != prev:
             self._prev_value = value
-            # Only logs when the value changes
             _LOGGER.debug(
-                "    %s  =  <%s> %s   from %s",
+                "    %s  =  %s <%s>   from %s%s",
                 self.entity_id,
+                repr(value),
                 type(value).__qualname__,
-                value,
                 self.zaptec_obj.qual_id,
+                self._log_zaptec_attribute,
             )
 
     @callback
@@ -759,18 +779,19 @@ class ZaptecBaseEntity(CoordinatorEntity[ZaptecUpdateCoordinator]):
         available = self._attr_available
 
         # Log when the entity becomes unavailable
-        if not available:
-            exc_text = f"   (Error: {exception})" if exception else ""
+        if prev_available and not available:
             _LOGGER.debug(
-                "    %s  =  UNAVAILABLE   in %s%s",
+                "    %s  =  UNAVAILABLE   from %s%s%s",
                 self.entity_id,
                 self.zaptec_obj.qual_id,
-                exc_text,
+                self._log_zaptec_attribute,
+                f"   (Error: {exception})" if exception else "",
             )
 
-        # Dump the traceback only once when the error occurs
-        if exception is not None and prev_available and not available:
-            _LOGGER.error("Getting value failed", exc_info=exception)
+            # Dump the exception if present - not interested in KeyUnavailableError
+            # since the TB is expected when the key is not available.
+            if exception is not None and not isinstance(exception, KeyUnavailableError):
+                _LOGGER.error("Getting value failed", exc_info=exception)
 
     @property
     def key(self):
