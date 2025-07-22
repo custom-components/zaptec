@@ -573,7 +573,8 @@ class ZaptecUpdateCoordinator(DataUpdateCoordinator[None]):
         """Poll data from Zaptec."""
 
         try:
-            _LOGGER.debug(">>> Polling %s from Zaptec", self.options.name)
+            name = self.zaptec.qual_id(self.options.name)
+            _LOGGER.debug(">>> Polling %s from Zaptec", name)
             await self.zaptec.poll(
                 self.options.tracked_devices,
                 **self.options.poll_args,

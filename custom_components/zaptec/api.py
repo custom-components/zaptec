@@ -36,14 +36,13 @@ from .zconst import CommandType, ZConst
 
 _LOGGER = logging.getLogger(__name__)
 
-# Set to True to debug log all API calls
-DEBUG_API_CALLS = False
+# API debug flags
+# FIXME: For the v0.8b1 beta version, leaving this on for debugging.
+#        Remove before final release.
+DEBUG_API_CALLS = True
 DEBUG_API_DATA = False
-
-# Set to True to debug log all API errors
-# Setting this to False because the error messages are very verbose and will
-# flood the log in Home Assistant.
-DEBUG_API_ERRORS = False
+DEBUG_API_EXCEPTIONS = False
+DEBUG_STREAM_DATA = True
 
 # Global var for the API constants from Zaptec
 ZCONST: ZConst = ZConst()
@@ -352,6 +351,22 @@ class Installation(ZaptecBase):
         )
         return self._stream_task
 
+    def _stream_log(self, data: dict[str, Any]) -> None:
+        """Log a stream message."""
+        if not DEBUG_API_CALLS:
+            return
+        if isinstance(data, dict):
+            if "StateId" in data:
+                data["StateId"] = (
+                    f"{data['StateId']} ({ZCONST.observations.get(data['StateId'])})"
+                )
+            if "ChargerId" in data:
+                data["ChargerId"] = self.zaptec.qual_id(data["ChargerId"])
+            # Silenty delete these from logging. They are never used
+            data.pop("DeviceId", None)
+            data.pop("DeviceType", None)
+        _LOGGER.debug("@@@  EVENT %s", data)
+
     async def stream_main(self, cb=None, ssl_context=None):
         """Main stream handler."""
         try:
@@ -429,12 +444,8 @@ class Installation(ZaptecBase):
                             # Convert the json payload
                             json_result = json.loads(obj[0]["text"])
 
-                            json_log = json_result.copy()
-                            if "StateId" in json_log:
-                                json_log["StateId"] = (
-                                    f"{json_log['StateId']} ({ZCONST.observations.get(json_log['StateId'])})"
-                                )
-                            _LOGGER.debug("---   Subscription: %s", json_log)
+                            # Log the message
+                            self._stream_log(json_result.copy())
 
                             # Send result to the stream update method.
                             self.stream_update(json_result.copy())
@@ -866,6 +877,16 @@ class Zaptec(Mapping[str, ZaptecBase]):
         """Return a list of all chargers."""
         return [v for v in self._map.values() if isinstance(v, Charger)]
 
+    def qual_id(self, id: str) -> str:
+        """Get the qualified id of an object.
+        
+        If the object is not found, return the id as is.
+        """
+        obj = self._map.get(id)
+        if obj is None:
+            return id
+        return obj.qual_id
+
     # =======================================================================
     #   REQUEST METHODS
 
@@ -946,11 +967,11 @@ class Zaptec(Mapping[str, ZaptecBase]):
                         # Prepare the exception handler
                         def log_exc(exc: Exception) -> Exception:
                             """Log the exception and return it."""
-                            if DEBUG_API_ERRORS:
+                            if DEBUG_API_EXCEPTIONS:
                                 if not DEBUG_API_CALLS:
                                     for msg in log_req + log_resp:
                                         _LOGGER.debug(msg)
-                                _LOGGER.error(exc)
+                                _LOGGER.error(str(exc), exc_info=exc)
                             return exc
 
                         # Let the caller handle the response. If the caller
@@ -969,19 +990,19 @@ class Zaptec(Mapping[str, ZaptecBase]):
                 sleep_delay = delay - time.perf_counter() + start_time
                 if sleep_delay > 0:
                     if DEBUG_API_CALLS:
-                        _LOGGER.debug("Sleeping for %1.1f seconds", sleep_delay)
+                        _LOGGER.debug("@@@  SLEEP for %.2f seconds", sleep_delay)
                     await asyncio.sleep(delay)
 
             # Exceptions that can be retried
             except (asyncio.TimeoutError, aiohttp.ClientConnectionError) as err:
                 error = err  # Capture tha last error
-                if DEBUG_API_ERRORS:
+                if DEBUG_API_EXCEPTIONS:
                     _LOGGER.error(
-                        "Request to %s failed (attempt %s): %s: %s",
+                        "Request to %s failed (attempt %s): %s",
                         url,
                         iteration,
                         type(err).__qualname__,
-                        err,
+                        exc_info=err,
                     )
 
         # Arriving after retrying too many times.
