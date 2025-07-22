@@ -42,6 +42,12 @@ class ZaptecChargeSwitch(ZaptecSwitch):
     zaptec_obj: Charger
     _log_attribute = "_attr_is_on"
 
+    @property
+    def available(self) -> bool:
+        """Return True if entity is available."""
+        command = "stop_charging_final" if self._attr_is_on else "resume_charging"
+        return super().available and self.zaptec_obj.is_command_valid(command)
+
     @callback
     def _update_from_zaptec(self) -> None:
         """Update the entity from Zaptec data."""
