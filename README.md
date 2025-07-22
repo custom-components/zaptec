@@ -1,14 +1,5 @@
 ## Zaptec EV charger component for Home Assistant
 
-> [!IMPORTANT]
-> Zaptec have reached out to this project kindly requested that we change the back-end API towards Zaptec cloud. We are using
-> undocumented API calls which are not permitted according to their [API fair use policy](https://docs.zaptec.com/docs/api-fair-use-policy#/)
->
-> We are in urgent need of contributors that can work on improving the API to become compliant with the policy.
-> See more [here](https://github.com/custom-components/zaptec/issues/176)
-
----
-
 [![hacs][hacsbadge]][hacs]
 [![GitHub Release][releases-shield]][releases]
 [![License][license-shield]][license]
@@ -16,9 +7,9 @@
 
 [![Project Maintenance][hellowlol-maintenance-shield]][hellowlol-profile]
 [![BuyMeCoffee][buymecoffeebadge]][hellowlol-buymecoffee]
-
 [![Project Maintenance][sveinse-maintenance-shield]][sveinse-profile]
 [![BuyMeCoffee][buymecoffeebadge]][sveinse-buymecoffee]
+
 
 # Features
 
@@ -30,13 +21,7 @@
 * Adjustable charging currents, all or individual three phase
 
 To use this component, a user with access to
-[Zaptec Portal](https://portal.zaptec.com/) is needed.
-
-## Compatibility
-
->  [!CAUTION]
->  If you are upgrading from old version <0.7.0 this version will
->  break your current automations.
+[Zaptec Portal](https://portal.zaptec.com/) is required.
 
 Confirmed to work with Zaptec products
 
@@ -44,9 +29,53 @@ Confirmed to work with Zaptec products
 * Zaptec Home
 * Zaptec PRO
 
-> [!NOTE]
-> Please reach out if you have been able to make this
-> component work with other Zaptec chargers.
+
+# Version 0.8 ⭐
+
+> [!IMPORTANT]
+> This is a pre-release version and it might not be as stable as a production
+> release. **We need your input on testing this release.** If you find any issues,
+> please file them at: https://github.com/custom-components/zaptec/issues
+
+The v0.8 is a major release. The integration has been completely redesigned
+and may impact your existing automations.
+
+This update fully adheres to the
+[Zaptec API Fair Use policy](https://docs.zaptec.com/docs/api-fair-use-policy#/),
+which was a primary objective for this release. The mechanism for synchronizing
+HA entities with the Zaptec portal has been rebuilt:
+
+* Chargers are polled every 10 minute in idle, while every minute when charging
+* General device information is polled every hour
+* Firmware version updates are polled once per day
+
+This significantly reduce the number of requests to Zaptec. The release fixes
+the issues with getting "429 Too many request", especially on larger
+installations.
+
+## Feature highlight
+
+* New system for polling and updating information in HA (see #202)
+* Implemented request rate limiter to avoid "429 Too many requests"
+* Automatic polling from Zaptec after any button or value changes from HA
+  to update the UI quickly
+* Change charger settings to official settings API
+* Prevent sending pause/resume when not in the correct charging mode
+* Remove the Charger device and entity from HA
+* Support for reconfiguring the integration
+* Many internal changes and cleanups to classes and methods
+
+## Breaking changes
+
+* `permanent_cable_lock` have changed from "lock" type to "switch" type. Your
+  automation will need to be updated.
+* There is no support for configuring Zaptec by YAML, only using the UI
+* The user setting poll/scan interval have been removed, in favor of the
+  improved polling system
+* The "Circuit" device and entity, notably "Max Current", have been removed
+* The Zaptec API classes have changed considerable. This should only affect the
+  developers.
+
 
 # Installation and setup
 
@@ -73,9 +102,6 @@ Next the **Zaptec setup** dialog is presented. Fill in the form:
 - **Optional prefix** specifies if a prefix on all entities are wanted. Leave
   this blank unless there is a specific need for it. Its generally better to
   rename entities in HA than using this feature.
-- **Scan interval** indicates how many seconds between the cloud is polled for
-  new data. Zaptec has rate limiting, so putting a too low value might cause
-  problems. Default value is fine.
 - **Manually select chargers** will allow you to select which chargers that
   should be included into HA. This is useful for large installation that have
   many chargers. When selected a new dialog asking for which chargers to add
@@ -97,14 +123,11 @@ Continue as described above in [setting up Zaptec](#setting-up-zaptec)
 # Usage
 
 > [!NOTE]
-> This integration use the
-[official Web API](https://api.zaptec.com/help/index.html) provided by Zaptec.
-However, this integration also use a few functions that are not officially
-supported by the API. Use at own risk and they might break at any time.
+> This integration use the [official Web API](https://api.zaptec.com/help/index.html)
+> provided by Zaptec. However, this integration also use a few functions that
+> are not officially supported by the API. Use at own risk and they might break
+> at any time.
 >
->  * Setting authorization required
->  * Circuit info
->  * Setting charger min and max current
 >  * Authorize charging
 >  * Setting cable lock
 >  * Setting status light brightness
@@ -144,8 +167,9 @@ Similarly, pausing the charging can be done by:
 - Turn off the _"Charging"_ switch, or
 - Send `zaptec.stop_pause_charging` service call
 
-**:information_source: NOTE:** Zaptec will unlocks the cable when charging
-is paused unless it is permanently locked.
+> [!TIP]
+> Zaptec will unlock the cable when charging is paused unless it is permanently
+> locked.
 
 
 ## Prevent charging auto start
@@ -162,9 +186,9 @@ of the following will prevent auto start:
    * _"Available current"_ in the installation object
    * _"Charger max current"_ in the charger object
 
-**:information_source: NOTE!** The _"Available current"_ is the official
-way to control the charge current. However, it will affect __all__ chargers
-connected to the installation.
+> [!TIP]
+> Using _"Available current" will affect __all__ chargers if there are more
+> than one charger.
 
 
 ## Setting charging current
@@ -173,13 +197,14 @@ The _"Available current"_ number entity in the installation device will set
 the maximum current the EV can use. This slider will set all 3 phases at
 the same time.
 
-**:information_source: NOTE!** This entity is adjusting the available current
-for the entire installation. If the installation has several chargers installed,
-changing this value will affect all.
+> [!NOTE]
+> This entity is adjusting the available current for the entire installation.
+> If the installation has several chargers installed, changing this value will
+> affect all.
 
-**:information_source: NOTE!** Many EVs doesn't like getting too frequent
-changes to the available charge current. Zaptec recommends not changing the
-values more often than 15 minutes.
+> [!IMPORTANT]
+> Many EVs doesn't like getting too frequent changes to the available charge
+> current. Zaptec recommends not changing the values more often than 15 minutes.
 
 
 #### 3 phase current adjustment
@@ -206,12 +231,13 @@ to authorize charging from Home Assistant using the _"Authorize charging"_
 button. It stays authorized until either the cable is removed or the button
 _"Deauthorize charging"_ is pressed.
 
-**:information_source: INFO:** Please note that Zaptec unlocks the cable when
-charging is paused unless it is permanently locked.
+> [!TIP]
+> Zaptec unlocks the cable when charging is paused unless it is permanently
+> locked.
 
-**:information_source: INFO:** Charge authorization from HA only works when the
-installation is set with *Authentication Type* set to **Native authentication**
-in Zaptec portal.
+> [!NOTE]
+> Charge authorization from HA only works when the installation is set with
+> *Authentication Type* set to **Native authentication** in Zaptec portal.
 
 
 ## Templates
@@ -269,13 +295,15 @@ logger:
     custom_components.zaptec: debug
 ```
 
-**:warning: IMPORTANT!** The debug logs will contain identifiable information
-about your Zaptec setup such as login and password. Do not share logs without
-filtering them.
+> [!WARNING]
+> The debug logs will contain identifiable information
+> about your Zaptec setup such as login and password. Do not share logs without
+> filtering them.
 
-**:information_source: NOTE!** The Zaptec integration logs massive amounts in
-debug. This is nice for finding errors, but it will generate large amount of
-data if left enabled for long. Do not use in production setups.
+> [!NOTE]
+> The Zaptec integration logs massive amounts in
+> debug. This is nice for finding errors, but it will generate large amount of
+> data if left enabled for long. Do not use in production setups.
 
 ## Using the integration
 
@@ -309,7 +337,8 @@ that's used to enter the house.
 
 ## Changes from older versions <0.7.0
 
-> **:warning: This release will BREAK your current automations**
+> [!CAUTION]
+> **This release will BREAK your current automations**
 
 The Zaptec integration has been completely refactored. The way to interact
 with you Zaptec charger from Home Assistant has been changed. The Zaptec data

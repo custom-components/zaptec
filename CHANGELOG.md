@@ -1,7 +1,9 @@
 # Changelog
 
-## (in development)
+## 0.8b1
 
+* Implemented differential poll intervals which significantly reduce
+  polling, #208
 * Change permanent_cable_lock from lock to switch, #207
 * Refactor Zaptec integration for prepping to adopt to API policy, #203
 * Refactor Zaptec integration to improve polling and command handling, #201
@@ -12,7 +14,7 @@
 * Support for reconfigure and accompanying improvements, #191
 * Formatting update in accordance to HA style settings, #194
 * Remove internal circuits api calls, #186
-* Throttle Zaptec Cloud requests to avoid hitting rate limits, #190
+* Throttle Zaptec Cloud requests to avoid hitting rate limits, #190 and #193
 * Do not send Pause/Resume to API if we know it will be rejected, #187
 * Remove internal settings api calls, #183
 
