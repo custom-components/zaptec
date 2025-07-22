@@ -27,6 +27,8 @@ class ZaptecUpdate(ZaptecBaseEntity, UpdateEntity):
 
     # What to log on entity update
     _log_attribute = "_attr_installed_version"
+    # This entity use several attributes from Zaptec
+    _log_zaptec_key = ["firmware_current_version", "firmware_available_version"]
     zaptec_obj: Charger
 
     @callback
