@@ -171,7 +171,7 @@ class ZaptecBase(Mapping[str, TValue]):
             new_vt = type(new_v).__qualname__
             if new_key not in self._attrs:
                 _LOGGER.debug(
-                    ">>>     Adding %s.%s (%s)  =  <%s> %s",
+                    ">>>  Adding %s.%s (%s)  =  <%s> %s",
                     self.qual_id,
                     new_key,
                     k,
@@ -180,7 +180,7 @@ class ZaptecBase(Mapping[str, TValue]):
                 )
             elif self._attrs[new_key] != new_v:
                 _LOGGER.debug(
-                    ">>>     Updating %s.%s (%s)  =  <%s> %s  (was %s)",
+                    ">>>  Updating %s.%s (%s)  =  <%s> %s  (was %s)",
                     self.qual_id,
                     new_key,
                     k,
@@ -879,7 +879,7 @@ class Zaptec(Mapping[str, ZaptecBase]):
 
     def qual_id(self, id: str) -> str:
         """Get the qualified id of an object.
-        
+
         If the object is not found, return the id as is.
         """
         obj = self._map.get(id)
@@ -903,7 +903,11 @@ class Zaptec(Mapping[str, ZaptecBase]):
             if not DEBUG_API_DATA:
                 return
             if "headers" in kwargs:
-                yield f"     headers {dict((k, v) for k, v in kwargs['headers'].items())}"
+                headers = kwargs["headers"].copy()
+                # Remove the Authorization header from the log
+                if "Authorization" in headers:
+                    headers["Authorization"] = "<Removed for security>"
+                yield f"     headers {dict((k, v) for k, v in headers.items())}"
             if "data" in kwargs:
                 yield f"     data '{kwargs['data']}'"
             if "json" in kwargs:
@@ -1142,6 +1146,13 @@ class Zaptec(Mapping[str, ZaptecBase]):
                 if response.status == 500:  # Internal server error
                     # Zaptec cloud often delivers this error code.
                     log_exc(error)  # Error is not raised, this for logging
+                    if DEBUG_API_CALLS:
+                        # There are additional details in the response that Zaptec
+                        # provides on 500. Let's log it.
+                        text = await response.text()
+                        if len(text) > 60:
+                            text = text[:60] + "..."
+                        _LOGGER.debug(f"     PAYLOAD %s", repr(text))
                     continue  # Retry request
 
                 # All other error codes will be raised

@@ -70,6 +70,7 @@ PLATFORMS = [
 ]
 
 
+
 class KeyUnavailableError(Exception):
     """Exception raised when a key is not available in the Zaptec object."""
 
@@ -574,7 +575,7 @@ class ZaptecUpdateCoordinator(DataUpdateCoordinator[None]):
 
         try:
             name = self.zaptec.qual_id(self.options.name)
-            _LOGGER.debug(">>> Polling %s from Zaptec", name)
+            _LOGGER.debug("--- Polling %s from Zaptec", name)
             await self.zaptec.poll(
                 self.options.tracked_devices,
                 **self.options.poll_args,
@@ -735,18 +736,18 @@ class ZaptecBaseEntity(CoordinatorEntity[ZaptecUpdateCoordinator]):
             if obj is default:
                 return obj
         return obj
-    
+
     @property
     def _log_zaptec_attribute(self) -> str:
         """Get the zaptec attribute name for logging."""
         v = self._log_zaptec_key
         if v is None:
-            return ''
+            return ""
         if isinstance(v, str):
-            return f'.{v}'
+            return f".{v}"
         if isinstance(v, Iterable):
-            return '.' + ' and .'.join(v)
-        return f'.{v}'
+            return "." + " and .".join(v)
+        return f".{v}"
 
     @callback
     def _log_value(self, attribute: str | None, force=False):
