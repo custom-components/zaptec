@@ -103,6 +103,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     _LOGGER.debug("Setting up entry %s: %s", entry.entry_id, redacted_data)
 
+    # Remove deprecated entities where we need to reuse the entity_ids
+    remove_deprecated_entities(hass, entry)
+
     configured_chargers = None
     if entry.data.get(CONF_MANUAL_SELECT, False):
         configured_chargers = entry.data.get(CONF_CHARGERS)
@@ -257,6 +260,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 device_registry.async_remove_device(dev.id)
 
     return True
+
+
+def remove_deprecated_entities(hass: HomeAssistant, entry: ZaptecConfigEntry) -> None:
+    """Remove deprecated entites from the entity_registry"""
+
+    entity_registry = er.async_get(hass)
+    zaptec_entity_list = [(entity_id, entity) for entity_id, entity in list(entity_registry.entities.items()) if entity.config_entry_id == entry.entry_id]
+    for entity_id, entity in zaptec_entity_list:
+        if entity.translation_key == 'operating_mode':
+            _LOGGER.warning("Removing deprecated entity: %s", entity_id)
+            entity_registry.async_remove(entity_id)
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ZaptecConfigEntry) -> bool:
