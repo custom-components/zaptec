@@ -140,8 +140,8 @@ INSTALLATION_ENTITIES: list[EntityDescription] = [
 
 CHARGER_ENTITIES: list[EntityDescription] = [
     ZapSensorEntityDescription(
-        key="operating_mode",
-        translation_key="operating_mode",
+        key="charger_operation_mode",
+        translation_key="charger_operation_mode",
         device_class=SensorDeviceClass.ENUM,
         options=[x[0] for x in ZaptecChargeSensor.CHARGE_MODE_MAP.values()],
         icon="mdi:ev-station",

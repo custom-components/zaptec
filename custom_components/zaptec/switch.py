@@ -134,8 +134,8 @@ INSTALLATION_ENTITIES: list[EntityDescription] = []
 
 CHARGER_ENTITIES: list[EntityDescription] = [
     ZapSwitchEntityDescription(
-        key="operating_mode",
-        translation_key="operating_mode",
+        key="charger_operation_mode",
+        translation_key="charger_operation_mode",
         device_class=SwitchDeviceClass.SWITCH,
         cls=ZaptecChargeSwitch,
     ),

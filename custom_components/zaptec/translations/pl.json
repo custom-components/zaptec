@@ -45,13 +45,13 @@
             "available_current_phase3": { "name": "Dostępny prąd fazy 3" },
             "charge_current_set": { "name": "Przydzielony prąd ładowania" },
             "charger_operation_mode": {
-                "name": "Tryb pracy ładowarki",
+                "name": "Tryb ładowarki",
                 "state": {
                     "Unknown": "Nieznany",
                     "Disconnected": "Odłączony",
-                    "Connected_Requesting": "Podłączony (Żądanie)",
+                    "Connected_Requesting": "Oczekiwanie",
                     "Connected_Charging": "Ładowanie",
-                    "Connected_Finished": "Zakończone"
+                    "Connected_Finished": "Ładowanie zakończone"
                 }
             },
             "completed_session_energy": { "name": "Zużycie energii w zakończonej sesji" },
@@ -75,16 +75,6 @@
                     "IT_3_Phase": "IT 3 Fazowy",
                     "TN_1_Phase": "TN 1 Faza",
                     "TN_3_Phase": "TN 3 Fazowy"
-                }
-            },
-            "operating_mode": {
-                "name": "Tryb ładowarki",
-                "state": {
-                    "Unknown": "Nieznany",
-                    "Disconnected": "Odłączony",
-                    "Waiting": "Oczekiwanie",
-                    "Charging": "Ładowanie",
-                    "Charge done": "Ładowanie zakończone"
                 }
             },
             "signed_meter_value": { "name": "Licznik energii" },
@@ -121,7 +111,7 @@
         },
         "switch": {
             "authorization_required": { "name": "Wymagane uprawnienia" },
-            "operating_mode": { "name": "Ładowanie" },
+            "charger_operation_mode": { "name": "Ładowanie" },
             "permanent_cable_lock": { "name": "Stała blokada kabla" }
         },
         "update": {

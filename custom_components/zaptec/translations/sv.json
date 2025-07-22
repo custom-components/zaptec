@@ -45,13 +45,13 @@
             "available_current_phase3": { "name": "Tillgänglig ström fas 3" },
             "charge_current_set": { "name": "Tilldelad laddström" },
             "charger_operation_mode": {
-                "name": "Laddarens driftläge",
+                "name": "Laddstatus",
                 "state": {
                     "Unknown": "Okänt",
                     "Disconnected": "Frånkopplad",
-                    "Connected_Requesting": "Ansluten (Begärande)",
+                    "Connected_Requesting": "Väntar",
                     "Connected_Charging": "Laddar",
-                    "Connected_Finished": "Laddat klart"
+                    "Connected_Finished": "Laddning klar"
                 }
             },
             "completed_session_energy": { "name": "Energiförbrukning denna laddningen" },
@@ -75,16 +75,6 @@
                     "IT_3_Phase": "IT 3 Fas",
                     "TN_1_Phase": "TN 1 Fas",
                     "TN_3_Phase": "TN 3 Fas"
-                }
-            },
-            "operating_mode": {
-                "name": "Laddstatus",
-                "state": {
-                    "Unknown": "Okänd",
-                    "Disconnected": "Frånkopplad",
-                    "Waiting": "Väntar",
-                    "Charging": "Laddar",
-                    "Charge done": "Laddning klar"
                 }
             },
             "signed_meter_value": { "name": "Förbrukad energi"},
@@ -121,7 +111,7 @@
         },
         "switch": {
             "authorization_required": { "name": "Auktorisering krävs" },
-            "operating_mode": { "name": "Laddar" },
+            "charger_operation_mode": { "name": "Laddar" },
             "permanent_cable_lock": { "name": "Permanent kabellås" }
         },
         "update": {
