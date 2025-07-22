@@ -51,12 +51,12 @@ from .const import (
     MANUFACTURER,
     MISSING,
     REQUEST_REFRESH_DELAY,
-    ZAPTEC_POLL_BUILD_INTERVAL,
     ZAPTEC_POLL_CHARGER_TRIGGER_DELAYS,
-    ZAPTEC_POLL_CHARGING_INTERVAL,
-    ZAPTEC_POLL_INFO_INTERVAL,
     ZAPTEC_POLL_INSTALLATION_TRIGGER_DELAYS,
-    ZAPTEC_POLL_IDLE_INTERVAL,
+    ZAPTEC_POLL_INTERVAL_BUILD,
+    ZAPTEC_POLL_INTERVAL_CHARGING,
+    ZAPTEC_POLL_INTERVAL_IDLE,
+    ZAPTEC_POLL_INTERVAL_INFO,
 )
 from .services import async_setup_services, async_unload_services
 
@@ -121,7 +121,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         entry.data[CONF_USERNAME],
         entry.data[CONF_PASSWORD],
         client=async_get_clientsession(hass),
-        max_time=ZAPTEC_POLL_CHARGING_INTERVAL,  # The shortest of the intervals
+        max_time=ZAPTEC_POLL_INTERVAL_CHARGING,  # The shortest of the intervals
     )
 
     # Login to the Zaptec account
@@ -159,7 +159,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         manager=manager,
         options=ZaptecUpdateOptions(
             name="zaptec",
-            update_interval=ZAPTEC_POLL_BUILD_INTERVAL,
+            update_interval=ZAPTEC_POLL_INTERVAL_BUILD,
             charging_update_interval=None,
             tracked_devices=manager.tracked_devices,
             poll_args={"state": False, "info": False, "firmware": True},
@@ -176,7 +176,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         manager=manager,
         options=ZaptecUpdateOptions(
             name="info",
-            update_interval=ZAPTEC_POLL_INFO_INTERVAL,
+            update_interval=ZAPTEC_POLL_INTERVAL_INFO,
             charging_update_interval=None,
             tracked_devices=manager.tracked_devices,
             poll_args={"state": False, "info": True, "firmware": False},
@@ -191,9 +191,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         zaptec_obj = zaptec[deviceid]
 
         if isinstance(zaptec_obj, Installation):
-            poll_args = {"state": True, "info": True, "firmware": False}
+            # Since installations do not have a state, we only poll the info endpoint.
+            # The polling interval for installations does not change when charging.
+            poll_args = {"state": False, "info": True, "firmware": False}
+            charging_update_interval = None
         else:
+            # Only chargers will have an alternate update interval when charging
             poll_args = {"state": True, "info": False, "firmware": False}
+            charging_update_interval = ZAPTEC_POLL_INTERVAL_CHARGING
 
         manager.device_coordinators[deviceid] = ZaptecUpdateCoordinator(
             hass,
@@ -201,9 +206,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             manager=manager,
             options=ZaptecUpdateOptions(
                 name=deviceid,
-                update_interval=ZAPTEC_POLL_IDLE_INTERVAL,
-                charging_update_interval=ZAPTEC_POLL_CHARGING_INTERVAL,
-                tracked_devices={deviceid},
+                update_interval=ZAPTEC_POLL_INTERVAL_IDLE,
+                charging_update_interval=charging_update_interval,
+                tracked_devices={deviceid},  # One device per coordinator
                 poll_args=poll_args,
                 zaptec_object=zaptec_obj,
             ),
@@ -540,10 +545,10 @@ class ZaptecUpdateCoordinator(DataUpdateCoordinator[None]):
         )
 
         # Install the listener to select the update interval on the state
-        # of the charger
-        if options.charging_update_interval is not None and isinstance(
-            options.zaptec_object, Charger
-        ):
+        # of the charger. This only works with a Charger object.
+        if options.charging_update_interval is not None:
+            if not isinstance(options.zaptec_object, Charger):
+                raise ValueError("Charging update interval requires a Charger object")
             self.async_add_listener(self.set_update_interval)
 
     def set_update_interval(self) -> None:
@@ -551,7 +556,7 @@ class ZaptecUpdateCoordinator(DataUpdateCoordinator[None]):
 
         This function is called on data updates from the coordinator.
         """
-        zaptec_obj = self.options.zaptec_object
+        zaptec_obj: Charger = self.options.zaptec_object
         current = self.update_interval
         want = (
             self._charging_update_interval
@@ -593,10 +598,8 @@ class ZaptecUpdateCoordinator(DataUpdateCoordinator[None]):
 
         if isinstance(obj, Installation):
             delays = ZAPTEC_POLL_INSTALLATION_TRIGGER_DELAYS
-            kw = {"state": True, "info": True}
         else:
             delays = ZAPTEC_POLL_CHARGER_TRIGGER_DELAYS
-            kw = {"state": True}
 
         _LOGGER.debug("Triggering poll of %s after %s seconds", obj.qual_id, delays)
 
@@ -606,11 +609,10 @@ class ZaptecUpdateCoordinator(DataUpdateCoordinator[None]):
         for i, delta in enumerate(deltas, start=1):
             await asyncio.sleep(delta)
             _LOGGER.debug(
-                "Triggering poll %s of %s after %s seconds. %s",
+                "Triggering poll %s of %s after %s seconds",
                 i,
                 obj.qual_id,
                 delta,
-                kw,
             )
             await self.async_refresh()
 

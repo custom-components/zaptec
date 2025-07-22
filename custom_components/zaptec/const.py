@@ -37,16 +37,16 @@ API_RATELIMIT_PERIOD = 1
 API_RATELIMIT_MAX_REQUEST_RATE = 10
 """Maximum number of requests allowed per API rate limit period."""
 
-ZAPTEC_POLL_IDLE_INTERVAL = 10 * 60
+ZAPTEC_POLL_INTERVAL_IDLE = 10 * 60
 """ Interval in seconds for polling the state from the API."""
 
-ZAPTEC_POLL_CHARGING_INTERVAL = 60
+ZAPTEC_POLL_INTERVAL_CHARGING = 60
 """ Interval in seconds for polling the state from the API."""
 
-ZAPTEC_POLL_INFO_INTERVAL = 60 * 60
+ZAPTEC_POLL_INTERVAL_INFO = 60 * 60
 """Interval in seconds for polling the device info from the API."""
 
-ZAPTEC_POLL_BUILD_INTERVAL = 24 * 60 * 60
+ZAPTEC_POLL_INTERVAL_BUILD = 24 * 60 * 60
 """Interval in seconds for polling the account-wide info from the API."""
 
 ZAPTEC_POLL_CHARGER_TRIGGER_DELAYS = [2, 7, 15]
