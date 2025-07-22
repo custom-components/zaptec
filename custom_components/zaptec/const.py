@@ -37,14 +37,23 @@ API_RATELIMIT_PERIOD = 1
 API_RATELIMIT_MAX_REQUEST_RATE = 10
 """Maximum number of requests allowed per API rate limit period."""
 
+ZAPTEC_POLL_INTERVAL_IDLE = 10 * 60
+""" Interval in seconds for polling the state from the API."""
+
+ZAPTEC_POLL_INTERVAL_CHARGING = 60
+""" Interval in seconds for polling the state from the API."""
+
+ZAPTEC_POLL_INTERVAL_INFO = 60 * 60
+"""Interval in seconds for polling the device info from the API."""
+
+ZAPTEC_POLL_INTERVAL_BUILD = 24 * 60 * 60
+"""Interval in seconds for polling the account-wide info from the API."""
+
 ZAPTEC_POLL_CHARGER_TRIGGER_DELAYS = [2, 7, 15]
 """Delays in seconds for charger state updates after a change."""
 
 ZAPTEC_POLL_INSTALLATION_TRIGGER_DELAYS = [2, 7]
 """Delays in seconds for installation state updates after a change."""
-
-DEFAULT_SCAN_INTERVAL = 60
-"""Default scan interval for state updates."""
 
 # This sets the delay after doing actions and the poll of updated values.
 # It was 0.3 and evidently that is a bit too fast for Zaptec cloud to handle.

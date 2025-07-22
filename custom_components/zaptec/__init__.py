@@ -11,18 +11,12 @@ import logging
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import (
-    CONF_PASSWORD,
-    CONF_SCAN_INTERVAL,
-    CONF_USERNAME,
-    Platform,
-)
+from homeassistant.const import CONF_PASSWORD, CONF_USERNAME, Platform
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import (
     ConfigEntryAuthFailed,
     ConfigEntryError,
     ConfigEntryNotReady,
-    HomeAssistantError,
 )
 from homeassistant.helpers import device_registry as dr, entity_registry as er
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
@@ -49,13 +43,16 @@ from .const import (
     CONF_CHARGERS,
     CONF_MANUAL_SELECT,
     CONF_PREFIX,
-    DEFAULT_SCAN_INTERVAL,
     DOMAIN,
     MANUFACTURER,
     MISSING,
     REQUEST_REFRESH_DELAY,
     ZAPTEC_POLL_CHARGER_TRIGGER_DELAYS,
     ZAPTEC_POLL_INSTALLATION_TRIGGER_DELAYS,
+    ZAPTEC_POLL_INTERVAL_BUILD,
+    ZAPTEC_POLL_INTERVAL_CHARGING,
+    ZAPTEC_POLL_INTERVAL_IDLE,
+    ZAPTEC_POLL_INTERVAL_INFO,
 )
 from .services import async_setup_services, async_unload_services
 
@@ -90,8 +87,10 @@ class ZaptecUpdateOptions:
 
     name: str
     update_interval: int
+    charging_update_interval: int | None
     tracked_devices: set[str]
     poll_args: dict[str, bool]
+    zaptec_object: ZaptecBase | None
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -112,14 +111,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if prefix:
         prefix = prefix + " "
 
-    scan_interval = entry.data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
-
     # Create the Zaptec object
     zaptec = Zaptec(
         entry.data[CONF_USERNAME],
         entry.data[CONF_PASSWORD],
         client=async_get_clientsession(hass),
-        max_time=scan_interval,
+        max_time=ZAPTEC_POLL_INTERVAL_CHARGING,  # The shortest of the intervals
     )
 
     # Login to the Zaptec account
@@ -150,19 +147,71 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         tracked_devices=tracked_devices,
     )
 
-    # Setup the update coordinator
-    manager.coordinator = ZaptecUpdateCoordinator(
+    # Setup the head update coordinator
+    manager.head_coordinator = ZaptecUpdateCoordinator(
         hass,
         entry=entry,
         manager=manager,
         options=ZaptecUpdateOptions(
             name="zaptec",
-            update_interval=scan_interval,
+            update_interval=ZAPTEC_POLL_INTERVAL_BUILD,
+            charging_update_interval=None,
             tracked_devices=manager.tracked_devices,
-            poll_args={"state": True, "info": True, "firmware": True},
+            poll_args={"state": False, "info": False, "firmware": True},
+            zaptec_object=None,
         ),
     )
-    await manager.coordinator.async_config_entry_first_refresh()
+    # Dummy listener to ensure the coordinator runs
+    manager.head_coordinator.async_add_listener(lambda: None)
+
+    # Setup the info update coordinator
+    manager.info_coordinator = ZaptecUpdateCoordinator(
+        hass,
+        entry=entry,
+        manager=manager,
+        options=ZaptecUpdateOptions(
+            name="info",
+            update_interval=ZAPTEC_POLL_INTERVAL_INFO,
+            charging_update_interval=None,
+            tracked_devices=manager.tracked_devices,
+            poll_args={"state": False, "info": True, "firmware": False},
+            zaptec_object=None,
+        ),
+    )
+    # Dummy listener to ensure the coordinator runs
+    manager.info_coordinator.async_add_listener(lambda: None)
+
+    # Setup the device coordinators for each tracked device
+    for deviceid in tracked_devices:
+        zaptec_obj = zaptec[deviceid]
+
+        if isinstance(zaptec_obj, Installation):
+            # Since installations do not have a state, we only poll the info endpoint.
+            # The polling interval for installations does not change when charging.
+            poll_args = {"state": False, "info": True, "firmware": False}
+            charging_update_interval = None
+        else:
+            # Only chargers will have an alternate update interval when charging
+            poll_args = {"state": True, "info": False, "firmware": False}
+            charging_update_interval = ZAPTEC_POLL_INTERVAL_CHARGING
+
+        manager.device_coordinators[deviceid] = ZaptecUpdateCoordinator(
+            hass,
+            entry=entry,
+            manager=manager,
+            options=ZaptecUpdateOptions(
+                name=deviceid,
+                update_interval=ZAPTEC_POLL_INTERVAL_IDLE,
+                charging_update_interval=charging_update_interval,
+                tracked_devices={deviceid},  # One device per coordinator
+                poll_args=poll_args,
+                zaptec_object=zaptec_obj,
+            ),
+        )
+
+    # Initialize the coordinators
+    for co in manager.all_coordinators:
+        await co.async_config_entry_first_refresh()
 
     # Attach the local data to the HA config entry so it can be accessed later
     # in various HA functions.
@@ -242,8 +291,14 @@ class ZaptecManager:
     name_prefix: str
     """Name prefix to use for the entities."""
 
-    coordinator: ZaptecUpdateCoordinator
-    """The coordinator for the Zaptec account."""
+    head_coordinator: ZaptecUpdateCoordinator
+    """The account-level coordinator for the Zaptec account."""
+
+    info_coordinator: ZaptecUpdateCoordinator
+    """Coordinator for the device info updates."""
+
+    device_coordinators: dict[str, ZaptecUpdateCoordinator]
+    """Coordinators for the devices, both installation and chargers."""
 
     streams: list[tuple[asyncio.Task, Installation]]
     """List of active streams for the installations."""
@@ -263,7 +318,17 @@ class ZaptecManager:
         self.zaptec = zaptec
         self.tracked_devices = tracked_devices or set()
         self.name_prefix = name_prefix
+        self.device_coordinators = {}
         self.streams = []
+
+    @property
+    def all_coordinators(self) -> Iterable[ZaptecUpdateCoordinator]:
+        """Return all coordinators for the Zaptec objects."""
+        return [
+            self.head_coordinator,
+            self.info_coordinator,
+            *self.device_coordinators.values(),
+        ]
 
     def create_entities_from_descriptions(
         self,
@@ -286,11 +351,8 @@ class ZaptecManager:
             # Use provided class if it exists, otherwise use the class this
             # function was called from
             cls: type[ZaptecBaseEntity] = description.cls
-
-            # NOTE: In later versions, this needs to look up which coordinator
-            # the entity should be registered to.
             entity = cls(
-                coordinator=self.coordinator,
+                coordinator=self.device_coordinators[zaptec_obj.id],
                 zaptec_object=zaptec_obj,
                 description=copy(description),
                 device_info=dev_info,
@@ -390,9 +452,15 @@ class ZaptecManager:
 
         The zaptec objects are updated in-place prior to this callback being called.
         """
-        # FIXME: Later implementation will need to figure out which coordinator
-        # to update based on the event payload.
-        self.coordinator.async_update_listeners()
+        charger_id = event.get("ChargerId")
+        coordinator = self.device_coordinators.get(charger_id)
+        if coordinator is None:
+            _LOGGER.debug(
+                "Received stream update for unknown charger %s, ignoring",
+                charger_id,
+            )
+            return
+        coordinator.async_update_listeners()
 
     @staticmethod
     async def first_time_setup(
@@ -449,13 +517,20 @@ class ZaptecUpdateCoordinator(DataUpdateCoordinator[None]):
         self.manager: ZaptecManager = manager
         self.options: ZaptecUpdateOptions = options
         self.zaptec: Zaptec = manager.zaptec
+        self._trigger_task: asyncio.Task | None = None
+        self._default_update_interval = timedelta(seconds=options.update_interval)
+        self._charging_update_interval = (
+            timedelta(seconds=options.charging_update_interval)
+            if options.charging_update_interval is not None
+            else None
+        )
 
         super().__init__(
             hass,
             _LOGGER,
             config_entry=entry,
             name=f"{DOMAIN}-{entry.data['username']}-{options.name}",
-            update_interval=timedelta(seconds=self.options.update_interval),
+            update_interval=self._default_update_interval,
             request_refresh_debouncer=Debouncer(
                 hass,
                 _LOGGER,
@@ -464,11 +539,41 @@ class ZaptecUpdateCoordinator(DataUpdateCoordinator[None]):
             ),
         )
 
+        # Install the listener to select the update interval on the state
+        # of the charger. This only works with a Charger object.
+        if options.charging_update_interval is not None:
+            if not isinstance(options.zaptec_object, Charger):
+                raise ValueError("Charging update interval requires a Charger object")
+            self.async_add_listener(self.set_update_interval)
+
+    def set_update_interval(self) -> None:
+        """Set the update interval for the coordinator.
+
+        This function is called on data updates from the coordinator.
+        """
+        zaptec_obj: Charger = self.options.zaptec_object
+        current = self.update_interval
+        want = (
+            self._charging_update_interval
+            if zaptec_obj.is_charging()
+            else self._default_update_interval
+        )
+        if current != want:
+            _LOGGER.debug(
+                "%s is now %s, setting update interval to %s (was %s)",
+                zaptec_obj.qual_id,
+                zaptec_obj.get("ChargerOperationMode", "Unknown"),
+                want,
+                current,
+            )
+            self.update_interval = want
+            self._schedule_refresh()
+
     async def _async_update_data(self) -> None:
         """Poll data from Zaptec."""
 
         try:
-            _LOGGER.debug("Polling from Zaptec")
+            _LOGGER.debug(">>> Polling %s from Zaptec", self.options.name)
             await self.zaptec.poll(
                 self.options.tracked_devices,
                 **self.options.poll_args,
@@ -486,13 +591,12 @@ class ZaptecUpdateCoordinator(DataUpdateCoordinator[None]):
         HA initiated update.
         """
 
-        what = {obj.id}
         if isinstance(obj, Installation):
             delays = ZAPTEC_POLL_INSTALLATION_TRIGGER_DELAYS
-            kw = {"state": True, "info": True}
         else:
             delays = ZAPTEC_POLL_CHARGER_TRIGGER_DELAYS
-            kw = {"state": True}
+
+        _LOGGER.debug("Triggering poll of %s after %s seconds", obj.qual_id, delays)
 
         # Calculcate the deltas for the delays. E.g. [2, 5, 10] -> [2, 3, 5]
         deltas = [b - a for a, b in zip([0] + delays[:-1], delays)]
@@ -500,28 +604,40 @@ class ZaptecUpdateCoordinator(DataUpdateCoordinator[None]):
         for i, delta in enumerate(deltas, start=1):
             await asyncio.sleep(delta)
             _LOGGER.debug(
-                "Triggering poll %s of %s after %s seconds. %s",
+                "Triggering poll %s of %s after %s seconds",
                 i,
                 obj.qual_id,
                 delta,
-                kw,
             )
-            await self.zaptec.poll(what, **kw)
-            self.async_update_listeners()
+            await self.async_refresh()
 
     async def trigger_poll(self, obj: ZaptecBase) -> None:
         """Trigger a poll update sequence."""
 
-        # FIXME: The current imeplementation will create a new background task
-        # no matter if a task is already running. If they are updating the same
-        # object, this can cause too many updates for the same object.
-        # A single task per device will be needed.
+        # If there is a curent poll task running, cancel it
+        if self._trigger_task is not None:
+            _LOGGER.debug(
+                "A poll task is already running for %s, cancelling it",
+                obj.qual_id,
+            )
+            self._trigger_task.cancel()
+            try:
+                await self._trigger_task
+            except asyncio.CancelledError:
+                pass
+            finally:
+                self._trigger_task = None
 
-        self.config_entry.async_create_background_task(
+        def cleanup_task(_task: asyncio.Task):
+            """Cleanup the task after it has run."""
+            self._trigger_task = None
+
+        self._trigger_task = self.config_entry.async_create_background_task(
             self.hass,
             self._trigger_poll(obj),
             f"Zaptec Poll Update for {obj.qual_id}",
         )
+        self._trigger_task.add_done_callback(cleanup_task)
 
 
 class ZaptecBaseEntity(CoordinatorEntity[ZaptecUpdateCoordinator]):
@@ -564,13 +680,13 @@ class ZaptecBaseEntity(CoordinatorEntity[ZaptecUpdateCoordinator]):
     @callback
     def _handle_coordinator_update(self) -> None:
         """Update the entity from Zaptec data.
-        
+
         If the class have an attribute callback `_update_from_zaptec`, it will
         be called to update the entity data from the Zaptec data. The method is
         expected to call `_get_zaptec_value()` to retrieve the value for the
         entity, which may raise `KeyUnavailableError` if the key is not
         available. This function will log the value if it changes or becomes
-        unavailable.        
+        unavailable.
         """
         prev_available = self._attr_available
         update_from_zaptec = getattr(self, "_update_from_zaptec", lambda: None)
