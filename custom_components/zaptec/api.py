@@ -164,7 +164,7 @@ class ZaptecBase(Mapping[str, TValue]):
                     k,
                     new_key,
                     type(v).__qualname__,
-                    v,
+                    repr(v),
                     err,
                 )
                 new_v = v
@@ -176,7 +176,7 @@ class ZaptecBase(Mapping[str, TValue]):
                     new_key,
                     k,
                     new_vt,
-                    new_v,
+                    repr(new_v),
                 )
             elif self._attrs[new_key] != new_v:
                 _LOGGER.debug(
@@ -185,7 +185,7 @@ class ZaptecBase(Mapping[str, TValue]):
                     new_key,
                     k,
                     new_vt,
-                    new_v,
+                    repr(new_v),
                     self._attrs[new_key],
                 )
             self._attrs[new_key] = new_v
