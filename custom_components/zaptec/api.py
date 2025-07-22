@@ -995,7 +995,7 @@ class Zaptec(Mapping[str, ZaptecBase]):
                 if sleep_delay > 0:
                     if DEBUG_API_CALLS:
                         _LOGGER.debug("@@@  SLEEP for %.2f seconds", sleep_delay)
-                    await asyncio.sleep(delay)
+                    await asyncio.sleep(sleep_delay)
 
             # Exceptions that can be retried
             except (asyncio.TimeoutError, aiohttp.ClientConnectionError) as err:
