@@ -1143,9 +1143,12 @@ class Zaptec(Mapping[str, ZaptecBase]):
                     response.status,
                 )
 
+                # Internal server error handling. Zaptec is observed to return
+                # this error in varous cases, so we handled it specially here.
+                # GET request gets logged and then retried, while POST and
+                # PUT requests are not retried.
                 if response.status == 500:  # Internal server error
-                    # Zaptec cloud often delivers this error code.
-                    log_exc(error)  # Error is not raised, this for logging
+                    log_exc(error)  # Log the error
                     if DEBUG_API_CALLS:
                         # There are additional details in the response that Zaptec
                         # provides on 500. Let's log it.
@@ -1153,7 +1156,9 @@ class Zaptec(Mapping[str, ZaptecBase]):
                         if len(text) > 60:
                             text = text[:60] + "..."
                         _LOGGER.debug(f"     PAYLOAD %s", repr(text))
-                    continue  # Retry request
+                    if method.lower() == "get":
+                        continue  # GET: Retry request
+                    raise error  # POST/PUT: Raise error
 
                 # All other error codes will be raised
                 raise log_exc(error)
