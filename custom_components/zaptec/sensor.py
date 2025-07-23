@@ -86,9 +86,8 @@ class ZaptecEnengySensor(ZaptecSensor):
         # Get the latest energy reading from both and use the largest value
         reading = get_ocmf_latest_reader_value(meter_value)
         session_reading = get_ocmf_latest_reader_value(session.get("SignedSession", {}))
-        largest = max(reading, session_reading)
 
-        self._attr_native_value = largest
+        self._attr_native_value = max(reading, session_reading)
         self._attr_available = True
 
 
