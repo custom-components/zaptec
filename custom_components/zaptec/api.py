@@ -171,7 +171,7 @@ class ZaptecBase(Mapping[str, TValue]):
             new_vt = type(new_v).__qualname__
             if new_key not in self._attrs:
                 _LOGGER.debug(
-                    ">>>  Adding %s.%s (%s)  =  <%s> %s",
+                    ">>>  Adding   %s.%s (%s)  =  <%s> %s",
                     self.qual_id,
                     new_key,
                     k,
@@ -187,6 +187,15 @@ class ZaptecBase(Mapping[str, TValue]):
                     new_vt,
                     repr(new_v),
                     self._attrs[new_key],
+                )
+            elif self.zaptec.show_all_updates:
+                _LOGGER.debug(
+                    ">>>  Ignoring %s.%s (%s)  =  <%s> %s  (no change)",
+                    self.qual_id,
+                    new_key,
+                    k,
+                    new_vt,
+                    repr(new_v),
                 )
             self._attrs[new_key] = new_v
 
@@ -800,6 +809,7 @@ class Zaptec(Mapping[str, ZaptecBase]):
         *,
         client: aiohttp.ClientSession | None = None,
         max_time: float = API_RETRY_MAXTIME,
+        show_all_updates: bool = False,
     ) -> None:
         """Initialize the Zaptec account handler."""
         self._username = username
@@ -817,6 +827,9 @@ class Zaptec(Mapping[str, ZaptecBase]):
 
         self.is_built: bool = False
         """Flag to indicate if the structure of objectes is built and ready to use."""
+
+        self.show_all_updates: bool = show_all_updates
+        """Flag to indicate if all updates should be logged, even if no changes."""
 
     async def __aenter__(self) -> Zaptec:
         """Enter the context manager."""
