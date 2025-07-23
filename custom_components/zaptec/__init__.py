@@ -622,9 +622,10 @@ class ZaptecUpdateCoordinator(DataUpdateCoordinator[None]):
             )
             await self.async_refresh()
 
-            # Trigger the poll for the children coordinators
-            for coord in children_coordinators:
-                await coord.trigger_poll()
+            # Trigger the poll for the children coordinators in the first run
+            if i == 1:
+                for coord in children_coordinators:
+                    await coord.trigger_poll()
 
     async def trigger_poll(self) -> None:
         """Trigger a poll update sequence."""
