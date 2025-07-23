@@ -205,7 +205,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             entry=entry,
             manager=manager,
             options=ZaptecUpdateOptions(
-                name=deviceid,
+                name=zaptec_obj.qual_id,
                 update_interval=ZAPTEC_POLL_INTERVAL_IDLE,
                 charging_update_interval=charging_update_interval,
                 tracked_devices={deviceid},  # One device per coordinator
@@ -572,7 +572,7 @@ class ZaptecUpdateCoordinator(DataUpdateCoordinator[None]):
             hass,
             _LOGGER,
             config_entry=entry,
-            name=f"{DOMAIN}-{entry.data['username']}-{options.name}",
+            name=f"{DOMAIN}-{options.name.lower()}",
             update_interval=self._default_update_interval,
             request_refresh_debouncer=Debouncer(
                 hass,
@@ -616,8 +616,7 @@ class ZaptecUpdateCoordinator(DataUpdateCoordinator[None]):
         """Poll data from Zaptec."""
 
         try:
-            name = self.zaptec.qual_id(self.options.name)
-            _LOGGER.debug("--- Polling %s from Zaptec", name)
+            _LOGGER.debug("--- Polling %s from Zaptec", self.options.name)
             await self.zaptec.poll(
                 self.options.tracked_devices,
                 **self.options.poll_args,
