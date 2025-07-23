@@ -306,6 +306,17 @@ The permanent cable lock has been changed to a Switch entity (from
 to the HA convention that the Lock entity type should only be used for physical locks
 that's used to enter the house.
 
+The Charger mode has been changed to use the native zaptec values internally. The
+display values are still the same, but automations using the state will need to be
+updated. The English mapping of the changed values is
+- Connected_Requesting: Waiting
+- Connected_Charging:   Charging
+- Connected_Finished:   Charge done
+
+The Charging switch has been changed to also count the Waiting state as ON. This
+corresponds better with when the resume/stop commands triggered by the switch are
+allowed.
+
 
 ## Changes from older versions <0.7.0
 
