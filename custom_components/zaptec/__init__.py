@@ -618,19 +618,29 @@ class ZaptecUpdateCoordinator(DataUpdateCoordinator[None]):
             )
             raise UpdateFailed(err) from err
 
-    async def _trigger_poll(self, obj: ZaptecBase) -> None:
+    async def _trigger_poll(self, zaptec_obj: ZaptecBase) -> None:
         """Trigger a poll update sequence for the given object.
 
         This sequence is useful to ensure that the state is fully synced after a
         HA initiated update.
         """
 
-        if isinstance(obj, Installation):
+        children_coordinators: list[ZaptecUpdateCoordinator] = []
+        if isinstance(zaptec_obj, Installation):
             delays = ZAPTEC_POLL_INSTALLATION_TRIGGER_DELAYS
+            # If the installation has chargers, we also trigger the
+            # coordinators for the chargers that are tracked.
+            children_coordinators = [
+                self.manager.device_coordinators[charger.id]
+                for charger in zaptec_obj.chargers
+                if charger.id in self.manager.tracked_devices
+            ]
         else:
             delays = ZAPTEC_POLL_CHARGER_TRIGGER_DELAYS
 
-        _LOGGER.debug("Triggering poll of %s after %s seconds", obj.qual_id, delays)
+        _LOGGER.debug(
+            "Triggering poll of %s after %s seconds", zaptec_obj.qual_id, delays
+        )
 
         # Calculcate the deltas for the delays. E.g. [2, 5, 10] -> [2, 3, 5]
         deltas = [b - a for a, b in zip([0] + delays[:-1], delays)]
@@ -640,19 +650,29 @@ class ZaptecUpdateCoordinator(DataUpdateCoordinator[None]):
             _LOGGER.debug(
                 "Triggering poll %s of %s after %s seconds",
                 i,
-                obj.qual_id,
+                zaptec_obj.qual_id,
                 delta,
             )
             await self.async_refresh()
 
-    async def trigger_poll(self, obj: ZaptecBase) -> None:
+            # Trigger the poll for the children coordinators in the first run
+            if i == 1:
+                for coord in children_coordinators:
+                    await coord.trigger_poll()
+
+    async def trigger_poll(self) -> None:
         """Trigger a poll update sequence."""
+
+        zaptec_obj = self.options.zaptec_object
+        if zaptec_obj is None:
+            _LOGGER.debug("No zaptec object to poll, skipping")
+            return
 
         # If there is a curent poll task running, cancel it
         if self._trigger_task is not None:
             _LOGGER.debug(
                 "A poll task is already running for %s, cancelling it",
-                obj.qual_id,
+                zaptec_obj.qual_id,
             )
             self._trigger_task.cancel()
             try:
@@ -668,8 +688,8 @@ class ZaptecUpdateCoordinator(DataUpdateCoordinator[None]):
 
         self._trigger_task = self.config_entry.async_create_background_task(
             self.hass,
-            self._trigger_poll(obj),
-            f"Zaptec Poll Update for {obj.qual_id}",
+            self._trigger_poll(zaptec_obj),
+            f"Zaptec Poll Update for {zaptec_obj.qual_id}",
         )
         self._trigger_task.add_done_callback(cleanup_task)
 
@@ -839,4 +859,4 @@ class ZaptecBaseEntity(CoordinatorEntity[ZaptecUpdateCoordinator]):
 
     async def trigger_poll(self) -> None:
         """Trigger a poll for this entity."""
-        await self.coordinator.trigger_poll(self.zaptec_obj)
+        await self.coordinator.trigger_poll()
