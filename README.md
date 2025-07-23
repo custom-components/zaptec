@@ -313,10 +313,6 @@ updated. The English mapping of the changed values is
 - Connected_Charging:   Charging
 - Connected_Finished:   Charge done
 
-The Charging switch has been changed to also count the Waiting state as ON. This
-corresponds better with when the resume/stop commands triggered by the switch are
-allowed.
-
 
 ## Changes from older versions <0.7.0
 
