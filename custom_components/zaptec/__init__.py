@@ -593,8 +593,16 @@ class ZaptecUpdateCoordinator(DataUpdateCoordinator[None]):
         HA initiated update.
         """
 
+        coordinators: list[ZaptecUpdateCoordinator] = [self]
         if isinstance(obj, Installation):
             delays = ZAPTEC_POLL_INSTALLATION_TRIGGER_DELAYS
+            # If the installation has chargers, we also trigger the
+            # coordinators for the chargers that are tracked.
+            coordinators += [
+                self.manager.device_coordinators[charger.id]
+                for charger in obj.chargers
+                if charger.id in self.manager.tracked_devices
+            ]
         else:
             delays = ZAPTEC_POLL_CHARGER_TRIGGER_DELAYS
 
@@ -611,7 +619,8 @@ class ZaptecUpdateCoordinator(DataUpdateCoordinator[None]):
                 obj.qual_id,
                 delta,
             )
-            await self.async_refresh()
+            for coord in coordinators:
+                await coord.async_refresh()
 
     async def trigger_poll(self, obj: ZaptecBase) -> None:
         """Trigger a poll update sequence."""
