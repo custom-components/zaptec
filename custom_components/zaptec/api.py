@@ -796,7 +796,7 @@ class Charger(ZaptecBase):
 
     def is_charging(self) -> bool:
         """Check if the charger is charging."""
-        return self.get("ChargerOperationMode") == "Charging"
+        return self.get("ChargerOperationMode") == "Connected_Charging"
 
 
 class Zaptec(Mapping[str, ZaptecBase]):
