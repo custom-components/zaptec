@@ -42,22 +42,21 @@ class ZaptecChargeSensor(ZaptecSensor):
     _log_attribute = "_attr_native_value"
 
     # See ZCONST.charger_operation_modes for possible values
-    CHARGE_MODE_MAP = {
-        "Unknown": ["Unknown", "mdi:help-rhombus-outline"],
-        "Disconnected": ["Disconnected", "mdi:power-plug-off"],
-        "Connected_Requesting": ["Waiting", "mdi:timer-sand"],
-        "Connected_Charging": ["Charging", "mdi:lightning-bolt"],
-        "Connected_Finished": ["Charge done", "mdi:battery-charging-100"],
+    CHARGE_MODE_ICON_MAP = {
+        "Unknown": "mdi:help-rhombus-outline",
+        "Disconnected": "mdi:power-plug-off",
+        "Connected_Requesting": "mdi:timer-sand",
+        "Connected_Charging": "mdi:lightning-bolt",
+        "Connected_Finished": "mdi:battery-charging-100",
     }
 
     @callback
     def _update_from_zaptec(self) -> None:
         """Update the entity from Zaptec data."""
         # Called from ZaptecBaseEntity._handle_coordinator_update()
-        state = self._get_zaptec_value()
-        mode = self.CHARGE_MODE_MAP.get(state, self.CHARGE_MODE_MAP["Unknown"])
-        self._attr_native_value = mode[0]
-        self._attr_icon = mode[1]
+        self._attr_native_value = self._get_zaptec_value()
+        self._attr_icon = self.CHARGE_MODE_ICON_MAP.get(
+            self._attr_native_value, self.CHARGE_MODE_ICON_MAP["Unknown"])
         self._attr_available = True
 
 
@@ -140,10 +139,10 @@ INSTALLATION_ENTITIES: list[EntityDescription] = [
 
 CHARGER_ENTITIES: list[EntityDescription] = [
     ZapSensorEntityDescription(
-        key="operating_mode",
-        translation_key="operating_mode",
+        key="charger_operation_mode",
+        translation_key="charger_operation_mode",
         device_class=SensorDeviceClass.ENUM,
-        options=[x[0] for x in ZaptecChargeSensor.CHARGE_MODE_MAP.values()],
+        options=ZCONST.charger_operation_modes_list,
         icon="mdi:ev-station",
         cls=ZaptecChargeSensor,
         # No state class as its not a numeric value

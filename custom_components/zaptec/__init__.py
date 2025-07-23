@@ -70,6 +70,7 @@ PLATFORMS = [
     Platform.UPDATE,
 ]
 
+
 class KeyUnavailableError(Exception):
     """Exception raised when a key is not available in the Zaptec object."""
 
@@ -103,6 +104,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     _LOGGER.debug("Setting up entry %s: %s", entry.entry_id, redacted_data)
 
+    # Remove deprecated entities where we need to reuse the entity_ids
+    remove_deprecated_entities(hass, entry)
+
     configured_chargers = None
     if entry.data.get(CONF_MANUAL_SELECT, False):
         configured_chargers = entry.data.get(CONF_CHARGERS)
@@ -117,6 +121,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         entry.data[CONF_PASSWORD],
         client=async_get_clientsession(hass),
         max_time=ZAPTEC_POLL_INTERVAL_CHARGING,  # The shortest of the intervals
+        show_all_updates=True,  # During setup we'd like to log all updates
     )
 
     # Login to the Zaptec account
@@ -213,6 +218,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     for co in manager.all_coordinators:
         await co.async_config_entry_first_refresh()
 
+    # Done setting up, change back to not log all updates. Having this enabled
+    # will create a lot of debug log output.
+    zaptec.show_all_updates = False
+    _LOGGER.debug("Zaptec setup complete")
+
     # Attach the local data to the HA config entry so it can be accessed later
     # in various HA functions.
     entry.runtime_data = manager
@@ -257,6 +267,22 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 device_registry.async_remove_device(dev.id)
 
     return True
+
+
+def remove_deprecated_entities(hass: HomeAssistant, entry: ZaptecConfigEntry) -> None:
+    """Remove deprecated entites from the entity_registry"""
+
+    entity_registry = er.async_get(hass)
+    zaptec_entity_list = [(entity_id, entity) for entity_id, entity in list(
+        entity_registry.entities.items()) if entity.config_entry_id == entry.entry_id]
+    for entity_id, entity in zaptec_entity_list:
+        if entity.translation_key == 'operating_mode':
+            # The two entities this applies to were changed to the key
+            # charger_operation_mode (from state) instead of operating_mode (from info).
+            # In order to keep the same entity_id, we need to remove the old entries
+            # before the new ones are added.
+            _LOGGER.warning("Removing deprecated entity: %s", entity_id)
+            entity_registry.async_remove(entity_id)
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ZaptecConfigEntry) -> bool:
@@ -580,7 +606,8 @@ class ZaptecUpdateCoordinator(DataUpdateCoordinator[None]):
         """Poll data from Zaptec."""
 
         try:
-            _LOGGER.debug(">>> Polling %s from Zaptec", self.options.name)
+            name = self.zaptec.qual_id(self.options.name)
+            _LOGGER.debug("--- Polling %s from Zaptec", name)
             await self.zaptec.poll(
                 self.options.tracked_devices,
                 **self.options.poll_args,
@@ -673,6 +700,12 @@ class ZaptecBaseEntity(CoordinatorEntity[ZaptecUpdateCoordinator]):
         self._attr_unique_id = f"{zaptec_object.id}_{description.key}"
         self._attr_device_info = device_info
 
+        # Set the zaptec attribute for logging. Inheriting classes can override
+        # this to change the default behavior. None means that the entity
+        # doesn't use any attributes from Zaptec.
+        if not hasattr(self, "_log_zaptec_key"):
+            self._log_zaptec_key = description.key
+
         # Call this last if the inheriting class needs to do some addition
         # initialization
         self._post_init()
@@ -736,6 +769,18 @@ class ZaptecBaseEntity(CoordinatorEntity[ZaptecUpdateCoordinator]):
                 return obj
         return obj
 
+    @property
+    def _log_zaptec_attribute(self) -> str:
+        """Get the zaptec attribute name for logging."""
+        v = self._log_zaptec_key
+        if v is None:
+            return ""
+        if isinstance(v, str):
+            return f".{v}"
+        if isinstance(v, Iterable):
+            return "." + " and .".join(v)
+        return f".{v}"
+
     @callback
     def _log_value(self, attribute: str | None, force=False):
         """Helper to log a new value."""
@@ -743,15 +788,17 @@ class ZaptecBaseEntity(CoordinatorEntity[ZaptecUpdateCoordinator]):
             return
         value = getattr(self, attribute, MISSING)
         prev = self._prev_value
+
+        # Only logs when the value changes
         if force or value != prev:
             self._prev_value = value
-            # Only logs when the value changes
             _LOGGER.debug(
-                "    %s  =  <%s> %s   from %s",
+                "    %s  =  %s <%s>   from %s%s",
                 self.entity_id,
+                repr(value),
                 type(value).__qualname__,
-                value,
                 self.zaptec_obj.qual_id,
+                self._log_zaptec_attribute,
             )
 
     @callback
@@ -765,18 +812,19 @@ class ZaptecBaseEntity(CoordinatorEntity[ZaptecUpdateCoordinator]):
         available = self._attr_available
 
         # Log when the entity becomes unavailable
-        if not available:
-            exc_text = f"   (Error: {exception})" if exception else ""
+        if prev_available and not available:
             _LOGGER.debug(
-                "    %s  =  UNAVAILABLE   in %s%s",
+                "    %s  =  UNAVAILABLE   from %s%s%s",
                 self.entity_id,
                 self.zaptec_obj.qual_id,
-                exc_text,
+                self._log_zaptec_attribute,
+                f"   (Error: {exception})" if exception else "",
             )
 
-        # Dump the traceback only once when the error occurs
-        if exception is not None and prev_available and not available:
-            _LOGGER.error("Getting value failed", exc_info=exception)
+            # Dump the exception if present - not interested in KeyUnavailableError
+            # since the TB is expected when the key is not available.
+            if exception is not None and not isinstance(exception, KeyUnavailableError):
+                _LOGGER.error("Getting value failed", exc_info=exception)
 
     @property
     def key(self):
