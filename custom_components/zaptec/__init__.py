@@ -218,6 +218,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Done setting up, change back to not log all updates. Having this enabled
     # will create a lot of debug log output.
     zaptec.show_all_updates = False
+    _LOGGER.debug("Zaptec setup complete")
 
     # Attach the local data to the HA config entry so it can be accessed later
     # in various HA functions.
