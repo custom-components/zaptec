@@ -277,6 +277,7 @@ def remove_deprecated_entities(hass: HomeAssistant, entry: ZaptecConfigEntry) ->
         entity_registry.entities.items()) if entity.config_entry_id == entry.entry_id]
     for entity_id, entity in zaptec_entity_list:
         if entity.translation_key == 'operating_mode':
+            # Needed for v0.7 -> v0.8 upgrade
             # The two entities this applies to were changed to the key
             # charger_operation_mode (from state) instead of operating_mode (from info).
             # In order to keep the same entity_id, we need to remove the old entries
@@ -284,6 +285,7 @@ def remove_deprecated_entities(hass: HomeAssistant, entry: ZaptecConfigEntry) ->
             _LOGGER.warning("Removing deprecated entity: %s", entity_id)
             entity_registry.async_remove(entity_id)
         elif entity.unique_id.endswith("_is_authorization_required"):
+            # Needed for v0.7 -> v0.8 upgrade
             # There is an entity using authorization_required as a translation key in
             # both the installation and the charger device. We only want to replace the
             # entity associated with the charger, so we use the end of the unique_id
