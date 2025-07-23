@@ -283,6 +283,14 @@ def remove_deprecated_entities(hass: HomeAssistant, entry: ZaptecConfigEntry) ->
             # before the new ones are added.
             _LOGGER.warning("Removing deprecated entity: %s", entity_id)
             entity_registry.async_remove(entity_id)
+        elif entity.unique_id.endswith("_is_authorization_required"):
+            # There is an entity using authorization_required as a translation key in
+            # both the installation and the charger device. We only want to replace the
+            # entity associated with the charger, so we use the end of the unique_id
+            # to find the correct entity that will be readded later (the installation
+            # entity ends with '_is_required_authentication').
+            _LOGGER.warning("Removing deprecated entity: %s", entity_id)
+            entity_registry.async_remove(entity_id)
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ZaptecConfigEntry) -> bool:

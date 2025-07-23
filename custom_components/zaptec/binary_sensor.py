@@ -90,7 +90,7 @@ CHARGER_ENTITIES: list[EntityDescription] = [
         cls=ZaptecBinarySensor,
     ),
     ZapBinarySensorEntityDescription(
-        key="is_authorization_required",
+        key="authentication_required",
         translation_key="authorization_required",
         entity_category=const.EntityCategory.DIAGNOSTIC,
         icon="mdi:lock",
