@@ -118,6 +118,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         entry.data[CONF_PASSWORD],
         client=async_get_clientsession(hass),
         max_time=ZAPTEC_POLL_INTERVAL_CHARGING,  # The shortest of the intervals
+        show_all_updates=True,  # During setup we'd like to log all updates
     )
 
     # Login to the Zaptec account
@@ -213,6 +214,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Initialize the coordinators
     for co in manager.all_coordinators:
         await co.async_config_entry_first_refresh()
+
+    # Done setting up, change back to not log all updates. Having this enabled
+    # will create a lot of debug log output.
+    zaptec.show_all_updates = False
 
     # Attach the local data to the HA config entry so it can be accessed later
     # in various HA functions.
