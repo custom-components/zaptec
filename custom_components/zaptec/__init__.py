@@ -44,6 +44,7 @@ from .const import (
     CONF_MANUAL_SELECT,
     CONF_PREFIX,
     DOMAIN,
+    KEYS_TO_SKIP_ENTITY_AVAILABILITY_CHECK,
     MANUFACTURER,
     MISSING,
     REQUEST_REFRESH_DELAY,
@@ -68,7 +69,6 @@ PLATFORMS = [
     Platform.SWITCH,
     Platform.UPDATE,
 ]
-
 
 
 class KeyUnavailableError(Exception):
@@ -392,12 +392,19 @@ class ZaptecManager:
             try:
                 updater()
             except Exception:
-                _LOGGER.exception(
-                    "Failed to add entity %s keys %s, skipping entity",
-                    cls.__name__,
-                    description.key,
-                )
-                continue
+                if description.key in KEYS_TO_SKIP_ENTITY_AVAILABILITY_CHECK:
+                    _LOGGER.debug(
+                        "Entity %s key %s is not available in Zaptec, but adding anyway",
+                        cls.__name__,
+                        description.key,
+                    )
+                else:
+                    _LOGGER.exception(
+                        "Failed to add entity %s keys %s, skipping entity",
+                        cls.__name__,
+                        description.key,
+                    )
+                    continue
 
             entities.append(entity)
 
@@ -675,6 +682,7 @@ class ZaptecBaseEntity(CoordinatorEntity[ZaptecUpdateCoordinator]):
     entity_description: EntityDescription
     _attr_has_entity_name = True
     _prev_value: Any = MISSING
+    _prev_available: bool = True  # Assume the entity is available at start for logging
     _log_attribute: str | None = None
     """The attribute to log when the value changes."""
 
@@ -721,14 +729,14 @@ class ZaptecBaseEntity(CoordinatorEntity[ZaptecUpdateCoordinator]):
         available. This function will log the value if it changes or becomes
         unavailable.
         """
-        prev_available = self._attr_available
         update_from_zaptec = getattr(self, "_update_from_zaptec", lambda: None)
         try:
             update_from_zaptec()
             self._log_value(self._log_attribute)
+            self._log_unavailable()  # For logging when the entity becomes available again
         except KeyUnavailableError as exc:
             self._attr_available = False
-            self._log_unavailable(exc, prev_available)
+            self._log_unavailable(exc)
         super()._handle_coordinator_update()
 
     @callback
@@ -780,10 +788,9 @@ class ZaptecBaseEntity(CoordinatorEntity[ZaptecUpdateCoordinator]):
         if attribute is None:
             return
         value = getattr(self, attribute, MISSING)
-        prev = self._prev_value
 
         # Only logs when the value changes
-        if force or value != prev:
+        if force or value != self._prev_value:
             self._prev_value = value
             _LOGGER.debug(
                 "    %s  =  %s <%s>   from %s%s",
@@ -795,17 +802,15 @@ class ZaptecBaseEntity(CoordinatorEntity[ZaptecUpdateCoordinator]):
             )
 
     @callback
-    def _log_unavailable(
-        self, exception: Exception | None = None, prev_available: bool | None = None
-    ):
+    def _log_unavailable(self, exception: Exception | None = None):
         """Helper to log when unavailable."""
-        prev_available = (
-            prev_available if prev_available is not None else self._attr_available
-        )
         available = self._attr_available
+        prev_available = self._prev_available
+        self._prev_available = available
 
         # Log when the entity becomes unavailable
         if prev_available and not available:
+            _LOGGER.info("Entity %s is unavailable", self.entity_id)
             _LOGGER.debug(
                 "    %s  =  UNAVAILABLE   from %s%s%s",
                 self.entity_id,
@@ -816,8 +821,16 @@ class ZaptecBaseEntity(CoordinatorEntity[ZaptecUpdateCoordinator]):
 
             # Dump the exception if present - not interested in KeyUnavailableError
             # since the TB is expected when the key is not available.
-            if exception is not None and not isinstance(exception, KeyUnavailableError):
+            if (
+                exception is not None
+                and not isinstance(exception, KeyUnavailableError)
+                and self.key not in KEYS_TO_SKIP_ENTITY_AVAILABILITY_CHECK
+            ):
                 _LOGGER.error("Getting value failed", exc_info=exception)
+
+        # Log when the entity becomes available again
+        elif not prev_available and available:
+            _LOGGER.info("Entity %s is available", self.entity_id)
 
     @property
     def key(self):
