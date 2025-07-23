@@ -44,6 +44,7 @@ from .const import (
     CONF_MANUAL_SELECT,
     CONF_PREFIX,
     DOMAIN,
+    KEYS_TO_SKIP_ENTITY_AVAILABILITY_CHECK,
     MANUFACTURER,
     MISSING,
     REQUEST_REFRESH_DELAY,
@@ -68,15 +69,6 @@ PLATFORMS = [
     Platform.SWITCH,
     Platform.UPDATE,
 ]
-
-CHECK_ENTITY_AVAILABLE_ON_ADD = False
-"""Enable a check to ensure that the entity is available when added.
-
-If not available, the entity will not be added to the list of entities.
-For Zaptec, this is not recommended, as some attributes are not always
-available. E.g. "TotalChargePowerSession" is only present under certain
-conditions.
-"""
 
 class KeyUnavailableError(Exception):
     """Exception raised when a key is not available in the Zaptec object."""
@@ -366,15 +358,21 @@ class ZaptecManager:
                 device_info=dev_info,
             )
 
-            if CHECK_ENTITY_AVAILABLE_ON_ADD:
-                # Check if the zaptec data for the object is available before
-                # adding it to the list of entities. The caveat is that if the
-                # entity have been added earlier, it will now be listed as
-                # "This entity is no longer being provided by the zaptec integration."
-                updater = getattr(entity, "_update_from_zaptec", lambda: None)
-                try:
-                    updater()
-                except Exception:
+            # Check if the zaptec data for the object is available before
+            # adding it to the list of entities. The caveat is that if the
+            # entity have been added earlier, it will now be listed as
+            # "This entity is no longer being provided by the zaptec integration."
+            updater = getattr(entity, "_update_from_zaptec", lambda: None)
+            try:
+                updater()
+            except Exception:
+                if description.key in KEYS_TO_SKIP_ENTITY_AVAILABILITY_CHECK:
+                    _LOGGER.warning(
+                        "Entity %s key %s is not available in Zaptec, but adding anyway",
+                        cls.__name__,
+                        description.key,
+                    )
+                else:
                     _LOGGER.exception(
                         "Failed to add entity %s keys %s, skipping entity",
                         cls.__name__,
