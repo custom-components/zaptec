@@ -2,6 +2,22 @@
 
 ## 0.8b1
 
+* Remove unused set_authentication_required-function (#240)
+* Fix exponential retry error on API requests (#239)
+* Change data source for charger energy meter (#235)
+* Fixup service/actions and deprecate old (#237)
+* Precompile regexp for performance (#236)
+* Leak less usernames into the logs (#231)
+* Use state value for authorization required for more frequent updates (#230)
+* Trig all sub chargers on installation trigger (#226)
+* Add setting to bypass availability check on startup (#218)
+* Don't allow charging button to be pushed unless the command is valid (#215)
+* Update devcontainer to latest debian version (#228)
+* Add logging of all attributes during startup (#227)
+* Fix missing attribute types (#225)
+* Don't retry request on POST or PUT when it returns 500 internal server error (#224)
+* Fixed incorrect sleep interval (#221)
+* Fixup logging (#216)
 * Implemented differential poll intervals which significantly reduce
   polling, #208
 * Change permanent_cable_lock from lock to switch, #207
