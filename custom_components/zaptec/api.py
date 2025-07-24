@@ -962,9 +962,17 @@ class Zaptec(Mapping[str, ZaptecBase]):
 
         error: Exception | None = None
         delay: float = API_RETRY_INIT_DELAY
+        sleep_delay: float = 0.
+        start_time: float = time.perf_counter()
         iteration = 0
         for iteration in range(1, retries + 1):
             try:
+                # Sleep before retrying the request
+                if sleep_delay > 0:
+                    if DEBUG_API_CALLS:
+                        _LOGGER.debug("@@@  SLEEP for %.1f seconds", sleep_delay)
+                    await asyncio.sleep(sleep_delay)
+
                 # Log the request
                 log_req = list(self._request_log(url, method, iteration, **kwargs))
                 if DEBUG_API_CALLS:
@@ -975,44 +983,29 @@ class Zaptec(Mapping[str, ZaptecBase]):
                 start_time = time.perf_counter()
 
                 # Make the request
-                async with self._ratelimiter:
-                    async with self._client.request(
+                async with self._ratelimiter, self._client.request(
                         method=method, url=url, **kwargs
-                    ) as response:
-                        # Log the response
-                        log_resp = [m async for m in self._response_log(response)]
-                        if DEBUG_API_CALLS:
-                            for msg in log_resp:
-                                _LOGGER.debug(msg)
-
-                        # Prepare the exception handler
-                        def log_exc(exc: Exception) -> Exception:
-                            """Log the exception and return it."""
-                            if DEBUG_API_EXCEPTIONS:
-                                if not DEBUG_API_CALLS:
-                                    for msg in log_req + log_resp:
-                                        _LOGGER.debug(msg)
-                                _LOGGER.error(str(exc), exc_info=exc)
-                            return exc
-
-                        # Let the caller handle the response. If the caller
-                        # calls __next__ on the generator the request will be
-                        # retried.
-                        yield response, log_exc
-
-                # Implement exponential backoff with jitter and sleep before
-                # retying the request.
-                delay = delay * API_RETRY_FACTOR
-                delay = random.normalvariate(delay, delay * API_RETRY_JITTER)
-                delay = min(delay, self._max_time)
-
-                # If the sleep time is negative, it means the request took
-                # longer than the wanted delay, so we don't need to sleep.
-                sleep_delay = delay - time.perf_counter() + start_time
-                if sleep_delay > 0:
+                ) as response:
+                    # Log the response
+                    log_resp = [m async for m in self._response_log(response)]
                     if DEBUG_API_CALLS:
-                        _LOGGER.debug("@@@  SLEEP for %.2f seconds", sleep_delay)
-                    await asyncio.sleep(sleep_delay)
+                        for msg in log_resp:
+                            _LOGGER.debug(msg)
+
+                    # Prepare the exception handler
+                    def log_exc(exc: Exception) -> Exception:
+                        """Log the exception and return it."""
+                        if DEBUG_API_EXCEPTIONS:
+                            if not DEBUG_API_CALLS:
+                                for msg in log_req + log_resp:
+                                    _LOGGER.debug(msg)
+                            _LOGGER.error(str(exc), exc_info=exc)
+                        return exc
+
+                    # Let the caller handle the response. If the caller
+                    # calls __next__ on the generator the request will be
+                    # retried.
+                    yield response, log_exc
 
             # Exceptions that can be retried
             except (asyncio.TimeoutError, aiohttp.ClientConnectionError) as err:
@@ -1026,7 +1019,15 @@ class Zaptec(Mapping[str, ZaptecBase]):
                         exc_info=err,
                     )
 
-        # Arriving after retrying too many times.
+            finally:
+                # Calculate the next exponential backoff delay with jitter
+                delay = delay * API_RETRY_FACTOR
+                delay = random.normalvariate(delay, delay * API_RETRY_JITTER)
+                delay = min(delay, self._max_time)
+
+                # If the sleep time is negative, it means the request took
+                # longer than the calculated delay, so we don't need to sleep.
+                sleep_delay = delay - time.perf_counter() + start_time
 
         if isinstance(error, asyncio.TimeoutError):
             raise RequestTimeoutError(
@@ -1098,10 +1099,10 @@ class Zaptec(Mapping[str, ZaptecBase]):
                     )
                 )
 
-    async def request(self, url: str, method="get", data=None):
+    async def request(self, url: str, *, method="get", data=None, base_url=API_URL):
         """Make a request to the API."""
 
-        full_url = API_URL + url
+        full_url = base_url + url
         kwargs = {
             "timeout": self._timeout,
             "headers": {
