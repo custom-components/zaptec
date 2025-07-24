@@ -44,6 +44,7 @@ from .const import (
     CONF_MANUAL_SELECT,
     CONF_PREFIX,
     DOMAIN,
+    KEYS_TO_SKIP_ENTITY_AVAILABILITY_CHECK,
     MANUFACTURER,
     MISSING,
     REQUEST_REFRESH_DELAY,
@@ -103,6 +104,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     _LOGGER.debug("Setting up entry %s: %s", entry.entry_id, redacted_data)
 
+    # Remove deprecated entities where we need to reuse the entity_ids
+    remove_deprecated_entities(hass, entry)
+
     configured_chargers = None
     if entry.data.get(CONF_MANUAL_SELECT, False):
         configured_chargers = entry.data.get(CONF_CHARGERS)
@@ -117,6 +121,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         entry.data[CONF_PASSWORD],
         client=async_get_clientsession(hass),
         max_time=ZAPTEC_POLL_INTERVAL_CHARGING,  # The shortest of the intervals
+        show_all_updates=True,  # During setup we'd like to log all updates
     )
 
     # Login to the Zaptec account
@@ -200,7 +205,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             entry=entry,
             manager=manager,
             options=ZaptecUpdateOptions(
-                name=deviceid,
+                name=zaptec_obj.qual_id,
                 update_interval=ZAPTEC_POLL_INTERVAL_IDLE,
                 charging_update_interval=charging_update_interval,
                 tracked_devices={deviceid},  # One device per coordinator
@@ -212,6 +217,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Initialize the coordinators
     for co in manager.all_coordinators:
         await co.async_config_entry_first_refresh()
+
+    # Done setting up, change back to not log all updates. Having this enabled
+    # will create a lot of debug log output.
+    zaptec.show_all_updates = False
+    _LOGGER.debug("Zaptec setup complete")
 
     # Attach the local data to the HA config entry so it can be accessed later
     # in various HA functions.
@@ -257,6 +267,32 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 device_registry.async_remove_device(dev.id)
 
     return True
+
+
+def remove_deprecated_entities(hass: HomeAssistant, entry: ZaptecConfigEntry) -> None:
+    """Remove deprecated entites from the entity_registry"""
+
+    entity_registry = er.async_get(hass)
+    zaptec_entity_list = [(entity_id, entity) for entity_id, entity in list(
+        entity_registry.entities.items()) if entity.config_entry_id == entry.entry_id]
+    for entity_id, entity in zaptec_entity_list:
+        if entity.translation_key == 'operating_mode':
+            # Needed for v0.7 -> v0.8 upgrade
+            # The two entities this applies to were changed to the key
+            # charger_operation_mode (from state) instead of operating_mode (from info).
+            # In order to keep the same entity_id, we need to remove the old entries
+            # before the new ones are added.
+            _LOGGER.warning("Removing deprecated entity: %s", entity_id)
+            entity_registry.async_remove(entity_id)
+        elif entity.unique_id.endswith("_is_authorization_required"):
+            # Needed for v0.7 -> v0.8 upgrade
+            # There is an entity using authorization_required as a translation key in
+            # both the installation and the charger device. We only want to replace the
+            # entity associated with the charger, so we use the end of the unique_id
+            # to find the correct entity that will be readded later (the installation
+            # entity ends with '_is_required_authentication').
+            _LOGGER.warning("Removing deprecated entity: %s", entity_id)
+            entity_registry.async_remove(entity_id)
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ZaptecConfigEntry) -> bool:
@@ -366,12 +402,19 @@ class ZaptecManager:
             try:
                 updater()
             except Exception:
-                _LOGGER.exception(
-                    "Failed to add entity %s keys %s, skipping entity",
-                    cls.__name__,
-                    description.key,
-                )
-                continue
+                if description.key in KEYS_TO_SKIP_ENTITY_AVAILABILITY_CHECK:
+                    _LOGGER.debug(
+                        "Entity %s key %s is not available in Zaptec, but adding anyway",
+                        cls.__name__,
+                        description.key,
+                    )
+                else:
+                    _LOGGER.exception(
+                        "Failed to add entity %s keys %s, skipping entity",
+                        cls.__name__,
+                        description.key,
+                    )
+                    continue
 
             entities.append(entity)
 
@@ -529,7 +572,7 @@ class ZaptecUpdateCoordinator(DataUpdateCoordinator[None]):
             hass,
             _LOGGER,
             config_entry=entry,
-            name=f"{DOMAIN}-{entry.data['username']}-{options.name}",
+            name=f"{DOMAIN}-{options.name.lower()}",
             update_interval=self._default_update_interval,
             request_refresh_debouncer=Debouncer(
                 hass,
@@ -573,7 +616,7 @@ class ZaptecUpdateCoordinator(DataUpdateCoordinator[None]):
         """Poll data from Zaptec."""
 
         try:
-            _LOGGER.debug(">>> Polling %s from Zaptec", self.options.name)
+            _LOGGER.debug("--- Polling %s from Zaptec", self.options.name)
             await self.zaptec.poll(
                 self.options.tracked_devices,
                 **self.options.poll_args,
@@ -584,19 +627,29 @@ class ZaptecUpdateCoordinator(DataUpdateCoordinator[None]):
             )
             raise UpdateFailed(err) from err
 
-    async def _trigger_poll(self, obj: ZaptecBase) -> None:
+    async def _trigger_poll(self, zaptec_obj: ZaptecBase) -> None:
         """Trigger a poll update sequence for the given object.
 
         This sequence is useful to ensure that the state is fully synced after a
         HA initiated update.
         """
 
-        if isinstance(obj, Installation):
+        children_coordinators: list[ZaptecUpdateCoordinator] = []
+        if isinstance(zaptec_obj, Installation):
             delays = ZAPTEC_POLL_INSTALLATION_TRIGGER_DELAYS
+            # If the installation has chargers, we also trigger the
+            # coordinators for the chargers that are tracked.
+            children_coordinators = [
+                self.manager.device_coordinators[charger.id]
+                for charger in zaptec_obj.chargers
+                if charger.id in self.manager.tracked_devices
+            ]
         else:
             delays = ZAPTEC_POLL_CHARGER_TRIGGER_DELAYS
 
-        _LOGGER.debug("Triggering poll of %s after %s seconds", obj.qual_id, delays)
+        _LOGGER.debug(
+            "Triggering poll of %s after %s seconds", zaptec_obj.qual_id, delays
+        )
 
         # Calculcate the deltas for the delays. E.g. [2, 5, 10] -> [2, 3, 5]
         deltas = [b - a for a, b in zip([0] + delays[:-1], delays)]
@@ -606,19 +659,29 @@ class ZaptecUpdateCoordinator(DataUpdateCoordinator[None]):
             _LOGGER.debug(
                 "Triggering poll %s of %s after %s seconds",
                 i,
-                obj.qual_id,
+                zaptec_obj.qual_id,
                 delta,
             )
             await self.async_refresh()
 
-    async def trigger_poll(self, obj: ZaptecBase) -> None:
+            # Trigger the poll for the children coordinators in the first run
+            if i == 1:
+                for coord in children_coordinators:
+                    await coord.trigger_poll()
+
+    async def trigger_poll(self) -> None:
         """Trigger a poll update sequence."""
+
+        zaptec_obj = self.options.zaptec_object
+        if zaptec_obj is None:
+            _LOGGER.debug("No zaptec object to poll, skipping")
+            return
 
         # If there is a curent poll task running, cancel it
         if self._trigger_task is not None:
             _LOGGER.debug(
                 "A poll task is already running for %s, cancelling it",
-                obj.qual_id,
+                zaptec_obj.qual_id,
             )
             self._trigger_task.cancel()
             try:
@@ -634,8 +697,8 @@ class ZaptecUpdateCoordinator(DataUpdateCoordinator[None]):
 
         self._trigger_task = self.config_entry.async_create_background_task(
             self.hass,
-            self._trigger_poll(obj),
-            f"Zaptec Poll Update for {obj.qual_id}",
+            self._trigger_poll(zaptec_obj),
+            f"Zaptec Poll Update for {zaptec_obj.qual_id}",
         )
         self._trigger_task.add_done_callback(cleanup_task)
 
@@ -648,6 +711,7 @@ class ZaptecBaseEntity(CoordinatorEntity[ZaptecUpdateCoordinator]):
     entity_description: EntityDescription
     _attr_has_entity_name = True
     _prev_value: Any = MISSING
+    _prev_available: bool = True  # Assume the entity is available at start for logging
     _log_attribute: str | None = None
     """The attribute to log when the value changes."""
 
@@ -665,6 +729,12 @@ class ZaptecBaseEntity(CoordinatorEntity[ZaptecUpdateCoordinator]):
         self.entity_description = description
         self._attr_unique_id = f"{zaptec_object.id}_{description.key}"
         self._attr_device_info = device_info
+
+        # Set the zaptec attribute for logging. Inheriting classes can override
+        # this to change the default behavior. None means that the entity
+        # doesn't use any attributes from Zaptec.
+        if not hasattr(self, "_log_zaptec_key"):
+            self._log_zaptec_key = description.key
 
         # Call this last if the inheriting class needs to do some addition
         # initialization
@@ -688,14 +758,14 @@ class ZaptecBaseEntity(CoordinatorEntity[ZaptecUpdateCoordinator]):
         available. This function will log the value if it changes or becomes
         unavailable.
         """
-        prev_available = self._attr_available
         update_from_zaptec = getattr(self, "_update_from_zaptec", lambda: None)
         try:
             update_from_zaptec()
             self._log_value(self._log_attribute)
+            self._log_unavailable()  # For logging when the entity becomes available again
         except KeyUnavailableError as exc:
             self._attr_available = False
-            self._log_unavailable(exc, prev_available)
+            self._log_unavailable(exc)
         super()._handle_coordinator_update()
 
     @callback
@@ -729,47 +799,67 @@ class ZaptecBaseEntity(CoordinatorEntity[ZaptecUpdateCoordinator]):
                 return obj
         return obj
 
+    @property
+    def _log_zaptec_attribute(self) -> str:
+        """Get the zaptec attribute name for logging."""
+        v = self._log_zaptec_key
+        if v is None:
+            return ""
+        if isinstance(v, str):
+            return f".{v}"
+        if isinstance(v, Iterable):
+            return "." + " and .".join(v)
+        return f".{v}"
+
     @callback
     def _log_value(self, attribute: str | None, force=False):
         """Helper to log a new value."""
         if attribute is None:
             return
         value = getattr(self, attribute, MISSING)
-        prev = self._prev_value
-        if force or value != prev:
+
+        # Only logs when the value changes
+        if force or value != self._prev_value:
             self._prev_value = value
-            # Only logs when the value changes
             _LOGGER.debug(
-                "    %s  =  <%s> %s   from %s",
+                "    %s  =  %s <%s>   from %s%s",
                 self.entity_id,
+                repr(value),
                 type(value).__qualname__,
-                value,
                 self.zaptec_obj.qual_id,
+                self._log_zaptec_attribute,
             )
 
     @callback
-    def _log_unavailable(
-        self, exception: Exception | None = None, prev_available: bool | None = None
-    ):
+    def _log_unavailable(self, exception: Exception | None = None):
         """Helper to log when unavailable."""
-        prev_available = (
-            prev_available if prev_available is not None else self._attr_available
-        )
         available = self._attr_available
+        prev_available = self._prev_available
+        self._prev_available = available
 
         # Log when the entity becomes unavailable
-        if not available:
-            exc_text = f"   (Error: {exception})" if exception else ""
+        if prev_available and not available:
+            _LOGGER.info("Entity %s is unavailable", self.entity_id)
             _LOGGER.debug(
-                "    %s  =  UNAVAILABLE   in %s%s",
+                "    %s  =  UNAVAILABLE   from %s%s%s",
                 self.entity_id,
                 self.zaptec_obj.qual_id,
-                exc_text,
+                self._log_zaptec_attribute,
+                f"   (Error: {exception})" if exception else "",
             )
 
-        # Dump the traceback only once when the error occurs
-        if exception is not None and prev_available and not available:
-            _LOGGER.error("Getting value failed", exc_info=exception)
+            # Dump the exception if present - not interested in KeyUnavailableError
+            # since the TB is expected when the key is not available.
+            if (
+                exception is not None
+                and not isinstance(exception, KeyUnavailableError)
+                and self.key not in KEYS_TO_SKIP_ENTITY_AVAILABILITY_CHECK
+            ):
+                _LOGGER.error("Getting value failed", exc_info=exception)
+
+        # Log when the entity becomes available again
+        elif not prev_available and available:
+            _LOGGER.info("Entity %s is available", self.entity_id)
 
     @property
     def key(self):
@@ -778,4 +868,4 @@ class ZaptecBaseEntity(CoordinatorEntity[ZaptecUpdateCoordinator]):
 
     async def trigger_poll(self) -> None:
         """Trigger a poll for this entity."""
-        await self.coordinator.trigger_poll(self.zaptec_obj)
+        await self.coordinator.trigger_poll()
