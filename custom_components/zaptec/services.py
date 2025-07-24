@@ -185,41 +185,25 @@ async def async_setup_services(hass: HomeAssistant, manager: ZaptecManager) -> N
             else:
                 err_device = f"id {uid}"
 
-            # Get all coordinators and objects that matches the uid from all coordinator objects
-            matches = set(
-                (manager.coordinator, obj)
-                for obj in manager.zaptec.objects()
-                if obj.id == uid
-            )
-            # Filter out the objects that doesn't match the expected type
-            want: set[tuple[ZaptecUpdateCoordinator, T]] = set(
-                (a, o) for a, o in matches if isinstance(o, mustbe)
-            )
-
-            def cap_first(s):
-                return s[0].upper() + s[1:]
-
-            if not matches:
+            zaptec_object = manager.zaptec.get(uid)
+            if zaptec_object is None:
                 raise HomeAssistantError(
                     f"Unable to find zaptec object for {err_device}"
                 )
-            if want != matches:
-                raise HomeAssistantError(
-                    f"{cap_first(err_device)} is not a {mustbe.__name__}"
-                )
-            if len(want) > 1:
-                _LOGGER.warning(
-                    "Unexpected multiple matches for '%s' (%s): %s",
-                    err_device,
-                    uid,
-                    [o.id for _, o in want],
-                )
+            if not isinstance(zaptec_object, mustbe):
+                raise HomeAssistantError(f"{err_device} is not a {mustbe.__name__}")
+            if uid not in manager.device_coordinators:
+                raise HomeAssistantError(f"{err_device} is not available")
 
-            # Send to caller
-            yield from want
+            coordinator = manager.device_coordinators[uid]
+            yield coordinator, zaptec_object
 
     async def service_handle_stop_charging(service_call: ServiceCall) -> None:
         _LOGGER.debug("Called stop charging")
+        _LOGGER.warning(
+            "The 'stop_charging' action is deprecated and will be removed in a future release. "
+            "Use the 'Stop charging' button entity instead"
+        )
         for coordinator, obj in iter_objects(service_call, Charger):
             _LOGGER.debug("  >> to %s", obj.id)
             try:
@@ -228,10 +212,14 @@ async def async_setup_services(hass: HomeAssistant, manager: ZaptecManager) -> N
                 raise HomeAssistantError(
                     f"Command 'stop_charging_final' failed: {exc}"
                 ) from exc
-            await coordinator.trigger_poll(obj)
+            await coordinator.trigger_poll()
 
     async def service_handle_resume_charging(service_call: ServiceCall) -> None:
         _LOGGER.debug("Called resume charging")
+        _LOGGER.warning(
+            "The 'resume_charging' action is deprecated and will be removed in a future release. "
+            "Use the 'Resume charging' button entity instead"
+        )
         for coordinator, obj in iter_objects(service_call, mustbe=Charger):
             _LOGGER.debug("  >> to %s", obj.id)
             try:
@@ -240,10 +228,14 @@ async def async_setup_services(hass: HomeAssistant, manager: ZaptecManager) -> N
                 raise HomeAssistantError(
                     f"Command 'resume_charging' failed: {exc}"
                 ) from exc
-            await coordinator.trigger_poll(obj)
+            await coordinator.trigger_poll()
 
     async def service_handle_authorize_charging(service_call: ServiceCall) -> None:
         _LOGGER.debug("Called authorize charging")
+        _LOGGER.warning(
+            "The 'authorize_charging' action is deprecated and will be removed in a future release. "
+            "Use the 'Authorize charging' button entity instead"
+        )
         for coordinator, obj in iter_objects(service_call, mustbe=Charger):
             _LOGGER.debug("  >> to %s", obj.id)
             try:
@@ -252,10 +244,14 @@ async def async_setup_services(hass: HomeAssistant, manager: ZaptecManager) -> N
                 raise HomeAssistantError(
                     f"Command 'authorize_charge' failed: {exc}"
                 ) from exc
-            await coordinator.trigger_poll(obj)
+            await coordinator.trigger_poll()
 
     async def service_handle_deauthorize_charging(service_call: ServiceCall) -> None:
         _LOGGER.debug("Called deauthorize charging and stop")
+        _LOGGER.warning(
+            "The 'deauthorize_charging' action is deprecated and will be removed in a future release. "
+            "Use the 'Deauthorize charging' button entity instead"
+        )
         for coordinator, obj in iter_objects(service_call, mustbe=Charger):
             _LOGGER.debug("  >> to %s", obj.id)
             try:
@@ -264,10 +260,14 @@ async def async_setup_services(hass: HomeAssistant, manager: ZaptecManager) -> N
                 raise HomeAssistantError(
                     f"Command 'deauthorize_and_stop' failed: {exc}"
                 ) from exc
-            await coordinator.trigger_poll(obj)
+            await coordinator.trigger_poll()
 
     async def service_handle_restart_charger(service_call: ServiceCall) -> None:
         _LOGGER.debug("Called restart charger")
+        _LOGGER.warning(
+            "The 'restart_charger' action is deprecated and will be removed in a future release. "
+            "Use the 'Restart charger' button entity instead"
+        )
         for coordinator, obj in iter_objects(service_call, mustbe=Charger):
             _LOGGER.debug("  >> to %s", obj.id)
             try:
@@ -276,10 +276,14 @@ async def async_setup_services(hass: HomeAssistant, manager: ZaptecManager) -> N
                 raise HomeAssistantError(
                     f"Command 'restart_charger' failed: {exc}"
                 ) from exc
-            await coordinator.trigger_poll(obj)
+            await coordinator.trigger_poll()
 
     async def service_handle_upgrade_firmware(service_call: ServiceCall) -> None:
         _LOGGER.debug("Called update firmware")
+        _LOGGER.warning(
+            "The 'upgrade_firmware' action is deprecated and will be removed in a future release. "
+            "Use the 'Upgrade firmware' button entity instead"
+        )
         for coordinator, obj in iter_objects(service_call, mustbe=Charger):
             _LOGGER.debug("  >> to %s", obj.id)
             try:
@@ -288,7 +292,7 @@ async def async_setup_services(hass: HomeAssistant, manager: ZaptecManager) -> N
                 raise HomeAssistantError(
                     f"Command 'upgrade_firmware' failed: {exc}"
                 ) from exc
-            await coordinator.trigger_poll(obj)
+            await coordinator.trigger_poll()
 
     async def service_handle_limit_current(service_call: ServiceCall) -> None:
         _LOGGER.debug("Called set current limit")
@@ -307,7 +311,7 @@ async def async_setup_services(hass: HomeAssistant, manager: ZaptecManager) -> N
                 )
             except Exception as exc:
                 raise HomeAssistantError(f"Limit current failed: {exc}") from exc
-            await coordinator.trigger_poll(obj)
+            await coordinator.trigger_poll()
 
     async def service_handle_send_command(service_call: ServiceCall) -> None:
         _LOGGER.debug("Called send command")
@@ -318,7 +322,7 @@ async def async_setup_services(hass: HomeAssistant, manager: ZaptecManager) -> N
                 await obj.command(command)
             except Exception as exc:
                 raise HomeAssistantError(f"Command '{command}' failed: {exc}") from exc
-            await coordinator.trigger_poll(obj)
+            await coordinator.trigger_poll()
 
     # LIST OF SERVICES
     services: list[tuple[str, vol.Schema, TServiceHandler]] = [
