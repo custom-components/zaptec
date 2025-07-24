@@ -561,25 +561,6 @@ class Installation(ZaptecBase):
         )
         return data
 
-    async def set_authentication_required(self, required: bool):
-        """Set if authorization is required for charging."""
-
-        # The naming of this function is ambigous. The Zaptec API is inconsistent
-        # on its use of the terms authorization and authentication. In the
-        # GUI this setting is termed "authorisation".
-
-        # Undocumented feature, but the WEB API uses it. It fetches the
-        # installation data and updates IsAuthorizationRequired field
-        data = {
-            "Id": self.id,
-            "IsRequiredAuthentication": required,
-        }
-        # NOTE: Undocumented API call
-        result = await self.zaptec.request(
-            f"installation/{self.id}", method="put", data=data
-        )
-        return result
-
 
 class Charger(ZaptecBase):
     """Represents a charger."""
