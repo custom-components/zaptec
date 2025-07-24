@@ -33,20 +33,19 @@ To use this component, a user with access to
 # ⭐ Version 0.8
 
 > [!IMPORTANT]
-> This is a pre-release version it not yet stable as a production version.
-> This version hasn't been well tested yet, and we need your help
-> with that. Please give it a go and if you find any issues, please file an
-> issue at https://github.com/custom-components/zaptec/issues
+> This is a pre-release version and may not be stable for production use.
+> It has not undergone extensive testing, so your feedback is valuable.
+> Please try it out, and if you encounter any problems, report them at
+> https://github.com/custom-components/zaptec/issues
 
 The v0.8 is a major release with a lot of changes. The integration has been
 completely redesigned and may impact your existing automations.
 
-This update fully adheres to the
-[Zaptec API Fair Use policy](https://docs.zaptec.com/docs/api-fair-use-policy#/),
-which was a primary objective for this release. The mechanism for synchronizing
-HA entities with the Zaptec portal has been make more robust. This reduce the
-number of requests to Zaptec and fixes the issues of getting
-"429 Too many request" -- especially on larger installations.
+The main goal of this release been to adopt to the
+[Zaptec API Fair Use policy](https://docs.zaptec.com/docs/api-fair-use-policy#/).
+The mechanism for synchronizing HA entities with the Zaptec portal has been make
+more robust. This reduce the number of requests to Zaptec and fixes the issues
+of getting "429 Too many request" -- especially on larger installations.
 
 ## ✨ Feature highlight
 
@@ -80,7 +79,7 @@ number of requests to Zaptec and fixes the issues of getting
 
 * If entities are not available from Zaptec on startup, they will cause errors
   in the log. If you encounter this, please add an issue and we'll add an
-  exception to the startup.
+  exception for this entity to the startup.
 * Sending a "deauthorize_and_stop" command will give an error. This is due to
   Zaptec sending back error code 500. However, the command seems to do its
   task.
@@ -135,7 +134,7 @@ Continue as described above in [setting up Zaptec](#setting-up-zaptec)
 # Usage
 
 > [!NOTE]
-> This integration use the [official Web API](https://api.zaptec.com/help/index.html)
+> This integration uses the [official Web API](https://api.zaptec.com/help/index.html)
 > provided by Zaptec. However, this integration also use a few functions that
 > are not officially supported by the API. Use at own risk and they might break
 > at any time.
@@ -215,7 +214,7 @@ the same time.
 > affect all.
 
 > [!IMPORTANT]
-> Many EVs doesn't like getting too frequent changes to the available charge
+> Many EVs don't like getting too frequent changes to the available charge
 > current. Zaptec recommends not changing the values more often than 15 minutes.
 
 
