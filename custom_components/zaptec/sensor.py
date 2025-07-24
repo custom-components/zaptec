@@ -18,7 +18,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import ZaptecBaseEntity, ZaptecConfigEntry
 from .api import ZCONST
-from .misc import get_ocmf_latest_reader_value
+from .misc import get_ocmf_max_reader_value
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -84,8 +84,8 @@ class ZaptecEnengySensor(ZaptecSensor):
         session = self._get_zaptec_value(key="completed_session", default={})
 
         # Get the latest energy reading from both and use the largest value
-        reading = get_ocmf_latest_reader_value(meter_value)
-        session_reading = get_ocmf_latest_reader_value(session.get("SignedSession", {}))
+        reading = get_ocmf_max_reader_value(meter_value)
+        session_reading = get_ocmf_max_reader_value(session.get("SignedSession", {}))
 
         self._attr_native_value = max(reading, session_reading)
         self._attr_available = True
@@ -251,7 +251,9 @@ CHARGER_ENTITIES: list[EntityDescription] = [
         cls=ZaptecSensor,
     ),
     ZapSensorEntityDescription(
-        key="signed_meter_value_kwh",  # This key is unused, but kept for <0.7 compatibility
+        # This key is no longer used to get Zaptec values, but is linked to the
+        # entity unique_id, so it is kept for <0.7 compatibility
+        key="signed_meter_value_kwh",
         translation_key="signed_meter_value",
         device_class=SensorDeviceClass.ENERGY,
         icon="mdi:counter",

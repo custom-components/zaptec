@@ -1,7 +1,6 @@
 """Misc helper stuff."""
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
 import re
 
 
@@ -98,40 +97,15 @@ RE_OCMF_TIMESTAMP = re.compile(
 )
 
 
-def get_ocmf_latest_reader_value(data: dict) -> int:
-    """Return the latest reader value from OCMF data."""
+def get_ocmf_max_reader_value(data: dict) -> int:
+    """Return the maximum reader value from OCMF data."""
 
     if not isinstance(data, dict):
         return 0
-    if "RD" not in data:
-        return 0
-
-    # Find the latest reading
-    readings = []
-    for reading in data["RD"]:
-        value = reading.get("RV")
-        if value is None:
-            continue
-        ts = None
-        m = RE_OCMF_TIMESTAMP.match(reading.get("TM", ''))
-        if m:
-            ts = datetime(
-                int(m[1]),  # Year
-                int(m[2]),  # Month
-                int(m[3]),  # Day
-                int(m[4]),  # Hours
-                int(m[5]),  # Minutes
-                int(m[6]),  # Seconds
-                int(m[7]) * 1000,  # Milliseconds
-                tzinfo=timezone(timedelta(hours=int(m[8]), minutes=int(m[9]))),  # Time zone
-            )
-            readings.append((ts, value))
-
-    # Sort readings by timestamp
-    readings.sort(key=lambda x: x[0])
-    if readings:
-        return readings[-1][1]  # Return the latest value
-    return 0
+    return max(
+        int(reading.get("RV", 0))
+        for reading in data.get("RD",[])
+    )
 
 
 if __name__ == "__main__":
