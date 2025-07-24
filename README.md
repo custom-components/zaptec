@@ -41,10 +41,10 @@ To use this component, a user with access to
 The v0.8 is a major release with a lot of changes. The integration has been
 completely redesigned and may impact your existing automations.
 
-The main goal of this release been to adopt to the
+The main goal of this release has been to adopt to the
 [Zaptec API Fair Use policy](https://docs.zaptec.com/docs/api-fair-use-policy#/).
-The mechanism for synchronizing HA entities with the Zaptec portal has been make
-more robust. This reduce the number of requests to Zaptec and fixes the issues
+The mechanism for synchronizing HA entities with the Zaptec portal has been made
+more robust. This reduces the number of requests to Zaptec and fixes the issues
 of getting "429 Too many request" -- especially on larger installations.
 
 ## ✨ Feature highlight
