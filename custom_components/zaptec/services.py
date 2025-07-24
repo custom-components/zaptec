@@ -202,7 +202,7 @@ async def async_setup_services(hass: HomeAssistant, manager: ZaptecManager) -> N
         _LOGGER.debug("Called stop charging")
         _LOGGER.warning(
             "The 'stop_charging' action is deprecated and will be removed in a future release. "
-            "Use the 'stop_charging' botton entity instead"
+            "Use the 'Stop charging' button entity instead"
         )
         for coordinator, obj in iter_objects(service_call, Charger):
             _LOGGER.debug("  >> to %s", obj.id)
@@ -218,7 +218,7 @@ async def async_setup_services(hass: HomeAssistant, manager: ZaptecManager) -> N
         _LOGGER.debug("Called resume charging")
         _LOGGER.warning(
             "The 'resume_charging' action is deprecated and will be removed in a future release. "
-            "Use the 'Resume Charging' button entity instead"
+            "Use the 'Resume charging' button entity instead"
         )
         for coordinator, obj in iter_objects(service_call, mustbe=Charger):
             _LOGGER.debug("  >> to %s", obj.id)
