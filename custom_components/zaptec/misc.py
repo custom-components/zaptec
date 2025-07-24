@@ -96,6 +96,17 @@ def mc_nbfx_decoder(msg: bytes) -> None:
             raise AttributeError(f"Unknown record type {hex(record_type)}")
 
 
+def get_ocmf_max_reader_value(data: dict) -> float:
+    """Return the maximum reader value from OCMF data."""
+
+    if not isinstance(data, dict):
+        return 0.
+    return max(
+        float(reading.get("RV", 0.))
+        for reading in data.get("RD",[])
+    )
+
+
 if __name__ == "__main__":
     from pprint import pprint
 

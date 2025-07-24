@@ -18,6 +18,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import ZaptecBaseEntity, ZaptecConfigEntry
 from .api import ZCONST
+from .misc import get_ocmf_max_reader_value
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -56,7 +57,37 @@ class ZaptecChargeSensor(ZaptecSensor):
         # Called from ZaptecBaseEntity._handle_coordinator_update()
         self._attr_native_value = self._get_zaptec_value()
         self._attr_icon = self.CHARGE_MODE_ICON_MAP.get(
-            self._attr_native_value, self.CHARGE_MODE_ICON_MAP["Unknown"])
+            self._attr_native_value, self.CHARGE_MODE_ICON_MAP["Unknown"]
+        )
+        self._attr_available = True
+
+
+class ZaptecEnengySensor(ZaptecSensor):
+    """Zaptec energy sensor entity."""
+
+    _log_attribute = "_attr_native_value"
+    # This entity use several attributes from Zaptec
+    _log_zaptec_key = ["signed_meter_value", "completed_session"]
+
+    @callback
+    def _update_from_zaptec(self) -> None:
+        """Update the entity from Zaptec data."""
+        # Called from ZaptecBaseEntity._handle_coordinator_update()
+
+        # The energy sensor value is found in two different attributes. They
+        # are OCMF (Open Charge Metering Format) data structures and must be
+        # parsed to get the latest reading.
+
+        # Ge the two OCMF data structures from Zaptec. The first one must exists,
+        # the second one is optional.
+        meter_value = self._get_zaptec_value(key="signed_meter_value")
+        session = self._get_zaptec_value(key="completed_session", default={})
+
+        # Get the latest energy reading from both and use the largest value
+        reading = get_ocmf_max_reader_value(meter_value)
+        session_reading = get_ocmf_max_reader_value(session.get("SignedSession", {}))
+
+        self._attr_native_value = max(reading, session_reading)
         self._attr_available = True
 
 
@@ -220,13 +251,15 @@ CHARGER_ENTITIES: list[EntityDescription] = [
         cls=ZaptecSensor,
     ),
     ZapSensorEntityDescription(
+        # This key is no longer used to get Zaptec values, but is linked to the
+        # entity unique_id, so it is kept for <0.7 compatibility
         key="signed_meter_value_kwh",
         translation_key="signed_meter_value",
         device_class=SensorDeviceClass.ENERGY,
         icon="mdi:counter",
         native_unit_of_measurement=const.UnitOfEnergy.KILO_WATT_HOUR,
         state_class=SensorStateClass.TOTAL_INCREASING,
-        cls=ZaptecSensor,
+        cls=ZaptecEnengySensor,
     ),
     ZapSensorEntityDescription(
         key="completed_session.Energy",
