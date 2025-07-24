@@ -91,12 +91,6 @@ def mc_nbfx_decoder(msg: bytes) -> None:
             raise AttributeError(f"Unknown record type {hex(record_type)}")
 
 
-# Format: <Year>-<Month>-<Day>T<Hours>:<Minutes>:<Seconds>,<Milliseconds><Time Zone>
-RE_OCMF_TIMESTAMP = re.compile(
-    r"^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2}),(\d{3})([+\-]\d{2}):(\d{2}) .*$"
-)
-
-
 def get_ocmf_max_reader_value(data: dict) -> int:
     """Return the maximum reader value from OCMF data."""
 
