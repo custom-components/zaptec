@@ -11,6 +11,10 @@
             "onAutoForward": "notify"
         }
     },
+    "mounts": [
+        // To add support for git with ssh in the dev container, uncomment the line below.
+        // "source=${localEnv:HOME}/.ssh,target=/home/vscode/.ssh,type=bind"
+    ],
     "customizations": {
         "vscode": {
             "extensions": [
