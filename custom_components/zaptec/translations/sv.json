@@ -21,10 +21,10 @@
             }
         },
         "error": {
-            "cannot_connect": "[%key:common::config_flow::error::cannot_connect%]",
-            "invalid_auth": "[%key:common::config_flow::error::invalid_auth%]",
-            "unknown": "[%key:common::config_flow::error::unknown%]",
-            "no_chargers_selected": "Ingen laddare vald. Välj minst en laddare."
+            "cannot_connect": "Det gick inte att ansluta",
+            "invalid_auth": "Ogiltig autentisering",
+            "no_chargers_selected": "Ingen laddare vald. Välj minst en laddare.",
+            "unknown": "Ov\u00e4ntat fel"
         },
         "abort":{
             "already_exists": "En instans med laddare finns redan."

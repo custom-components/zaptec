@@ -21,10 +21,10 @@
             }
         },
         "error": {
-            "cannot_connect": "[%key:common::config_flow::error::cannot_connect%]",
-            "invalid_auth": "[%key:common::config_flow::error::invalid_auth%]",
-            "unknown": "[%key:common::config_flow::error::unknown%]",
-            "no_chargers_selected": "Geen oplader(s) geselecteerd. Selecteer ten minste één oplader."
+            "cannot_connect": "Kan geen verbinding maken",
+            "invalid_auth": "Ongeldige authenticatie",
+            "no_chargers_selected": "Geen oplader(s) geselecteerd. Selecteer ten minste één oplader.",
+            "unknown": "Onverwachte fout"
         },
         "abort":{
             "already_exists": "Een exemplaar van Zaptec bestaat al."
