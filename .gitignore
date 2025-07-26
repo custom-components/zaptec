@@ -1,33 +1,31 @@
-# Windows thumbnail cache files
-Thumbs.db
-ehthumbs.db
-ehthumbs_vista.db
-
-# Folder config file
-Desktop.ini
-
-# Recycle Bin used on file shares
-$RECYCLE.BIN/
-
-# Windows Installer files
-*.cab
-*.msi
-*.msm
-*.msp
-
-# Windows shortcuts
-*.lnk
-
-# Python files
+# artifacts
 __pycache__
+.pytest*
+*.egg-info
+*/build/*
+*/dist/*
 
-# Python virtual environments
-venv*/
-/.python-version
+# misc
+.coverage
+.vscode
+coverage.xml
+.ruff_cache
 
 # Home Assistant configuration
 config/*
 !config/configuration.yaml
+
+# Windows thumbnail cache files
+Thumbs.db
+ehthumbs.db
+ehthumbs_vista.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Python virtual environments
+venv*/
+.venv*/
+/.python-version
 
 # Zaptec files
 constant.json

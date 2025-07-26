@@ -4,14 +4,4 @@ set -e
 
 cd "$(dirname "$0")/.."
 
-pip_packages() {
-    python3 -m pip \
-        install \
-        --upgrade \
-        --disable-pip-version-check \
-        "${@}"
-}
-
-pip_packages "pip<25.2,>=25.0.0"
-pip_packages setuptools wheel
-pip_packages --requirement requirements.txt
+python3 -m pip install --requirement requirements.txt
