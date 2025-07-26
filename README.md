@@ -337,7 +337,8 @@ documented  in the
 ## Development
 
 The document [DEVELOPMENT.md](DEVELOPMENT.md) contains information about
-how to develop the Zaptec integration, with tips and tricks.
+how to develop the Zaptec integration. It contains tips and tricks and how to
+setup the Dev Container.
 
 
 # CHanges
