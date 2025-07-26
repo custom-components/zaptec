@@ -5,21 +5,12 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-import voluptuous as vol
-
-from homeassistant.config_entries import (
-    SOURCE_RECONFIGURE,
-    ConfigFlow,
-    ConfigFlowResult,
-)
+from homeassistant.config_entries import SOURCE_RECONFIGURE, ConfigFlow, ConfigFlowResult
 from homeassistant.const import CONF_PASSWORD, CONF_USERNAME
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 import homeassistant.helpers.config_validation as cv
-from homeassistant.helpers.selector import (
-    TextSelector,
-    TextSelectorConfig,
-    TextSelectorType,
-)
+from homeassistant.helpers.selector import TextSelector, TextSelectorConfig, TextSelectorType
+import voluptuous as vol
 
 from .api import (
     AuthenticationError,
@@ -135,9 +126,7 @@ class ZaptecFlowHandler(ConfigFlow, domain=DOMAIN):
             reload_even_if_entry_is_unchanged=False,
         )
 
-    async def async_step_user(
-        self, user_input: dict[str, Any] | None = None
-    ) -> ConfigFlowResult:
+    async def async_step_user(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         """Handle a configuration flow initiated by the user."""
         errors: dict[str, str] = {}
 
@@ -245,9 +234,7 @@ class ZaptecFlowHandler(ConfigFlow, domain=DOMAIN):
         errors: dict[str, str] = {}
         reauth_entry = self._get_reauth_entry()
 
-        _LOGGER.debug(
-            "async_step_reauth_confirm called with user_input: %s", user_input
-        )
+        _LOGGER.debug("async_step_reauth_confirm called with user_input: %s", user_input)
 
         if user_input is not None:
             entries = {

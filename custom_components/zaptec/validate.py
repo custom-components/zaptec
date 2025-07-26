@@ -1,4 +1,5 @@
 """Data validator for Zaptec API data."""
+
 from __future__ import annotations
 
 import logging
@@ -13,7 +14,7 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class TypeWrapper:
-    """Workaround class for v1 pydantic"""
+    """Workaround class for v1 pydantic."""
 
 
 class Installation(BaseModel):
