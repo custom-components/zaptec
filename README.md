@@ -65,7 +65,7 @@ of getting "429 Too many request" -- especially on larger installations.
 
 * `charger_mode` have changed values. E.g. from "Charging" to
   "Connected_Charging" due to using the native Zaptec values. Your automation
-  might need an update. 
+  might need an update.
 * `permanent_cable_lock` have changed from "lock" type to "switch" type.
 * There is no support for configuring Zaptec by YAML, only using the UI
 * The user setting poll/scan interval have been removed, in favor of the
@@ -170,13 +170,13 @@ To start the charging from HA, this can be done in several ways:
 
 - Press the _"Resume charging"_ button, or
 - Toggle the _"Charging"_ switch, or
-- Send `zaptec.restart_charger` service call
+- Send `zaptec.restart_charger` service call (deprecated)
 
 Similarly, pausing the charging can be done by:
 
 - Pressing the _"Stop charging"_ button, or
 - Turn off the _"Charging"_ switch, or
-- Send `zaptec.stop_pause_charging` service call
+- Send `zaptec.stop_pause_charging` service call (deprecated)
 
 > [!TIP]
 > Zaptec will unlock the cable when charging is paused unless it is permanently
@@ -316,6 +316,7 @@ logger:
 > debug. This is nice for finding errors, but it will generate large amount of
 > data if left enabled for long. Do not use in production setups.
 
+
 ## Using the integration
 
 ### Load balancing your charger
@@ -332,6 +333,14 @@ How to setup the automation, how the logic works and what all settings mean is
 documented  in the
 [blueprint readme](https://github.com/svenakela/ha/blob/main/zaptec/README.md).
 
+
+## Development
+
+The document [DEVELOPMENT.md](DEVELOPMENT.md) contains information about
+how to develop the Zaptec integration, with tips and tricks.
+
+
+# CHanges
 
 ## Changes from 0.7 to 0.8
 
