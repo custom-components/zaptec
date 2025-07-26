@@ -1,14 +1,16 @@
 {
   "domain": "zaptec",
   "name": "Zaptec EV charger",
-  "documentation": "https://github.com/custom-components/zaptec",
-  "dependencies": [],
-  "config_flow": true,
   "codeowners": [
-    "hellowlol",
-    "sveinse"
+    "@sveinse",
+    "@hellowlol"
   ],
+  "config_flow": true,
+  "dependencies": [],
+  "documentation": "https://github.com/custom-components/zaptec",
+  "integration_type": "hub",
   "iot_class": "cloud_polling",
+  "issue_tracker": "https://github.com/custom-components/zaptec/issues",
   "requirements": ["azure-servicebus==7.14.2", "pydantic==2.11.7", "aiolimiter==1.2.1"],
   "version": "0.8b1"
 }
