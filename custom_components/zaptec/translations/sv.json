@@ -23,8 +23,8 @@
         "error": {
             "cannot_connect": "Det gick inte att ansluta",
             "invalid_auth": "Ogiltig autentisering",
-            "unknown": "Ov\u00e4ntat fel",
-            "no_chargers_selected": "Ingen laddare vald. Välj minst en laddare."
+            "no_chargers_selected": "Ingen laddare vald. Välj minst en laddare.",
+            "unknown": "Ov\u00e4ntat fel"
         },
         "abort":{
             "already_exists": "En instans med laddare finns redan."

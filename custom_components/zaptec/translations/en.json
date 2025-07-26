@@ -23,8 +23,8 @@
         "error": {
             "cannot_connect": "Failed to connect",
             "invalid_auth": "Invalid authentication",
-            "unknown": "Unexpected error",
-            "no_chargers_selected": "No chargers selected. Please select at least one charger."
+            "no_chargers_selected": "No chargers selected. Please select at least one charger.",
+            "unknown": "Unexpected error"
         },
         "abort":{
             "already_exists": "One instance of Zaptec already exists."
