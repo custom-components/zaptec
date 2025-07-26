@@ -1,24 +1,7 @@
 {
     "config": {
-        "step": {
-            "user": {
-                "title": "Zaptec setup",
-                "description": "Add your Zaptec Portal login details.\n\nThe optional prefix will add the prefix to all devices. Note that it is generally better to rename the device names in HA than adding a prefix.",
-                "data": {
-                    "username": "Username",
-                    "password": "Password",
-                    "prefix": "Optional prefix",
-                    "scan_interval": "Scan interval",
-                    "manual_select": "Manually select chargers. Next screen will select the chargers to add."
-                }
-            },
-            "chargers": {
-                "title": "Zaptec charger selection",
-                "description": "Select the chargers you want to add to Home Assistant.",
-                "data": {
-                    "chargers": "Chargers"
-                }
-            }
+        "abort": {
+            "already_exists": "One instance of Zaptec already exists."
         },
         "error": {
             "cannot_connect": "Failed to connect",
@@ -26,71 +9,28 @@
             "no_chargers_selected": "No chargers selected. Please select at least one charger.",
             "unknown": "Unexpected error"
         },
-        "abort":{
-            "already_exists": "One instance of Zaptec already exists."
+        "step": {
+            "chargers": {
+                "title": "Zaptec charger selection",
+                "description": "Select the chargers you want to add to Home Assistant.",
+                "data": {
+                    "chargers": "Chargers"
+                }
+            },
+            "user": {
+                "title": "Zaptec setup",
+                "description": "Add your Zaptec Portal login details.\n\nThe optional prefix will add the prefix to all devices. Note that it is generally better to rename the device names in HA than adding a prefix.",
+                "data": {
+                    "manual_select": "Manually select chargers. Next screen will select the chargers to add.",
+                    "password": "Password",
+                    "prefix": "Optional prefix",
+                    "scan_interval": "Scan interval",
+                    "username": "Username"
+                }
+            }
         }
     },
     "entity": {
-        "sensor": {
-            "authentication_type": {
-                "name": "Authentication type",
-                "state": {
-                    "Native": "Native",
-                    "WebHooks": "Web Hooks",
-                    "Ocpp": "OCPP"
-                }
-            },
-            "available_current_phase1": { "name": "Available current phase 1" },
-            "available_current_phase2": { "name": "Available current phase 2" },
-            "available_current_phase3": { "name": "Available current phase 3" },
-            "charge_current_set": { "name": "Allocated charge current" },
-            "charger_operation_mode": {
-                "name": "Charger mode",
-                "state": {
-                    "Unknown": "Unknown",
-                    "Disconnected": "Disconnected",
-                    "Connected_Requesting": "Waiting",
-                    "Connected_Charging": "Charging",
-                    "Connected_Finished": "Charge done"
-                }
-            },
-            "completed_session_energy": { "name": "Completed session energy" },
-            "current_phase1": { "name": "Current phase 1" },
-            "current_phase2": { "name": "Current phase 2" },
-            "current_phase3": { "name": "Current phase 3" },
-            "device_type": {
-                "name": "Device type",
-                "state": {
-                    "Unknown": "Unknown"
-                }
-            },
-            "humidity": { "name": "Humidity" },
-            "installation_type": { "name": "Installation type" },
-            "max_current": { "name": "Max current" },
-            "network_type": {
-                "name": "Network type",
-                "state": {
-                    "Unknown": "Unknown",
-                    "IT_1_Phase": "IT 1 Phase",
-                    "IT_3_Phase": "IT 3 Phase",
-                    "TN_1_Phase": "TN 1 Phase",
-                    "TN_3_Phase": "TN 3 Phase"
-                }
-            },
-            "signed_meter_value": { "name": "Energy meter"},
-            "temperature_internal5": { "name": "Temperature (internal)" },
-            "total_charge_power_session": { "name": "Session total charge" },
-            "total_charge_power": { "name": "Charge power" },
-            "voltage_phase1": { "name": "Voltage phase 1" },
-            "voltage_phase2": { "name": "Voltage phase 2" },
-            "voltage_phase3": { "name": "Voltage phase 3" }
-        },
-        "number": {
-            "available_current": { "name": "Available current" },
-            "charger_max_current": { "name": "Charger max current" },
-            "charger_min_current": { "name": "Charger min current" },
-            "hmi_brightness": { "name": "Status indicator brightness" }
-        },
         "binary_sensor": {
             "authorization_required": {
                 "name": "Authorization required",
@@ -99,23 +39,149 @@
                     "on": "Required"
                 }
             },
-            "online": { "name": "Online" }
+            "online": {
+                "name": "Online"
+            }
         },
         "button": {
-            "authorize_charge": { "name": "Authorize charging" },
-            "deauthorize_and_stop": { "name": "Deauthorize charging"},
-            "restart_charger": { "name": "Restart charger" },
-            "resume_charging": { "name": "Resume charging" },
-            "stop_charging": { "name": "Stop charging" },
-            "upgrade_firmware": { "name": "Upgrade firmware" }
+            "authorize_charge": {
+                "name": "Authorize charging"
+            },
+            "deauthorize_and_stop": {
+                "name": "Deauthorize charging"
+            },
+            "restart_charger": {
+                "name": "Restart charger"
+            },
+            "resume_charging": {
+                "name": "Resume charging"
+            },
+            "stop_charging": {
+                "name": "Stop charging"
+            },
+            "upgrade_firmware": {
+                "name": "Upgrade firmware"
+            }
+        },
+        "number": {
+            "available_current": {
+                "name": "Available current"
+            },
+            "charger_max_current": {
+                "name": "Charger max current"
+            },
+            "charger_min_current": {
+                "name": "Charger min current"
+            },
+            "hmi_brightness": {
+                "name": "Status indicator brightness"
+            }
+        },
+        "sensor": {
+            "authentication_type": {
+                "name": "Authentication type",
+                "state": {
+                    "native": "Native",
+                    "ocpp": "OCPP",
+                    "webhooks": "Web Hooks"
+                }
+            },
+            "available_current_phase1": {
+                "name": "Available current phase 1"
+            },
+            "available_current_phase2": {
+                "name": "Available current phase 2"
+            },
+            "available_current_phase3": {
+                "name": "Available current phase 3"
+            },
+            "charge_current_set": {
+                "name": "Allocated charge current"
+            },
+            "charger_operation_mode": {
+                "name": "Charger mode",
+                "state": {
+                    "connected_charging": "Charging",
+                    "connected_finished": "Charge done",
+                    "connected_requesting": "Waiting",
+                    "disconnected": "Disconnected",
+                    "unknown": "Unknown"
+                }
+            },
+            "completed_session_energy": {
+                "name": "Completed session energy"
+            },
+            "current_phase1": {
+                "name": "Current phase 1"
+            },
+            "current_phase2": {
+                "name": "Current phase 2"
+            },
+            "current_phase3": {
+                "name": "Current phase 3"
+            },
+            "device_type": {
+                "name": "Device type",
+                "state": {
+                    "unknown": "Unknown"
+                }
+            },
+            "humidity": {
+                "name": "Humidity"
+            },
+            "installation_type": {
+                "name": "Installation type"
+            },
+            "max_current": {
+                "name": "Max current"
+            },
+            "network_type": {
+                "name": "Network type",
+                "state": {
+                    "it_1_phase": "IT 1 Phase",
+                    "it_3_phase": "IT 3 Phase",
+                    "tn_1_phase": "TN 1 Phase",
+                    "tn_3_phase": "TN 3 Phase",
+                    "unknown": "Unknown"
+                }
+            },
+            "signed_meter_value": {
+                "name": "Energy meter"
+            },
+            "temperature_internal5": {
+                "name": "Temperature (internal)"
+            },
+            "total_charge_power_session": {
+                "name": "Session total charge"
+            },
+            "total_charge_power": {
+                "name": "Charge power"
+            },
+            "voltage_phase1": {
+                "name": "Voltage phase 1"
+            },
+            "voltage_phase2": {
+                "name": "Voltage phase 2"
+            },
+            "voltage_phase3": {
+                "name": "Voltage phase 3"
+            }
         },
         "switch": {
-            "authorization_required": { "name": "Authorization required" },
-            "charger_operation_mode": { "name": "Charging" },
-            "permanent_cable_lock": { "name": "Permanent cable lock" }
+            "authorization_required": {
+                "name": "Authorization required"
+            },
+            "charger_operation_mode": {
+                "name": "Charging"
+            },
+            "permanent_cable_lock": {
+                "name": "Permanent cable lock"
+            }
         },
         "update": {
-            "firmware_update": { "name": "Firmware update" }
+            "firmware_update": {
+                "name": "Firmware update"
+            }
         }
     }
 }

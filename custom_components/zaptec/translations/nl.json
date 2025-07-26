@@ -1,24 +1,7 @@
 {
     "config": {
-        "step": {
-            "user": {
-                "title": "Zaptec setup",
-                "description": "Voeg uw Zaptec Portal inloggegevens toe.\n\nMet het optionele voorvoegsel wordt het voorvoegsel aan alle apparaten toegevoegd. Merk op dat het doorgaans beter is om de apparaatnamen in HA te hernoemen dan een voorvoegsel toe te voegen.",
-                "data": {
-                    "username": "Gebruikersnaam",
-                    "password": "Wachtwoord",
-                    "prefix": "Optioneel voorvoegsel",
-                    "scan_interval": "Scaninterval",
-                    "manual_select": "Handmatig opladers selecteren. Op het volgende scherm worden de opladers weergegeven die toegevoegd kunnen worden."
-                }
-            },
-            "chargers": {
-                "title": "Zaptec oplader selectie",
-                "description": "Selecteer de oplader(s) die u aan Home Assistant wilt toevoegen.",
-                "data": {
-                    "chargers": "Opladers"
-                }
-            }
+        "abort": {
+            "already_exists": "Een exemplaar van Zaptec bestaat al."
         },
         "error": {
             "cannot_connect": "Kan geen verbinding maken",
@@ -26,71 +9,28 @@
             "no_chargers_selected": "Geen oplader(s) geselecteerd. Selecteer ten minste één oplader.",
             "unknown": "Onverwachte fout"
         },
-        "abort":{
-            "already_exists": "Een exemplaar van Zaptec bestaat al."
+        "step": {
+            "chargers": {
+                "title": "Zaptec oplader selectie",
+                "description": "Selecteer de oplader(s) die u aan Home Assistant wilt toevoegen.",
+                "data": {
+                    "chargers": "Opladers"
+                }
+            },
+            "user": {
+                "title": "Zaptec setup",
+                "description": "Voeg uw Zaptec Portal inloggegevens toe.\n\nMet het optionele voorvoegsel wordt het voorvoegsel aan alle apparaten toegevoegd. Merk op dat het doorgaans beter is om de apparaatnamen in HA te hernoemen dan een voorvoegsel toe te voegen.",
+                "data": {
+                    "manual_select": "Handmatig opladers selecteren. Op het volgende scherm worden de opladers weergegeven die toegevoegd kunnen worden.",
+                    "password": "Wachtwoord",
+                    "prefix": "Optioneel voorvoegsel",
+                    "scan_interval": "Scaninterval",
+                    "username": "Gebruikersnaam"
+                }
+            }
         }
     },
     "entity": {
-        "sensor": {
-            "authentication_type": {
-                "name": "Authenticatie type",
-                "state": {
-                    "Native": "Handmatig",
-                    "WebHooks": "Web hooks",
-                    "Ocpp": "OCPP"
-                }
-            },
-            "available_current_phase1": { "name": "Beschikbare stroom fase1" },
-            "available_current_phase2": { "name": "Beschikbare stroom fase2" },
-            "available_current_phase3": { "name": "Beschikbare stroom fase3" },
-            "charge_current_set": { "name": "Toegewezen laadstroom" },
-            "charger_operation_mode": {
-                "name": "Opladermodus",
-                "state": {
-                    "Unknown": "Onbekend",
-                    "Disconnected": "Losgekoppeld",
-                    "Connected_Requesting": "Wachten",
-                    "Connected_Charging": "Opladen",
-                    "Connected_Finished": "Opladen gereed"
-                }
-            },
-            "completed_session_energy": { "name": "Laatste laadsessie" },
-            "current_phase1": { "name": "Stroom fase1" },
-            "current_phase2": { "name": "Stroom fase2" },
-            "current_phase3": { "name": "Stroom fase3" },
-            "device_type": {
-                "name": "Apparaattype",
-                "state": {
-                    "Unknown": "Onbekend"
-                }
-            },
-            "humidity": { "name": "Vochtigheid" },
-            "installation_type": { "name": "Installatie type" },
-            "max_current": { "name": "Max stroom per fase" },
-            "network_type": {
-                "name": "Netwerk type",
-                "state": {
-                    "Unknown": "Onbekend",
-                    "IT_1_Phase": "IT 1 fase",
-                    "IT_3_Phase": "IT 3 fase",
-                    "TN_1_Phase": "TN 1 fase",
-                    "TN_3_Phase": "TN 3 fase"
-                }
-            },
-            "signed_meter_value": { "name": "Meterwaarde"},
-            "temperature_internal5": { "name": "Temperatuur (intern)" },
-            "total_charge_power_session": { "name": "Totale laadsessie" },
-            "total_charge_power": { "name": "Laadvermogen" },
-            "voltage_phase1": { "name": "Spanning fase1" },
-            "voltage_phase2": { "name": "Spanning fase2" },
-            "voltage_phase3": { "name": "Spanning fase3" }
-        },
-        "number": {
-            "available_current": { "name": "Beschikbare stroom" },
-            "charger_max_current": { "name": "Max stroom" },
-            "charger_min_current": { "name": "Min stroom" },
-            "hmi_brightness": { "name": "Helderheid statusindicator" }
-        },
         "binary_sensor": {
             "authorization_required": {
                 "name": "Autorisatie",
@@ -99,23 +39,149 @@
                     "on": "Vereist"
                 }
             },
-            "online": { "name": "Online" }
+            "online": {
+                "name": "Online"
+            }
         },
         "button": {
-            "authorize_charge": { "name": "Autoriseer het laden" },
-            "deauthorize_and_stop": { "name": "Deautoriseer het laden"},
-            "restart_charger": { "name": "Herstart het laadstation" },
-            "resume_charging": { "name": "Hervat het opladen" },
-            "stop_charging": { "name": "Stop het opladen" },
-            "upgrade_firmware": { "name": "Firmware upgraden" }
+            "authorize_charge": {
+                "name": "Autoriseer het laden"
+            },
+            "deauthorize_and_stop": {
+                "name": "Deautoriseer het laden"
+            },
+            "restart_charger": {
+                "name": "Herstart het laadstation"
+            },
+            "resume_charging": {
+                "name": "Hervat het opladen"
+            },
+            "stop_charging": {
+                "name": "Stop het opladen"
+            },
+            "upgrade_firmware": {
+                "name": "Firmware upgraden"
+            }
+        },
+        "number": {
+            "available_current": {
+                "name": "Beschikbare stroom"
+            },
+            "charger_max_current": {
+                "name": "Max stroom"
+            },
+            "charger_min_current": {
+                "name": "Min stroom"
+            },
+            "hmi_brightness": {
+                "name": "Helderheid statusindicator"
+            }
+        },
+        "sensor": {
+            "authentication_type": {
+                "name": "Authenticatie type",
+                "state": {
+                    "native": "Handmatig",
+                    "ocpp": "OCPP",
+                    "webhooks": "Web hooks"
+                }
+            },
+            "available_current_phase1": {
+                "name": "Beschikbare stroom fase1"
+            },
+            "available_current_phase2": {
+                "name": "Beschikbare stroom fase2"
+            },
+            "available_current_phase3": {
+                "name": "Beschikbare stroom fase3"
+            },
+            "charge_current_set": {
+                "name": "Toegewezen laadstroom"
+            },
+            "charger_operation_mode": {
+                "name": "Opladermodus",
+                "state": {
+                    "connected_charging": "Opladen",
+                    "connected_finished": "Opladen gereed",
+                    "connected_requesting": "Wachten",
+                    "disconnected": "Losgekoppeld",
+                    "unknown": "Onbekend"
+                }
+            },
+            "completed_session_energy": {
+                "name": "Laatste laadsessie"
+            },
+            "current_phase1": {
+                "name": "Stroom fase1"
+            },
+            "current_phase2": {
+                "name": "Stroom fase2"
+            },
+            "current_phase3": {
+                "name": "Stroom fase3"
+            },
+            "device_type": {
+                "name": "Apparaattype",
+                "state": {
+                    "unknown": "Onbekend"
+                }
+            },
+            "humidity": {
+                "name": "Vochtigheid"
+            },
+            "installation_type": {
+                "name": "Installatie type"
+            },
+            "max_current": {
+                "name": "Max stroom per fase"
+            },
+            "network_type": {
+                "name": "Netwerk type",
+                "state": {
+                    "it_1_phase": "IT 1 fase",
+                    "it_3_phase": "IT 3 fase",
+                    "tn_1_phase": "TN 1 fase",
+                    "tn_3_phase": "TN 3 fase",
+                    "unknown": "Onbekend"
+                }
+            },
+            "signed_meter_value": {
+                "name": "Meterwaarde"
+            },
+            "temperature_internal5": {
+                "name": "Temperatuur (intern)"
+            },
+            "total_charge_power_session": {
+                "name": "Totale laadsessie"
+            },
+            "total_charge_power": {
+                "name": "Laadvermogen"
+            },
+            "voltage_phase1": {
+                "name": "Spanning fase1"
+            },
+            "voltage_phase2": {
+                "name": "Spanning fase2"
+            },
+            "voltage_phase3": {
+                "name": "Spanning fase3"
+            }
         },
         "switch": {
-            "authorization_required": { "name": "Autorisatie vereist" },
-            "charger_operation_mode": { "name": "Opladen" },
-            "permanent_cable_lock": { "name": "Laadkabel vergrendeling" }
+            "authorization_required": {
+                "name": "Autorisatie vereist"
+            },
+            "charger_operation_mode": {
+                "name": "Opladen"
+            },
+            "permanent_cable_lock": {
+                "name": "Laadkabel vergrendeling"
+            }
         },
         "update": {
-            "firmware_update": { "name": "Firmware" }
+            "firmware_update": {
+                "name": "Firmware"
+            }
         }
     }
 }

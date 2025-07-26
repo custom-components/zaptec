@@ -34,6 +34,9 @@ class ZaptecSensor(ZaptecBaseEntity, SensorEntity):
         """Update the entity from Zaptec data."""
         # Called from ZaptecBaseEntity._handle_coordinator_update()
         self._attr_native_value = self._get_zaptec_value()
+        if isinstance(self._attr_native_value, str):
+            # Convert to lowercase for translations
+            self._attr_native_value = self._attr_native_value.lower()
         self._attr_available = True
 
 
@@ -44,20 +47,20 @@ class ZaptecChargeSensor(ZaptecSensor):
 
     # See ZCONST.charger_operation_modes for possible values
     CHARGE_MODE_ICON_MAP = {
-        "Unknown": "mdi:help-rhombus-outline",
-        "Disconnected": "mdi:power-plug-off",
-        "Connected_Requesting": "mdi:timer-sand",
-        "Connected_Charging": "mdi:lightning-bolt",
-        "Connected_Finished": "mdi:battery-charging-100",
+        "unknown": "mdi:help-rhombus-outline",
+        "disconnected": "mdi:power-plug-off",
+        "connected_requesting": "mdi:timer-sand",
+        "connected_charging": "mdi:lightning-bolt",
+        "connected_finished": "mdi:battery-charging-100",
     }
 
     @callback
     def _update_from_zaptec(self) -> None:
         """Update the entity from Zaptec data."""
         # Called from ZaptecBaseEntity._handle_coordinator_update()
-        self._attr_native_value = self._get_zaptec_value()
+        self._attr_native_value = self._get_zaptec_value().lower()
         self._attr_icon = self.CHARGE_MODE_ICON_MAP.get(
-            self._attr_native_value, self.CHARGE_MODE_ICON_MAP["Unknown"]
+            self._attr_native_value, self.CHARGE_MODE_ICON_MAP["unknown"]
         )
         self._attr_available = True
 
@@ -141,7 +144,7 @@ INSTALLATION_ENTITIES: list[EntityDescription] = [
         translation_key="authentication_type",
         device_class=SensorDeviceClass.ENUM,
         entity_category=const.EntityCategory.DIAGNOSTIC,
-        options=ZCONST.installation_authentication_type_list,
+        options=[s.lower() for s in ZCONST.installation_authentication_type_list],
         icon="mdi:key-change",
         cls=ZaptecSensor,
         # No state class as its not a numeric value
@@ -151,7 +154,7 @@ INSTALLATION_ENTITIES: list[EntityDescription] = [
         translation_key="installation_type",
         device_class=SensorDeviceClass.ENUM,
         entity_category=const.EntityCategory.DIAGNOSTIC,
-        options=ZCONST.installation_types_list,
+        options=[s.lower() for s in ZCONST.installation_types_list],
         icon="mdi:shape-outline",
         cls=ZaptecSensor,
         # No state class as its not a numeric value
@@ -161,7 +164,7 @@ INSTALLATION_ENTITIES: list[EntityDescription] = [
         translation_key="network_type",
         device_class=SensorDeviceClass.ENUM,
         entity_category=const.EntityCategory.DIAGNOSTIC,
-        options=ZCONST.network_types_list,
+        options=[s.lower() for s in ZCONST.network_types_list],
         icon="mdi:waves-arrow-up",
         cls=ZaptecSensor,
         # No state class as its not a numeric value
@@ -173,7 +176,7 @@ CHARGER_ENTITIES: list[EntityDescription] = [
         key="charger_operation_mode",
         translation_key="charger_operation_mode",
         device_class=SensorDeviceClass.ENUM,
-        options=ZCONST.charger_operation_modes_list,
+        options=[s.lower() for s in ZCONST.charger_operation_modes_list],
         icon="mdi:ev-station",
         cls=ZaptecChargeSensor,
         # No state class as its not a numeric value
@@ -304,7 +307,7 @@ CHARGER_ENTITIES: list[EntityDescription] = [
         translation_key="device_type",
         device_class=SensorDeviceClass.ENUM,
         entity_category=const.EntityCategory.DIAGNOSTIC,
-        options=ZCONST.device_types_list,
+        options=[s.lower() for s in ZCONST.device_types_list],
         icon="mdi:shape-outline",
         cls=ZaptecSensor,
         # No state class as its not a numeric value
