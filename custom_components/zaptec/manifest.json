@@ -12,5 +12,5 @@
   "iot_class": "cloud_polling",
   "issue_tracker": "https://github.com/custom-components/zaptec/issues",
   "requirements": ["azure-servicebus==7.14.2", "pydantic==2.11.7", "aiolimiter==1.2.1"],
-  "version": "0.8b1"
+  "version": "0.8b2"
 }

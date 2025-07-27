@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.8b2
+
+* Fixup missing entity logging during startup (#251)
+* Add support for adding standalone chargers (#250)
+* Organize translation into alphabetical order and remove upper case keys (#249)
+* Feature add development documentation (#248)
+* Updated ruff settings and fixed the simplest errors in the code (#247)
+* Update dev container with latest reference (#246)
+* Replace unavailable common string-keys with the translated strings (#245)
+
 ## 0.8b1
 
 * Remove unused set_authentication_required-function (#240)
