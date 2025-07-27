@@ -35,12 +35,8 @@ class ZaptecUpdate(ZaptecBaseEntity, UpdateEntity):
     def _update_from_zaptec(self) -> None:
         """Update the entity from Zaptec data."""
         # Called from ZaptecBaseEntity._handle_coordinator_update()
-        self._attr_installed_version = self._get_zaptec_value(
-            key="firmware_current_version"
-        )
-        self._attr_latest_version = self._get_zaptec_value(
-            key="firmware_available_version"
-        )
+        self._attr_installed_version = self._get_zaptec_value(key="firmware_current_version")
+        self._attr_latest_version = self._get_zaptec_value(key="firmware_available_version")
         self._attr_available = True
 
     async def async_install(self, version, backup, **kwargs):

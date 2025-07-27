@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 import traceback
-from typing import Any, TypeVar, cast
+from typing import Any, ClassVar, TypeVar, cast
 
 # to Support running this as a script.
 if __name__ != "__main__":
@@ -32,7 +32,7 @@ class Redactor:
     """Class to handle redaction of sensitive data."""
 
     # Data fields that must be redacted from the output
-    REDACT_KEYS = [
+    REDACT_KEYS: ClassVar[list[str]] = [
         "Address",
         "ChargerId",
         "ChargerCurrentUserUuid",
@@ -63,7 +63,7 @@ class Redactor:
     ]
 
     # Never redact these words
-    NEVER_REDACT = [
+    NEVER_REDACT: ClassVar[list] = [
         None,
         True,
         False,
@@ -82,11 +82,11 @@ class Redactor:
     ]
 
     # Keys that will be looked up into the observer id dict
-    OBS_KEYS = ["SettingId", "StateId"]
+    OBS_KEYS: ClassVar[list[str]] = ["SettingId", "StateId"]
 
     # Key names that will be redacted if they the dict has a OBS_KEY entry
     # and it is in the REDACT_KEYS list.
-    VALUES = [
+    VALUES: ClassVar[list[str]] = [
         "Value",
         "ValueAsString",
     ]
@@ -110,6 +110,7 @@ class Redactor:
 
     def redact(self, obj: T, ctx=None, key=None, secondpass=False) -> T:
         """Redact the object if it is present in the redacted dict.
+
         A new redaction is created if make_new is not None. ctx is
         for logging output.
         """
@@ -314,9 +315,7 @@ async def _get_diagnostics(
             device_registry, config_entry_id=config_entry.entry_id
         ):
             for _, zap_dev_id in dev.identifiers:
-                entity_list = device_map.setdefault(
-                    red.redact(zap_dev_id, ctx="entities"), []
-                )
+                entity_list = device_map.setdefault(red.redact(zap_dev_id, ctx="entities"), [])
 
                 dev_entities = er.async_entries_for_device(
                     entity_registry, dev.id, include_disabled_entities=True
