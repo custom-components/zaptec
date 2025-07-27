@@ -1225,11 +1225,11 @@ class Zaptec(Mapping[str, ZaptecBase]):
             if charger_item["Id"] in installation_chargers:
                 continue  # Skip the chargers which have already been found in installations
             if charger_item["Id"] in self:
-                _LOGGER.debug("  Charger %s  (existing)", charger_item["Id"])
+                _LOGGER.debug("  Standalone charger %s  (existing)", charger_item["Id"])
                 charger: Charger = self[charger_item["Id"]]
                 charger.set_attributes(charger_item)
             else:
-                _LOGGER.debug("  Charger %s  (adding)", charger_item["Id"])
+                _LOGGER.debug("  Standalone charger %s  (adding)", charger_item["Id"])
                 charger = Charger(charger_item, self, installation=None)
                 self.register(charger_item["Id"], charger)
 
