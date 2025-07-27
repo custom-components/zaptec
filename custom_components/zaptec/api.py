@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 from collections.abc import AsyncGenerator, Callable, Iterable, Iterator, Mapping
 from contextlib import aclosing
+import itertools
 import json
 import logging
 import random
@@ -284,7 +285,7 @@ class Installation(ZaptecBase):
                     charger: Charger = self.zaptec[charger_item["Id"]]
                     charger.set_attributes(charger_item)
                 else:
-                    _LOGGER.debug("      Charger %s", charger_item["Id"])
+                    _LOGGER.debug("      Charger %s  (adding)", charger_item["Id"])
                     charger = Charger(charger_item, self.zaptec, installation=self)
                     self.zaptec.register(charger_item["Id"], charger)
 
@@ -1184,7 +1185,7 @@ class Zaptec(Mapping[str, ZaptecBase]):
                 installation: Installation = self[inst_item["Id"]]
                 installation.set_attributes(inst_item)
             else:
-                _LOGGER.debug("  Installation %s", inst_item["Id"])
+                _LOGGER.debug("  Installation %s  (adding)", inst_item["Id"])
                 installation = Installation(inst_item, self)
                 self.register(inst_item["Id"], installation)
 
@@ -1209,10 +1210,41 @@ class Zaptec(Mapping[str, ZaptecBase]):
                 "These chargers are no longer available: %s", missing_chargers
             )
             _LOGGER.warning("To remove them, please restart the integration.")
-        if extra_chargers := (new_chargers - have_chargers):
-            _LOGGER.warning(
-                "These standalone chargers will not be added: %s", extra_chargers
+
+        # Find the installation based chargers
+        installation_chargers = set(
+            itertools.chain.from_iterable(
+                (c.id for c in inst.chargers) for inst in self.installations
             )
+        )
+
+        # Add standalone chargers that are not part of any installation.
+        # Users without service access right does not have access to the installation
+        # object, so we need to add all the object at this point.
+        for charger_item in chargers["Data"]:
+            if charger_item["Id"] in installation_chargers:
+                continue  # Skip the chargers which have already been found in installations
+            if charger_item["Id"] in self:
+                _LOGGER.debug("  Charger %s  (existing)", charger_item["Id"])
+                charger: Charger = self[charger_item["Id"]]
+                charger.set_attributes(charger_item)
+            else:
+                _LOGGER.debug("  Charger %s  (adding)", charger_item["Id"])
+                charger = Charger(charger_item, self, installation=None)
+                self.register(charger_item["Id"], charger)
+
+            # The charger update might have provided enough information that the
+            # charger can be assosciated with the installation.
+            installation_id = charger_item.get("InstallationId")
+            if installation_id in self:
+                installation: Installation = self[installation_id]
+                _LOGGER.debug(
+                    "Able to associate %s with %s",
+                    charger.qual_id,
+                    installation.qual_id,
+                )
+                charger.installation = installation
+                installation.chargers.append(charger)
 
         # Update the observation, settings and commands ids based on the
         # discovered device types.
