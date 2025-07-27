@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import logging
+from typing import ClassVar
 
 from homeassistant import const
 from homeassistant.components.sensor import (
@@ -43,7 +44,7 @@ class ZaptecChargeSensor(ZaptecSensor):
     _log_attribute = "_attr_native_value"
 
     # See ZCONST.charger_operation_modes for possible values
-    CHARGE_MODE_ICON_MAP = {
+    CHARGE_MODE_ICON_MAP: ClassVar[dict[str, str]] = {
         "Unknown": "mdi:help-rhombus-outline",
         "Disconnected": "mdi:power-plug-off",
         "Connected_Requesting": "mdi:timer-sand",

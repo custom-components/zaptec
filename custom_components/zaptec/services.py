@@ -6,18 +6,17 @@ from collections.abc import Awaitable, Callable, Generator
 import logging
 from typing import TYPE_CHECKING, TypeVar
 
-import voluptuous as vol
-
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import device_registry as dr, entity_registry as er
 import homeassistant.helpers.config_validation as cv
+import voluptuous as vol
 
 from .api import Charger, Installation
 from .const import DOMAIN
 
 if TYPE_CHECKING:
-    from . import ZaptecUpdateCoordinator, ZaptecManager
+    from . import ZaptecManager, ZaptecUpdateCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -157,9 +156,7 @@ async def async_setup_services(hass: HomeAssistant, manager: ZaptecManager) -> N
                 raise HomeAssistantError(f"Unable to find identifiers for {err_device}")
             for domain, uid in device_entry.identifiers:
                 if domain != DOMAIN:
-                    raise HomeAssistantError(
-                        f"Non-zaptec device specified {err_device}"
-                    )
+                    raise HomeAssistantError(f"Non-zaptec device specified {err_device}")
                 uids.add(uid)
                 lookup[uid] = err_device
 
@@ -187,9 +184,7 @@ async def async_setup_services(hass: HomeAssistant, manager: ZaptecManager) -> N
 
             zaptec_object = manager.zaptec.get(uid)
             if zaptec_object is None:
-                raise HomeAssistantError(
-                    f"Unable to find zaptec object for {err_device}"
-                )
+                raise HomeAssistantError(f"Unable to find zaptec object for {err_device}")
             if not isinstance(zaptec_object, mustbe):
                 raise HomeAssistantError(f"{err_device} is not a {mustbe.__name__}")
             if uid not in manager.device_coordinators:
@@ -209,9 +204,7 @@ async def async_setup_services(hass: HomeAssistant, manager: ZaptecManager) -> N
             try:
                 await obj.command("stop_charging_final")
             except Exception as exc:
-                raise HomeAssistantError(
-                    f"Command 'stop_charging_final' failed: {exc}"
-                ) from exc
+                raise HomeAssistantError(f"Command 'stop_charging_final' failed: {exc}") from exc
             await coordinator.trigger_poll()
 
     async def service_handle_resume_charging(service_call: ServiceCall) -> None:
@@ -225,9 +218,7 @@ async def async_setup_services(hass: HomeAssistant, manager: ZaptecManager) -> N
             try:
                 await obj.command("resume_charging")
             except Exception as exc:
-                raise HomeAssistantError(
-                    f"Command 'resume_charging' failed: {exc}"
-                ) from exc
+                raise HomeAssistantError(f"Command 'resume_charging' failed: {exc}") from exc
             await coordinator.trigger_poll()
 
     async def service_handle_authorize_charging(service_call: ServiceCall) -> None:
@@ -241,9 +232,7 @@ async def async_setup_services(hass: HomeAssistant, manager: ZaptecManager) -> N
             try:
                 await obj.authorize_charge()
             except Exception as exc:
-                raise HomeAssistantError(
-                    f"Command 'authorize_charge' failed: {exc}"
-                ) from exc
+                raise HomeAssistantError(f"Command 'authorize_charge' failed: {exc}") from exc
             await coordinator.trigger_poll()
 
     async def service_handle_deauthorize_charging(service_call: ServiceCall) -> None:
@@ -257,9 +246,7 @@ async def async_setup_services(hass: HomeAssistant, manager: ZaptecManager) -> N
             try:
                 await obj.command("deauthorize_and_stop")
             except Exception as exc:
-                raise HomeAssistantError(
-                    f"Command 'deauthorize_and_stop' failed: {exc}"
-                ) from exc
+                raise HomeAssistantError(f"Command 'deauthorize_and_stop' failed: {exc}") from exc
             await coordinator.trigger_poll()
 
     async def service_handle_restart_charger(service_call: ServiceCall) -> None:
@@ -273,9 +260,7 @@ async def async_setup_services(hass: HomeAssistant, manager: ZaptecManager) -> N
             try:
                 await obj.command("restart_charger")
             except Exception as exc:
-                raise HomeAssistantError(
-                    f"Command 'restart_charger' failed: {exc}"
-                ) from exc
+                raise HomeAssistantError(f"Command 'restart_charger' failed: {exc}") from exc
             await coordinator.trigger_poll()
 
     async def service_handle_upgrade_firmware(service_call: ServiceCall) -> None:
@@ -289,9 +274,7 @@ async def async_setup_services(hass: HomeAssistant, manager: ZaptecManager) -> N
             try:
                 await obj.command("upgrade_firmware")
             except Exception as exc:
-                raise HomeAssistantError(
-                    f"Command 'upgrade_firmware' failed: {exc}"
-                ) from exc
+                raise HomeAssistantError(f"Command 'upgrade_firmware' failed: {exc}") from exc
             await coordinator.trigger_poll()
 
     async def service_handle_limit_current(service_call: ServiceCall) -> None:
