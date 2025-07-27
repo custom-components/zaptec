@@ -1,18 +1,27 @@
 # The contents of this file is based on https://github.com/home-assistant/core/blob/dev/pyproject.toml
 
 target-version = "py313"
+line-length = 98
 
 [lint]
 select = [
     "ALL",
 ]
 
+# Here we specify the rules we want to ignore. Its fully possible to add more
+# rules here if necessary. If in doubt, please check the Home Assistant
+# rule list. If they use excepmt for a rule, we should use it too.
+#   https://github.com/home-assistant/core/blob/dev/pyproject.toml#L652
 ignore = [
     "ANN401", # Dynamically typed expressions (typing.Any) are disallowed
-    "D203", # no-blank-line-before-class (incompatible with formatter)
-    "D212", # multi-line-summary-first-line (incompatible with formatter)
     "COM812", # incompatible with formatter
+    "D202",   # No blank lines allowed after function docstring
+    "D203",   # no-blank-line-before-class (incompatible with formatter)
+    "D212",   # multi-line-summary-first-line (incompatible with formatter)
+    "D213",   # Multi-line docstring summary should start at the second line
     "ISC001", # incompatible with formatter
+    "TRY003", # Avoid specifying long messages outside the exception class
+    "TRY400", # Use `logging.exception` instead of `logging.error`
 ]
 
 [lint.flake8-pytest-style]

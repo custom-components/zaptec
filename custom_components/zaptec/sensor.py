@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 import logging
+from typing import ClassVar
 
 from homeassistant import const
 from homeassistant.components.sensor import (
@@ -37,27 +38,59 @@ class ZaptecSensor(ZaptecBaseEntity, SensorEntity):
         self._attr_available = True
 
 
-class ZaptecChargeSensor(ZaptecSensor):
+class ZaptecSensorTranslate(ZaptecSensor):
+    """Sensor with strings intended for translations.
+
+    This class should be used when the sensor value is a string that should be
+    translated. HA requires all translations keys to be lower case, and this
+    class converts the option strings to lower case, and converts any string
+    value to lower case before setting the value in the entity.
+    """
+
+    entity_description: SensorEntityDescription
+
+    # What to log on entity update
+    _log_attribute = "_attr_native_value"
+
+    def _post_init(self):
+        """Post initialization."""
+        # Convert any options strings into lower case for translations
+        if (options := self.entity_description.options) is not None:
+            self.entity_description = replace(
+                self.entity_description,
+                options=[s.lower() for s in options],
+            )
+
+    @callback
+    def _update_from_zaptec(self) -> None:
+        """Update the entity from Zaptec data."""
+        # Called from ZaptecBaseEntity._handle_coordinator_update()
+        # Convert any strings to lower case because they will be used for translations
+        self._attr_native_value = self._get_zaptec_value(lower_case_str=True)
+        self._attr_available = True
+
+
+class ZaptecChargeSensor(ZaptecSensorTranslate):
     """Zaptec charge sensor entity."""
 
     _log_attribute = "_attr_native_value"
 
     # See ZCONST.charger_operation_modes for possible values
-    CHARGE_MODE_ICON_MAP = {
-        "Unknown": "mdi:help-rhombus-outline",
-        "Disconnected": "mdi:power-plug-off",
-        "Connected_Requesting": "mdi:timer-sand",
-        "Connected_Charging": "mdi:lightning-bolt",
-        "Connected_Finished": "mdi:battery-charging-100",
+    CHARGE_MODE_ICON_MAP: ClassVar[dict[str, str]] = {
+        "unknown": "mdi:help-rhombus-outline",
+        "disconnected": "mdi:power-plug-off",
+        "connected_requesting": "mdi:timer-sand",
+        "connected_charging": "mdi:lightning-bolt",
+        "connected_finished": "mdi:battery-charging-100",
     }
 
     @callback
     def _update_from_zaptec(self) -> None:
         """Update the entity from Zaptec data."""
         # Called from ZaptecBaseEntity._handle_coordinator_update()
-        self._attr_native_value = self._get_zaptec_value()
+        self._attr_native_value = self._get_zaptec_value(lower_case_str=True)
         self._attr_icon = self.CHARGE_MODE_ICON_MAP.get(
-            self._attr_native_value, self.CHARGE_MODE_ICON_MAP["Unknown"]
+            self._attr_native_value, self.CHARGE_MODE_ICON_MAP["unknown"]
         )
         self._attr_available = True
 
@@ -143,7 +176,7 @@ INSTALLATION_ENTITIES: list[EntityDescription] = [
         entity_category=const.EntityCategory.DIAGNOSTIC,
         options=ZCONST.installation_authentication_type_list,
         icon="mdi:key-change",
-        cls=ZaptecSensor,
+        cls=ZaptecSensorTranslate,
         # No state class as its not a numeric value
     ),
     ZapSensorEntityDescription(
@@ -163,7 +196,7 @@ INSTALLATION_ENTITIES: list[EntityDescription] = [
         entity_category=const.EntityCategory.DIAGNOSTIC,
         options=ZCONST.network_types_list,
         icon="mdi:waves-arrow-up",
-        cls=ZaptecSensor,
+        cls=ZaptecSensorTranslate,
         # No state class as its not a numeric value
     ),
 ]

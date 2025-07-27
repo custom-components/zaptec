@@ -270,13 +270,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 
 def remove_deprecated_entities(hass: HomeAssistant, entry: ZaptecConfigEntry) -> None:
-    """Remove deprecated entites from the entity_registry"""
+    """Remove deprecated entites from the entity_registry."""
 
     entity_registry = er.async_get(hass)
-    zaptec_entity_list = [(entity_id, entity) for entity_id, entity in list(
-        entity_registry.entities.items()) if entity.config_entry_id == entry.entry_id]
+    zaptec_entity_list = [
+        (entity_id, entity)
+        for entity_id, entity in list(entity_registry.entities.items())
+        if entity.config_entry_id == entry.entry_id
+    ]
     for entity_id, entity in zaptec_entity_list:
-        if entity.translation_key == 'operating_mode':
+        if entity.translation_key == "operating_mode":
             # Needed for v0.7 -> v0.8 upgrade
             # The two entities this applies to were changed to the key
             # charger_operation_mode (from state) instead of operating_mode (from info).
@@ -506,9 +509,7 @@ class ZaptecManager:
         coordinator.async_update_listeners()
 
     @staticmethod
-    async def first_time_setup(
-        zaptec: Zaptec, configured_chargers: set[str] | None
-    ) -> set[str]:
+    async def first_time_setup(zaptec: Zaptec, configured_chargers: set[str] | None) -> set[str]:
         """Run the first time setup for the account."""
         _LOGGER.debug("Running first time setup")
 
@@ -622,9 +623,7 @@ class ZaptecUpdateCoordinator(DataUpdateCoordinator[None]):
                 **self.options.poll_args,
             )
         except ZaptecApiError as err:
-            _LOGGER.exception(
-                "Fetching data failed: %s: %s", type(err).__qualname__, err
-            )
+            _LOGGER.exception("Fetching data failed: %s: %s", type(err).__qualname__, err)
             raise UpdateFailed(err) from err
 
     async def _trigger_poll(self, zaptec_obj: ZaptecBase) -> None:
@@ -647,9 +646,7 @@ class ZaptecUpdateCoordinator(DataUpdateCoordinator[None]):
         else:
             delays = ZAPTEC_POLL_CHARGER_TRIGGER_DELAYS
 
-        _LOGGER.debug(
-            "Triggering poll of %s after %s seconds", zaptec_obj.qual_id, delays
-        )
+        _LOGGER.debug("Triggering poll of %s after %s seconds", zaptec_obj.qual_id, delays)
 
         # Calculcate the deltas for the delays. E.g. [2, 5, 10] -> [2, 3, 5]
         deltas = [b - a for a, b in zip([0] + delays[:-1], delays)]
@@ -769,7 +766,9 @@ class ZaptecBaseEntity(CoordinatorEntity[ZaptecUpdateCoordinator]):
         super()._handle_coordinator_update()
 
     @callback
-    def _get_zaptec_value(self, *, default=MISSING, key=None) -> Any:
+    def _get_zaptec_value(
+        self, *, default=MISSING, key: str = "", lower_case_str: bool = False
+    ) -> Any:
         """Retrieve a value from the Zaptec object.
 
         Helper to retrieve the value from the Zaptec object. This is to
@@ -797,6 +796,9 @@ class ZaptecBaseEntity(CoordinatorEntity[ZaptecUpdateCoordinator]):
                 )
             if obj is default:
                 return obj
+        if isinstance(obj, str) and lower_case_str:
+            # If the value is a string, convert it to lower case if requested
+            obj = obj.lower()
         return obj
 
     @property

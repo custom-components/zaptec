@@ -1,5 +1,5 @@
 {
     "name": "Zaptec EV charger",
     "homeassistant": "2025.2.4",
-    "hacs": "2.0.5",
+    "hacs": "2.0.5"
 }

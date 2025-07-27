@@ -64,8 +64,8 @@ of getting "429 Too many request" -- especially on larger installations.
 ## ℹ️ Breaking changes
 
 * `charger_mode` have changed values. E.g. from "Charging" to
-  "Connected_Charging" due to using the native Zaptec values. Your automation
-  might need an update. 
+  connected_charging" due to using the lowe-case native Zaptec values. Your
+  automation might need an update.
 * `permanent_cable_lock` have changed from "lock" type to "switch" type.
 * There is no support for configuring Zaptec by YAML, only using the UI
 * The user setting poll/scan interval have been removed, in favor of the
@@ -170,13 +170,13 @@ To start the charging from HA, this can be done in several ways:
 
 - Press the _"Resume charging"_ button, or
 - Toggle the _"Charging"_ switch, or
-- Send `zaptec.restart_charger` service call
+- Send `zaptec.restart_charger` service call (deprecated)
 
 Similarly, pausing the charging can be done by:
 
 - Pressing the _"Stop charging"_ button, or
 - Turn off the _"Charging"_ switch, or
-- Send `zaptec.stop_pause_charging` service call
+- Send `zaptec.stop_pause_charging` service call (deprecated)
 
 > [!TIP]
 > Zaptec will unlock the cable when charging is paused unless it is permanently
@@ -316,6 +316,7 @@ logger:
 > debug. This is nice for finding errors, but it will generate large amount of
 > data if left enabled for long. Do not use in production setups.
 
+
 ## Using the integration
 
 ### Load balancing your charger
@@ -333,6 +334,15 @@ documented  in the
 [blueprint readme](https://github.com/svenakela/ha/blob/main/zaptec/README.md).
 
 
+## Development
+
+The document [DEVELOPMENT.md](DEVELOPMENT.md) contains information about
+how to develop the Zaptec integration. It contains tips and tricks and how to
+setup the Dev Container.
+
+
+# CHanges
+
 ## Changes from 0.7 to 0.8
 
 The Circuit device type has been removed since it was not really used in HA. The
@@ -345,12 +355,14 @@ The permanent cable lock has been changed to a Switch entity (from
 to the HA convention that the Lock entity type should only be used for physical locks
 that's used to enter the house.
 
-The Charger mode has been changed to use the native zaptec values internally. The
+The Charger mode has been changed to use the native zaptec values in lower case. The
 display values are still the same, but automations using the state will need to be
 updated. The English mapping of the changed values is
-- Connected_Requesting: Waiting
-- Connected_Charging:   Charging
-- Connected_Finished:   Charge done
+- connected_requesting: Waiting
+- connected_charging:   Charging
+- connected_finished:   Charge done
+- disconnected:         Disconnected
+- unknown:              Unknown
 
 
 ## Changes from older versions <0.7.0

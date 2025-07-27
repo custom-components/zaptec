@@ -10,7 +10,7 @@ import json
 import logging
 import random
 import time
-from typing import Any, Protocol
+from typing import Any, ClassVar, Protocol
 
 import aiohttp
 from aiolimiter import AsyncLimiter
@@ -96,7 +96,7 @@ class ZaptecBase(Mapping[str, TValue]):
     """Base class for Zaptec objects."""
 
     # Type definitions and convertions on the attributes
-    ATTR_TYPES: dict[str, Callable] = {}
+    ATTR_TYPES: ClassVar[dict[str, Callable]] = {}
 
     def __init__(self, data: TDict, zaptec: Zaptec) -> None:
         """Initialize the ZaptecBase object."""
@@ -145,10 +145,10 @@ class ZaptecBase(Mapping[str, TValue]):
     #   UPDATE METHODS
 
     async def poll_info(self) -> None:
-        """Poll information about the object"""
+        """Poll information about the object."""
 
     async def poll_state(self) -> None:
-        """Poll the state of the object"""
+        """Poll the state of the object."""
 
     def set_attributes(self, data: TDict) -> bool:
         """Set the class attributes from the given data."""
@@ -225,9 +225,7 @@ class ZaptecBase(Mapping[str, TValue]):
             if value is not MISSING:
                 kv = keydict.get(skey, f"{key} {skey}")
                 if kv in out:
-                    _LOGGER.debug(
-                        "Duplicate key %s. Is '%s', new '%s'", kv, out[kv], value
-                    )
+                    _LOGGER.debug("Duplicate key %s. Is '%s', new '%s'", kv, out[kv], value)
                 out[kv] = value
         return out
 
@@ -236,7 +234,7 @@ class Installation(ZaptecBase):
     """Represents an installation."""
 
     # Type conversions for the named attributes (keep sorted)
-    ATTR_TYPES = {
+    ATTR_TYPES: ClassVar[dict[str, Callable]] = {
         "active": bool,
         "authentication_type": ZCONST.type_authentication_type,
         "current_user_roles": ZCONST.type_user_roles,
@@ -315,9 +313,7 @@ class Installation(ZaptecBase):
         _LOGGER.debug("Poll firmware info from %s (%s)", self.qual_id, self.get("Name"))
 
         try:
-            firmware_info = await self.zaptec.request(
-                f"chargerFirmware/installation/{self.id}"
-            )
+            firmware_info = await self.zaptec.request(f"chargerFirmware/installation/{self.id}")
             for fm in firmware_info:
                 charger = self.zaptec.get(fm["ChargerId"])
                 if charger is None:
@@ -340,9 +336,7 @@ class Installation(ZaptecBase):
     async def live_stream_connection_details(self):
         """Get the live stream connection details for the installation."""
         # NOTE: API call deprecated
-        data = await self.zaptec.request(
-            f"installation/{self.id}/messagingConnectionDetails"
-        )
+        data = await self.zaptec.request(f"installation/{self.id}/messagingConnectionDetails")
         self.connection_details = data
         return data
 
@@ -356,9 +350,7 @@ class Installation(ZaptecBase):
             return None
 
         await self.cancel_stream()
-        self._stream_task = asyncio.create_task(
-            self.stream_main(cb=cb, ssl_context=ssl_context)
-        )
+        self._stream_task = asyncio.create_task(self.stream_main(cb=cb, ssl_context=ssl_context))
         return self._stream_task
 
     def _stream_log(self, data: dict[str, Any]) -> None:
@@ -383,9 +375,7 @@ class Installation(ZaptecBase):
             try:
                 from azure.servicebus.aio import ServiceBusClient
             except ImportError:
-                _LOGGER.warning(
-                    "Azure Service bus is not available. Resolving to polling"
-                )
+                _LOGGER.warning("Azure Service bus is not available. Resolving to polling")
                 return
 
             # Already running?
@@ -415,9 +405,7 @@ class Installation(ZaptecBase):
             kw = {}
             if ssl_context:
                 kw["ssl_context"] = ssl_context
-            servicebus_client = ServiceBusClient.from_connection_string(
-                conn_str=constr, **kw
-            )
+            servicebus_client = ServiceBusClient.from_connection_string(conn_str=constr, **kw)
             obfuscated = constr.replace(conf["Password"], "********").replace(
                 conf["Username"], "********"
             )
@@ -465,9 +453,7 @@ class Installation(ZaptecBase):
                                 await cb(json_result)
 
                         except Exception as err:
-                            _LOGGER.exception(
-                                "Couldn't process stream message: %s", err
-                            )
+                            _LOGGER.exception("Couldn't process stream message: %s", err)
                             _LOGGER.debug("Message: %s", binmsg)
                             # Pass the message as the stream must continue.
 
@@ -567,7 +553,7 @@ class Charger(ZaptecBase):
     """Represents a charger."""
 
     # Type conversions for the named attributes (keep sorted)
-    ATTR_TYPES = {
+    ATTR_TYPES: ClassVar[dict[str, Callable]] = {
         "active": bool,
         "authentication_required": lambda x: x in TRUTHY,
         "authentication_type": ZCONST.type_authentication_type,
@@ -609,7 +595,7 @@ class Charger(ZaptecBase):
         self.installation = installation
 
     async def poll_info(self) -> None:
-        """Refresh the charger data"""
+        """Refresh the charger data."""
         _LOGGER.debug("Poll info from %s (%s)", self.qual_id, self.get("Name"))
 
         try:
@@ -630,7 +616,7 @@ class Charger(ZaptecBase):
                     break
 
     async def poll_state(self):
-        """Update the charger state"""
+        """Update the charger state."""
         _LOGGER.debug("Poll state from %s (%s)", self.qual_id, self.get("Name"))
 
         # Get the state from the charger
@@ -685,14 +671,10 @@ class Charger(ZaptecBase):
         self.is_command_valid(command, raise_value_error_if_invalid=True)
 
         _LOGGER.debug("Command %s (%s)", command, cmdid)
-        data = await self.zaptec.request(
-            f"chargers/{self.id}/SendCommand/{cmdid}", method="post"
-        )
+        data = await self.zaptec.request(f"chargers/{self.id}/SendCommand/{cmdid}", method="post")
         return data
 
-    def is_command_valid(
-        self, command: str, raise_value_error_if_invalid=False
-    ) -> bool:
+    def is_command_valid(self, command: str, raise_value_error_if_invalid=False) -> bool:
         """Check if the command is valid."""
 
         valid_command = True
@@ -702,12 +684,8 @@ class Charger(ZaptecBase):
             # commands 506+507 in https://api.zaptec.com/help/index.html#/Charger/Charger_SendCommand_POST
             operation_mode = self.get("ChargerOperationMode")
             final_stop_active = self.get("FinalStopActive")
-            paused = (
-                operation_mode == "Connected_Finished" and int(final_stop_active) == 1
-            )
-            if command == "stop_charging_final" and (
-                paused or operation_mode == "Disconnected"
-            ):
+            paused = operation_mode == "Connected_Finished" and int(final_stop_active) == 1
+            if command == "stop_charging_final" and (paused or operation_mode == "Disconnected"):
                 msg = "Pause/stop charging is not allowed if charging is already paused or disconnected"
                 valid_command = False
             elif command == "resume_charging" and not paused:
@@ -743,9 +721,7 @@ class Charger(ZaptecBase):
         """Authorize the charger to charge."""
         _LOGGER.debug("Authorize charge")
         # NOTE: Undocumented API call
-        data = await self.zaptec.request(
-            f"chargers/{self.id}/authorizecharge", method="post"
-        )
+        data = await self.zaptec.request(f"chargers/{self.id}/authorizecharge", method="post")
         return data
 
     async def set_permanent_cable_lock(self, lock: bool):
@@ -853,8 +829,7 @@ class Zaptec(Mapping[str, ZaptecBase]):
         """Register an object data with id."""
         if id in self._map:
             raise ValueError(
-                f"Object with id {id} already registered. "
-                "Use unregister() to remove it first."
+                f"Object with id {id} already registered. Use unregister() to remove it first."
             )
         self._map[id] = data
 
@@ -944,7 +919,7 @@ class Zaptec(Mapping[str, ZaptecBase]):
 
         error: Exception | None = None
         delay: float = API_RETRY_INIT_DELAY
-        sleep_delay: float = 0.
+        sleep_delay: float = 0.0
         start_time: float = time.perf_counter()
         iteration = 0
         for iteration in range(1, retries + 1):
@@ -965,9 +940,10 @@ class Zaptec(Mapping[str, ZaptecBase]):
                 start_time = time.perf_counter()
 
                 # Make the request
-                async with self._ratelimiter, self._client.request(
-                        method=method, url=url, **kwargs
-                ) as response:
+                async with (
+                    self._ratelimiter,
+                    self._client.request(method=method, url=url, **kwargs) as response,
+                ):
                     # Log the response
                     log_resp = [m async for m in self._response_log(response)]
                     if DEBUG_API_CALLS:
@@ -1021,9 +997,7 @@ class Zaptec(Mapping[str, ZaptecBase]):
                 f"Request to {url} failed after {iteration} retries: {error}"
             ) from None
 
-        raise RequestRetryError(
-            f"Request to {url} failed after {iteration} retries"
-        ) from None
+        raise RequestRetryError(f"Request to {url} failed after {iteration} retries") from None
 
     async def login(self) -> None:
         """Login to the Zaptec API and get an access token."""
@@ -1162,6 +1136,7 @@ class Zaptec(Mapping[str, ZaptecBase]):
 
                 # All other error codes will be raised
                 raise log_exc(error)
+            return None  # Should not happen, but the linter likes it.
 
     # =======================================================================
     #   UPDATE METHODS
@@ -1206,9 +1181,7 @@ class Zaptec(Mapping[str, ZaptecBase]):
         new_chargers = {d["Id"] for d in chargers["Data"]}
         have_chargers = {c.id for c in self.chargers}
         if missing_chargers := (have_chargers - new_chargers):
-            _LOGGER.warning(
-                "These chargers are no longer available: %s", missing_chargers
-            )
+            _LOGGER.warning("These chargers are no longer available: %s", missing_chargers)
             _LOGGER.warning("To remove them, please restart the integration.")
 
         # Find the installation based chargers

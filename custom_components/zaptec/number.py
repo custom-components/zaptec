@@ -78,9 +78,7 @@ class ZaptecSettingNumber(ZaptecNumber):
         # Get the max current rating from the reported max current
         self.entity_description = replace(
             self.entity_description,
-            native_max_value=self.zaptec_obj.get(
-                "ChargeCurrentInstallationMaxLimit", 32
-            ),
+            native_max_value=self.zaptec_obj.get("ChargeCurrentInstallationMaxLimit", 32),
         )
 
     async def async_set_native_value(self, value: float) -> None:
