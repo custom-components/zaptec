@@ -39,7 +39,15 @@ class ZaptecSensor(ZaptecBaseEntity, SensorEntity):
 
 
 class ZaptecSensorTranslate(ZaptecSensor):
-    """Sensor with strings intended for traslations."""
+    """Sensor with strings intended for translations.
+
+    This class should be used when the sensor value is a string that should be
+    translated. HA requires all translations keys to be lower case, and this
+    class converts the option strings to lower case, and converts any string
+    value to lower case before setting the value in the entity.
+    """
+
+    entity_description: SensorEntityDescription
 
     # What to log on entity update
     _log_attribute = "_attr_native_value"
@@ -47,10 +55,11 @@ class ZaptecSensorTranslate(ZaptecSensor):
     def _post_init(self):
         """Post initialization."""
         # Convert any options strings into lower case for translations
-        self.entity_description = replace(
-            self.entity_description,
-            options=[s.lower() for s in self.zaptec_obj.get("options", [])],
-        )
+        if (options := self.entity_description.options) is not None:
+            self.entity_description = replace(
+                self.entity_description,
+                options=[s.lower() for s in options],
+            )
 
     @callback
     def _update_from_zaptec(self) -> None:
