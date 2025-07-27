@@ -361,6 +361,8 @@ updated. The English mapping of the changed values is
 - connected_requesting: Waiting
 - connected_charging:   Charging
 - connected_finished:   Charge done
+- disconnected:         Disconnected
+- unknown:              Unknown
 
 
 ## Changes from older versions <0.7.0
