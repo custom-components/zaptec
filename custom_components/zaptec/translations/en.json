@@ -121,10 +121,7 @@
                 "name": "Current phase 3"
             },
             "device_type": {
-                "name": "Device type",
-                "state": {
-                    "unknown": "Unknown"
-                }
+                "name": "Device type"
             },
             "humidity": {
                 "name": "Humidity"

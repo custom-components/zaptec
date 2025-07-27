@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 import logging
 from typing import ClassVar
 
@@ -35,13 +35,33 @@ class ZaptecSensor(ZaptecBaseEntity, SensorEntity):
         """Update the entity from Zaptec data."""
         # Called from ZaptecBaseEntity._handle_coordinator_update()
         self._attr_native_value = self._get_zaptec_value()
-        if isinstance(self._attr_native_value, str):
-            # Convert to lowercase for translations
-            self._attr_native_value = self._attr_native_value.lower()
         self._attr_available = True
 
 
-class ZaptecChargeSensor(ZaptecSensor):
+class ZaptecSensorTranslate(ZaptecSensor):
+    """Sensor with strings intended for traslations."""
+
+    # What to log on entity update
+    _log_attribute = "_attr_native_value"
+
+    def _post_init(self):
+        """Post initialization."""
+        # Convert any options strings into lower case for translations
+        self.entity_description = replace(
+            self.entity_description,
+            options=[s.lower() for s in self.zaptec_obj.get("options", [])],
+        )
+
+    @callback
+    def _update_from_zaptec(self) -> None:
+        """Update the entity from Zaptec data."""
+        # Called from ZaptecBaseEntity._handle_coordinator_update()
+        # Convert any strings to lower case because they will be used for translations
+        self._attr_native_value = self._get_zaptec_value(lower_case_str=True)
+        self._attr_available = True
+
+
+class ZaptecChargeSensor(ZaptecSensorTranslate):
     """Zaptec charge sensor entity."""
 
     _log_attribute = "_attr_native_value"
@@ -59,7 +79,7 @@ class ZaptecChargeSensor(ZaptecSensor):
     def _update_from_zaptec(self) -> None:
         """Update the entity from Zaptec data."""
         # Called from ZaptecBaseEntity._handle_coordinator_update()
-        self._attr_native_value = self._get_zaptec_value().lower()
+        self._attr_native_value = self._get_zaptec_value(lower_case_str=True)
         self._attr_icon = self.CHARGE_MODE_ICON_MAP.get(
             self._attr_native_value, self.CHARGE_MODE_ICON_MAP["unknown"]
         )
@@ -145,9 +165,9 @@ INSTALLATION_ENTITIES: list[EntityDescription] = [
         translation_key="authentication_type",
         device_class=SensorDeviceClass.ENUM,
         entity_category=const.EntityCategory.DIAGNOSTIC,
-        options=[s.lower() for s in ZCONST.installation_authentication_type_list],
+        options=ZCONST.installation_authentication_type_list,
         icon="mdi:key-change",
-        cls=ZaptecSensor,
+        cls=ZaptecSensorTranslate,
         # No state class as its not a numeric value
     ),
     ZapSensorEntityDescription(
@@ -155,7 +175,7 @@ INSTALLATION_ENTITIES: list[EntityDescription] = [
         translation_key="installation_type",
         device_class=SensorDeviceClass.ENUM,
         entity_category=const.EntityCategory.DIAGNOSTIC,
-        options=[s.lower() for s in ZCONST.installation_types_list],
+        options=ZCONST.installation_types_list,
         icon="mdi:shape-outline",
         cls=ZaptecSensor,
         # No state class as its not a numeric value
@@ -165,9 +185,9 @@ INSTALLATION_ENTITIES: list[EntityDescription] = [
         translation_key="network_type",
         device_class=SensorDeviceClass.ENUM,
         entity_category=const.EntityCategory.DIAGNOSTIC,
-        options=[s.lower() for s in ZCONST.network_types_list],
+        options=ZCONST.network_types_list,
         icon="mdi:waves-arrow-up",
-        cls=ZaptecSensor,
+        cls=ZaptecSensorTranslate,
         # No state class as its not a numeric value
     ),
 ]
@@ -177,7 +197,7 @@ CHARGER_ENTITIES: list[EntityDescription] = [
         key="charger_operation_mode",
         translation_key="charger_operation_mode",
         device_class=SensorDeviceClass.ENUM,
-        options=[s.lower() for s in ZCONST.charger_operation_modes_list],
+        options=ZCONST.charger_operation_modes_list,
         icon="mdi:ev-station",
         cls=ZaptecChargeSensor,
         # No state class as its not a numeric value
@@ -308,7 +328,7 @@ CHARGER_ENTITIES: list[EntityDescription] = [
         translation_key="device_type",
         device_class=SensorDeviceClass.ENUM,
         entity_category=const.EntityCategory.DIAGNOSTIC,
-        options=[s.lower() for s in ZCONST.device_types_list],
+        options=ZCONST.device_types_list,
         icon="mdi:shape-outline",
         cls=ZaptecSensor,
         # No state class as its not a numeric value

@@ -121,10 +121,7 @@
                 "name": "Prąd fazy 3"
             },
             "device_type": {
-                "name": "Typ urządzenia",
-                "state": {
-                    "unknown": "Nieznany"
-                }
+                "name": "Typ urządzenia"
             },
             "humidity": {
                 "name": "Wilgotność"

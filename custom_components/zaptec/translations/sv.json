@@ -121,10 +121,7 @@
                 "name": "Ström fas 3"
             },
             "device_type": {
-                "name": "Enhetstyp",
-                "state": {
-                    "unknown": "Okänd"
-                }
+                "name": "Enhetstyp"
             },
             "humidity": {
                 "name": "Luftfuktighet"

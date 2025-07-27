@@ -121,10 +121,7 @@
                 "name": "Stroom fase3"
             },
             "device_type": {
-                "name": "Apparaattype",
-                "state": {
-                    "unknown": "Onbekend"
-                }
+                "name": "Apparaattype"
             },
             "humidity": {
                 "name": "Vochtigheid"
