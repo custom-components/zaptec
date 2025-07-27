@@ -13,11 +13,7 @@ from typing import Any
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_PASSWORD, CONF_USERNAME, Platform
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.exceptions import (
-    ConfigEntryAuthFailed,
-    ConfigEntryError,
-    ConfigEntryNotReady,
-)
+from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryError, ConfigEntryNotReady
 from homeassistant.helpers import device_registry as dr, entity_registry as er
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.debounce import Debouncer
@@ -73,6 +69,11 @@ PLATFORMS = [
 
 class KeyUnavailableError(Exception):
     """Exception raised when a key is not available in the Zaptec object."""
+
+    def __init__(self, key: str, message: str) -> None:
+        """Initialize the KeyUnavailableError."""
+        super().__init__(message)
+        self.key = key
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -404,16 +405,19 @@ class ZaptecManager:
             updater = getattr(entity, "_update_from_zaptec", lambda: None)
             try:
                 updater()
-            except Exception:
+            except KeyUnavailableError as exc:
+                attr = f"'{zaptec_obj.qual_id}.{exc.key}'"
                 if description.key in KEYS_TO_SKIP_ENTITY_AVAILABILITY_CHECK:
-                    _LOGGER.debug(
-                        "Entity %s key %s is not available in Zaptec, but adding anyway",
+                    _LOGGER.info(
+                        "%s is not available, but adding entity %s %r anyways",
+                        attr,
                         cls.__name__,
                         description.key,
                     )
                 else:
-                    _LOGGER.exception(
-                        "Failed to add entity %s keys %s, skipping entity",
+                    _LOGGER.info(
+                        "%s is not available, failing to add entity %s %r",
+                        attr,
                         cls.__name__,
                         description.key,
                     )
@@ -785,12 +789,14 @@ class ZaptecBaseEntity(CoordinatorEntity[ZaptecUpdateCoordinator]):
             except AttributeError:
                 # This means that obj doesn't have `.get()`, which indicates that obj isn't a
                 # a Mapping-like object.
+                suffix = f". Failed getting {k!r}" if k != key else ""
                 raise KeyUnavailableError(
-                    f"Failed to retrieve {key!r} from {self.zaptec_obj.qual_id}. Failed getting {k!r}"
+                    key, f"Failed to retrieve {key!r} from {self.zaptec_obj.qual_id}{suffix}"
                 ) from None
             if obj is MISSING:
+                suffix = f". Key {k!r} doesn't exitst" if k != key else ""
                 raise KeyUnavailableError(
-                    f"Failed to retrieve {key!r} from {self.zaptec_obj.qual_id}. Key {k!r} doesn't exist"
+                    key, f"Failed to retrieve {key!r} from {self.zaptec_obj.qual_id}{suffix}"
                 )
             if obj is default:
                 return obj
