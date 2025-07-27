@@ -766,7 +766,9 @@ class ZaptecBaseEntity(CoordinatorEntity[ZaptecUpdateCoordinator]):
         super()._handle_coordinator_update()
 
     @callback
-    def _get_zaptec_value(self, *, default=MISSING, key=None) -> Any:
+    def _get_zaptec_value(
+        self, *, default=MISSING, key: str = "", lower_case_str: bool = False
+    ) -> Any:
         """Retrieve a value from the Zaptec object.
 
         Helper to retrieve the value from the Zaptec object. This is to
@@ -794,6 +796,9 @@ class ZaptecBaseEntity(CoordinatorEntity[ZaptecUpdateCoordinator]):
                 )
             if obj is default:
                 return obj
+        if isinstance(obj, str) and lower_case_str:
+            # If the value is a string, convert it to lower case if requested
+            obj = obj.lower()
         return obj
 
     @property

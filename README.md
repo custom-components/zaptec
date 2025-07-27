@@ -64,8 +64,8 @@ of getting "429 Too many request" -- especially on larger installations.
 ## ℹ️ Breaking changes
 
 * `charger_mode` have changed values. E.g. from "Charging" to
-  "Connected_Charging" due to using the native Zaptec values. Your automation
-  might need an update.
+  connected_charging" due to using the lowe-case native Zaptec values. Your
+  automation might need an update.
 * `permanent_cable_lock` have changed from "lock" type to "switch" type.
 * There is no support for configuring Zaptec by YAML, only using the UI
 * The user setting poll/scan interval have been removed, in favor of the
@@ -355,12 +355,14 @@ The permanent cable lock has been changed to a Switch entity (from
 to the HA convention that the Lock entity type should only be used for physical locks
 that's used to enter the house.
 
-The Charger mode has been changed to use the native zaptec values internally. The
+The Charger mode has been changed to use the native zaptec values in lower case. The
 display values are still the same, but automations using the state will need to be
 updated. The English mapping of the changed values is
-- Connected_Requesting: Waiting
-- Connected_Charging:   Charging
-- Connected_Finished:   Charge done
+- connected_requesting: Waiting
+- connected_charging:   Charging
+- connected_finished:   Charge done
+- disconnected:         Disconnected
+- unknown:              Unknown
 
 
 ## Changes from older versions <0.7.0
