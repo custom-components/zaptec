@@ -260,8 +260,11 @@ class Installation(ZaptecBase):
         except RequestError as err:
             if err.error_code == 403:
                 _LOGGER.warning(
-                    "Access denied to installation hierarchy of %s. The user might not have access",
-                    self.id,
+                    (
+                        "Access denied to installation hierarchy of %s. "
+                        "The user might not have access"
+                    ),
+                    self.qual_id,
                 )
                 self.chargers = []
                 return
@@ -269,23 +272,27 @@ class Installation(ZaptecBase):
 
         self.chargers = []
         for circuit in hierarchy["Circuits"]:
-            _LOGGER.debug("    Circuit %s", circuit["Id"])
+            ctid = circuit["Id"]
+            _LOGGER.debug("    Circuit %s", ctid)
+
             for charger_item in circuit["Chargers"]:
+                chgid = charger_item["Id"]
+
                 # Inject additional attributes
                 charger_item["InstallationId"] = self.id
-                charger_item["CircuitId"] = circuit["Id"]
+                charger_item["CircuitId"] = ctid
                 charger_item["CircuitName"] = circuit["Name"]
                 charger_item["CircuitMaxCurrent"] = circuit["MaxCurrent"]
 
                 # Add or update the charger
-                if charger_item["Id"] in self.zaptec:
-                    _LOGGER.debug("      Charger %s  (existing)", charger_item["Id"])
-                    charger: Charger = self.zaptec[charger_item["Id"]]
+                if chgid in self.zaptec:
+                    _LOGGER.debug("      Charger %s  (existing)", chgid)
+                    charger: Charger = self.zaptec[chgid]
                     charger.set_attributes(charger_item)
                 else:
-                    _LOGGER.debug("      Charger %s  (adding)", charger_item["Id"])
+                    _LOGGER.debug("      Charger %s  (adding)", chgid)
                     charger = Charger(charger_item, self.zaptec, installation=self)
-                    self.zaptec.register(charger_item["Id"], charger)
+                    self.zaptec.register(chgid, charger)
 
                 self.chargers.append(charger)
 
@@ -328,7 +335,7 @@ class Installation(ZaptecBase):
         except RequestError as err:
             if err.error_code != 403:
                 raise
-            _LOGGER.debug("Access denied to installation %s firmware info", self.id)
+            _LOGGER.debug("Access denied to installation %s firmware info", self.qual_id)
 
     #   STREAM METHODS
     # =======================================================================
@@ -608,7 +615,7 @@ class Charger(ZaptecBase):
             # chargers.
             if err.error_code != 403:
                 raise
-            _LOGGER.debug("Access denied to charger %s, attempting list", self.id)
+            _LOGGER.debug("Access denied to charger %s, attempting list", self.qual_id)
             chargers = await self.zaptec.request("chargers")
             for chg in chargers["Data"]:
                 if chg["Id"] == self.id:
@@ -629,7 +636,7 @@ class Charger(ZaptecBase):
         except RequestError as err:
             if err.error_code != 403:
                 raise
-            _LOGGER.debug("Access denied to charger %s state", self.id)
+            _LOGGER.debug("Access denied to charger %s state", self.qual_id)
 
     #   API METHODS
     # =======================================================================
@@ -1154,15 +1161,17 @@ class Zaptec(Mapping[str, ZaptecBase]):
         installations = await self.request("installation")
 
         for inst_item in installations["Data"]:
+            instid = inst_item["Id"]
+
             # Add or update the installation object.
-            if inst_item["Id"] in self:
-                _LOGGER.debug("  Installation %s  (existing)", inst_item["Id"])
-                installation: Installation = self[inst_item["Id"]]
+            if instid in self:
+                _LOGGER.debug("  Installation %s  (existing)", instid)
+                installation: Installation = self[instid]
                 installation.set_attributes(inst_item)
             else:
-                _LOGGER.debug("  Installation %s  (adding)", inst_item["Id"])
+                _LOGGER.debug("  Installation %s  (adding)", instid)
                 installation = Installation(inst_item, self)
-                self.register(inst_item["Id"], installation)
+                self.register(instid, installation)
 
             await installation.build()
 
@@ -1195,16 +1204,18 @@ class Zaptec(Mapping[str, ZaptecBase]):
         # Users without service access right does not have access to the installation
         # object, so we need to add all the object at this point.
         for charger_item in chargers["Data"]:
-            if charger_item["Id"] in installation_chargers:
+            chgid = charger_item["Id"]
+
+            if chgid in installation_chargers:
                 continue  # Skip the chargers which have already been found in installations
-            if charger_item["Id"] in self:
-                _LOGGER.debug("  Standalone charger %s  (existing)", charger_item["Id"])
-                charger: Charger = self[charger_item["Id"]]
+            if chgid in self:
+                _LOGGER.debug("  Standalone charger %s  (existing)", chgid)
+                charger: Charger = self[chgid]
                 charger.set_attributes(charger_item)
             else:
-                _LOGGER.debug("  Standalone charger %s  (adding)", charger_item["Id"])
+                _LOGGER.debug("  Standalone charger %s  (adding)", chgid)
                 charger = Charger(charger_item, self, installation=None)
-                self.register(charger_item["Id"], charger)
+                self.register(chgid, charger)
 
             # The charger update might have provided enough information that the
             # charger can be assosciated with the installation.
@@ -1265,7 +1276,7 @@ if __name__ == "__main__":
             # Builds the interface.
             await zaptec.login()
             await zaptec.build()
-            await zaptec.update_states()
+            await zaptec.poll(info=True, state=True, firmware=True)
 
             # Print all the attributes.
             for obj in zaptec.objects():
