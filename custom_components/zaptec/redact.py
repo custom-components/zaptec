@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from pprint import pformat
 from typing import ClassVar, TypeVar, cast
 
 T = TypeVar("T")
