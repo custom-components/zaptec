@@ -101,7 +101,7 @@ class Redactor:
         self.redact_info = {}
 
     def dumps(self) -> str:
-        """Dump the redation database in a readable format."""
+        """Dump the redaction database in a readable format."""
         return pformat(
             {k: v["text"] for k, v in self.redact_info.items()},
         )
