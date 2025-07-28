@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from pprint import pformat
 import traceback
 from typing import Any, ClassVar, TypeVar, cast
 
@@ -12,16 +13,16 @@ if __name__ != "__main__":
     from homeassistant.helpers import device_registry as dr, entity_registry as er
 
 from . import ZaptecConfigEntry, ZaptecManager
-from .api import ZCONST, Zaptec
-from .const import DOMAIN
+from .api import ZCONST, Zaptec, ZaptecBase
 
 _LOGGER = logging.getLogger(__name__)
 
 
 T = TypeVar("T")
 
-# IF this is true, the output data will be redacted.
+# If this is true, the output data will be redacted.
 DO_REDACT = True
+
 
 # If this is set to True, the redacted data will be included in the output.
 # USE WITH CAUTION! This will include sensitive data in the output.
@@ -59,6 +60,7 @@ class Redactor:
         "Pin",
         "ProductionTestResults",
         "SerialNo",
+        "SupportGroup",
         "ZipCode",
     ]
 
@@ -76,6 +78,7 @@ class Redactor:
         0.0,
         "1",
         "1.",
+        "1.0",
         1,
         1.0,
         "",
@@ -91,24 +94,34 @@ class Redactor:
         "ValueAsString",
     ]
 
-    def __init__(self, do_redact: bool, obs_ids: dict[str, str]):
+    def __init__(self, do_redact: bool, obs_ids: dict[str, str] | None = None):
         self.do_redact = do_redact
-        self.obs_ids = obs_ids
+        self.obs_ids = obs_ids or {}
         self.redacts = {}
         self.redact_info = {}
 
-    def add_redact(self, obj, ctx=None, key=None, redact=None) -> str:
+    def dumps(self) -> str:
+        """Dump the redaction database in a readable format."""
+        return pformat(
+            {k: v["text"] for k, v in self.redact_info.items()},
+        )
+
+    def add(self, obj, *, key=None, replace_by=None, ctx=None) -> str:
         """Add a new redaction to the list."""
-        if not redact:
-            redact = f"<--Redact #{len(self.redacts) + 1}-->"
-        self.redacts[obj] = redact
-        self.redact_info[redact] = {  # For statistics only
+        if not replace_by:
+            replace_by = f"<--Redact #{len(self.redacts) + 1}-->"
+        self.redacts[obj] = replace_by
+        self.redact_info[replace_by] = {  # For statistics only
             "text": obj,
             "from": f"{key} in {ctx}" if key else ctx,
         }
-        return redact
+        return replace_by
 
-    def redact(self, obj: T, ctx=None, key=None, secondpass=False) -> T:
+    def add_uid(self, uid, name, *, ctx=None) -> str:
+        """Add a new redaction for a UID."""
+        return self.add(uid, replace_by=f"<--{name}[{uid[-6:]}]-->", ctx=ctx)
+
+    def __call__(self, obj: T, *, key=None, second_pass=False, ctx=None) -> T:
         """Redact the object if it is present in the redacted dict.
 
         A new redaction is created if make_new is not None. ctx is
@@ -122,7 +135,7 @@ class Redactor:
             # Redact each element in the list
             return cast(
                 T,
-                [self.redact(k, ctx=ctx, key=key, secondpass=secondpass) for k in obj],
+                [self(k, key=key, second_pass=second_pass, ctx=ctx) for k in obj],
             )
 
         if isinstance(obj, dict):
@@ -131,11 +144,11 @@ class Redactor:
             return cast(
                 T,
                 {
-                    k: self.redact(
+                    k: self(
                         v,
+                        key=k if not second_pass else key,
+                        second_pass=second_pass,
                         ctx=ctx,
-                        key=k if not secondpass else key,
-                        secondpass=secondpass,
                     )
                     for k, v in obj.items()
                 },
@@ -146,8 +159,8 @@ class Redactor:
             return self.redacts[obj]
 
         # Check if new redaction is needed
-        if key and key in self.REDACT_KEYS and obj not in self.NEVER_REDACT:
-            return cast(T, self.add_redact(obj, ctx=ctx, key=key))
+        if key and key in self.REDACT_KEYS and (not obj or obj not in self.NEVER_REDACT):
+            return cast(T, self.add(obj, key=key, ctx=ctx))
 
         # Check if the string contains a redacted string
         if isinstance(obj, str):
@@ -171,7 +184,7 @@ class Redactor:
                 for value in self.VALUES:
                     if value not in obj:
                         continue
-                    obj[value] = self.redact(obj[value], key=obj[key], ctx=ctx)
+                    obj[value] = self(obj[value], key=obj[key], ctx=ctx)
         return objs
 
 
@@ -206,9 +219,10 @@ async def _get_diagnostics(
     zaptec: Zaptec = manager.zaptec
 
     # Helper to redact the output data
-    red = Redactor(DO_REDACT, ZCONST.observations)
+    redact = Redactor(DO_REDACT, ZCONST.observations)
 
-    def add_failure(out, err):
+    def add_failure(err: Exception) -> None:
+        """Add a failure to the output."""
         out.setdefault("failures", []).append(
             {
                 "exception": type(err).__name__,
@@ -221,10 +235,10 @@ async def _get_diagnostics(
     #  PRE SEED OBJECT IDS FOR REDACTION
     #
     try:
-        for id, obj in zaptec.items():
-            red.add_redact(id, ctx="preseed", redact=f"<--{obj.qual_id}-->")
+        for objid, obj in zaptec.items():
+            redact.add(objid, replace_by=f"<--{obj.qual_id}-->", ctx="preseed")
     except Exception as err:
-        add_failure(out, err)
+        add_failure(err)
 
     #
     #  API FETCHING
@@ -232,7 +246,8 @@ async def _get_diagnostics(
     try:
         api = out.setdefault("api", {})
 
-        async def req(url):
+        async def request(url: str) -> Any:
+            """Make an API request and return the result."""
             try:
                 result = await zaptec.request(url)
                 if not isinstance(result, (dict, list)):
@@ -248,15 +263,15 @@ async def _get_diagnostics(
                 }
 
         def add(url, obj, ctx=None):
-            api[red.redact(url, ctx=ctx)] = red.redact(obj, ctx=ctx)
+            api[redact(url, ctx=ctx)] = redact(obj, ctx=ctx)
 
-        data = await req(url := "installation")
+        data = await request(url := "installation")
         installation_ids = [inst["Id"] for inst in data.get("Data", [])]
         add(url, data, ctx="installation")
 
         charger_in_circuits_ids = []
         for inst_id in installation_ids:
-            data = await req(url := f"installation/{inst_id}/hierarchy")
+            data = await request(url := f"installation/{inst_id}/hierarchy")
 
             for circuit in data.get("Circuits", []):
                 add(f"circuits/{circuit['Id']}", circuit, ctx="circuit")
@@ -265,43 +280,43 @@ async def _get_diagnostics(
 
             add(url, data, ctx="hierarchy")
 
-            data = await req(url := f"installation/{inst_id}")
+            data = await request(url := f"installation/{inst_id}")
             add(url, data, ctx="installation")
 
-        data = await req(url := "chargers")
+        data = await request(url := "chargers")
         charger_ids = [charger["Id"] for charger in data.get("Data", [])]
         add(url, data, ctx="chargers")
 
-        for charger_id in set([*charger_ids, *charger_in_circuits_ids]):
-            data = await req(url := f"chargers/{charger_id}")
+        for charger_id in {*charger_ids, *charger_in_circuits_ids}:
+            data = await request(url := f"chargers/{charger_id}")
             add(url, data, ctx="charger")
 
-            data = await req(url := f"chargers/{charger_id}/state")
-            red.redact_statelist(data, ctx="state")
+            data = await request(url := f"chargers/{charger_id}/state")
+            redact.redact_statelist(data, ctx="state")
             add(url, data, ctx="state")
 
     except Exception as err:
-        add_failure(out, err)
+        add_failure(err)
 
     #
     #  ZAPTEC OBJECTS
     #
     try:
 
-        def addmap(k, v):
+        def addmap(k: str, v: ZaptecBase) -> dict:
             obj = {
                 "__key": k,
                 "qual_id": v.qual_id,
             }
-            obj.update(v._attrs)
+            obj.update(v.asdict())
             return obj
 
         out.setdefault(
             "zaptec",
-            [red.redact(addmap(k, v), ctx="zaptec") for k, v in zaptec.items()],
+            [redact(addmap(k, v), ctx="zaptec") for k, v in zaptec.items()],
         )
     except Exception as err:
-        add_failure(out, err)
+        add_failure(err)
 
     #
     #  ENTITIES
@@ -315,7 +330,7 @@ async def _get_diagnostics(
             device_registry, config_entry_id=config_entry.entry_id
         ):
             for _, zap_dev_id in dev.identifiers:
-                entity_list = device_map.setdefault(red.redact(zap_dev_id, ctx="entities"), [])
+                entity_list = device_map.setdefault(redact(zap_dev_id, ctx="entities"), [])
 
                 dev_entities = er.async_entries_for_device(
                     entity_registry, dev.id, include_disabled_entities=True
@@ -328,25 +343,25 @@ async def _get_diagnostics(
                         }
                     )
     except Exception as err:
-        add_failure(out, err)
+        add_failure(err)
 
     #
     #  2ND PASS
     #
     try:
         # 2nd pass to replace any newer redacted text within the output.
-        out = red.redact(out, secondpass=True)
+        out = redact(out, second_pass=True)
     except Exception as err:
-        add_failure(out, err)
+        add_failure(err)
 
     #
     #  REDACTED DATA
     #
     try:
         if INCLUDE_REDACTS:
-            out.setdefault("redacts", red.redact_info)
+            out.setdefault("redacts", redact.redact_info)
     except Exception as err:
-        add_failure(out, err)
+        add_failure(err)
 
     return out
 

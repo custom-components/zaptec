@@ -89,7 +89,7 @@ class ZaptecSettingNumber(ZaptecNumber):
             self.key,
             type(value).__qualname__,
             value,
-            self.zaptec_obj.id,
+            self.zaptec_obj.qual_id,
         )
 
         try:
