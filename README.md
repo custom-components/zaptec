@@ -313,9 +313,9 @@ logger:
 
 #### Redaction filter
 
-The integration have by default a *redaction filter* which replaces sensitive
-information by redaction strings. E.g. A full Charger UID `184abd73-19c6-bc88-9844-ab3874bf82ed` becomes `<--Charger[bf82ed]>`. This makes
-the logs safer to share.
+The integration has a *redaction filter* which replaces sensitive information by
+redaction strings. E.g. A full Charger UID `184abd73-19c6-bc88-9844-ab3874bf82ed`
+becomes `<--Charger[bf82ed]>`. This makes the logs safer to share.
 
 Each redaction is given a unique name which can be used to trace back the actual
 value. At startup the list of redactions will be printed in the logs. This
@@ -330,7 +330,7 @@ list must **NOT** be shared.
 > most of sensitive information, but it is not perfect. Please review any
 > logs before it is shared or made public.
 >
-> The Zaptec entity names in might contain sensitive names. These are not
+> The Zaptec entity names might contain sensitive information. These are not
 > redacted from the logs. E.g. by default name is using the unit serial number,
 > `ZAP123456`. You need to evaluate this information before sharing the logs.
 

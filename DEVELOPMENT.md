@@ -34,7 +34,7 @@ should be inclined to follow suit.
 
 ## Logging
 
-The zaptec integration have a number of internal ways to increase debug logging
+The Zaptec integration has a number of internal ways to increase debug logging
 for developers.
 
 * `const.REDACT_LOGS` - Enables or disables the redaction of sensitive data
