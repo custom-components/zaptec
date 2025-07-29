@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from collections import UserDict
-from collections.abc import Iterable
 import json
 import logging
 from typing import Any, ClassVar, Literal
@@ -45,7 +44,7 @@ class ZConst(UserDict):
     """Valid parameters for charger settings (`chargers/{id}/update`)."""
 
     def get_remap(
-        self, wanted: list[str], device_types: Iterable[str] | None = None
+        self, wanted: list[str], device_types: set[str] | None = None
     ) -> dict[str, int]:
         """Parse the Zaptec constants and return a remap dict.
 
@@ -76,7 +75,7 @@ class ZConst(UserDict):
         ids.update({v: k for k, v in ids.items()})
         return ids
 
-    def update_ids_from_schema(self, device_types: Iterable[str] | None) -> None:
+    def update_ids_from_schema(self, device_types: set[str] | None) -> None:
         """Update the id from a schema.
 
         Read observations, settings and command ids from the
@@ -159,8 +158,7 @@ class ZConst(UserDict):
         # https://github.com/SAFE-eV/OCMF-Open-Charge-Metering-Format/blob/master/OCMF-en.md
         sects = data.split("|")
         if len(sects) not in (2, 3) or sects[0] != "OCMF":
-            msg = f"Invalid OCMF data: {data}"
-            raise ValueError(msg)
+            raise ValueError(f"Invalid OCMF data: {data}")
         return json.loads(sects[1])
 
     def type_charger_operation_mode(self, val: int) -> str:
@@ -172,5 +170,6 @@ class ZConst(UserDict):
         """Convert the user roles to a string."""
         if val == 0:
             return "None"
-        roles = {k for k, v in self.get("UserRoles", {}).items() if v != 0 and v & val == v}
+        # v != 0 is needed to avoid the 0 == 0 case leading to None always being included
+        roles = {k for k, v in self.get("UserRoles", {}).items() if v != 0 and (v & val) == v}
         return ", ".join(roles)

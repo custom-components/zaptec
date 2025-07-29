@@ -1250,7 +1250,7 @@ class Zaptec(Mapping[str, ZaptecBase]):
 
         # Update the observation, settings and commands ids based on the
         # discovered device types.
-        ZCONST.update_ids_from_schema({chg["DeviceType"] for chg in self.chargers})
+        ZCONST.update_ids_from_schema({str(chg["DeviceType"]) for chg in self.chargers})
 
         self.is_built = True
 
