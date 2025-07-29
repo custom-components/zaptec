@@ -229,11 +229,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     # Dump the redaction database
     if REDACT_LOGS and REDACT_DUMP_ON_STARTUP:
-        _LOGGER.debug("------  DO NOT PUBLISH THE FOLLOWING DATA  ------")
-        _LOGGER.debug("|  Redaction database:")
-        for line in manager.zaptec.redact.dumps().splitlines():
-            _LOGGER.debug("|  %s", line)
-        _LOGGER.debug("------  DO NOT PUBLISH THE ABOVE ^^^ DATA  ------")
+        message = "Redaction database:\n------  DO NOT PUBLISH THE FOLLOWING DATA  ------\n"
+        message += manager.zaptec.redact.dumps()
+        message += "\n------  DO NOT PUBLISH THE ABOVE ^^^ DATA  ------"
+        _LOGGER.debug(message)
 
     # Attach the local data to the HA config entry so it can be accessed later
     # in various HA functions.

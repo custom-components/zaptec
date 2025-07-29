@@ -138,7 +138,7 @@ class Redactor:
             return self.redacts[obj]
 
         # Check if new redaction is needed
-        if key and key in self.REDACT_KEYS and (not obj or obj not in self.NEVER_REDACT):
+        if key and key in self.REDACT_KEYS and obj and obj not in self.NEVER_REDACT:
             return cast(T, self.add(obj, key=key, ctx=ctx))
 
         # Check if the string contains a redacted string
