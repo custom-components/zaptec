@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 from collections import UserDict
+from collections.abc import Iterable
 import json
 import logging
-from typing import ClassVar, Literal
+from typing import Any, ClassVar, Literal
 
 from .misc import to_under
 
@@ -26,7 +27,7 @@ type CommandType = Literal[
 # Helper wrapper for reading constants from the API
 #
 class ZConst(UserDict):
-    """Zaptec constants wrapper class"""
+    """Zaptec constants wrapper class."""
 
     observations: dict[str, int]
     settings: dict[str, int]
@@ -43,7 +44,9 @@ class ZConst(UserDict):
     ]
     """Valid parameters for charger settings (`chargers/{id}/update`)."""
 
-    def get_remap(self, wanted, device_types=None) -> dict:
+    def get_remap(
+        self, wanted: list[str], device_types: Iterable[str] | None = None
+    ) -> dict[str, int]:
         """Parse the Zaptec constants and return a remap dict.
 
         Parse the given zaptec constants record `CONST` and generate
@@ -73,7 +76,7 @@ class ZConst(UserDict):
         ids.update({v: k for k, v in ids.items()})
         return ids
 
-    def update_ids_from_schema(self, device_types):
+    def update_ids_from_schema(self, device_types: Iterable[str] | None) -> None:
         """Update the id from a schema.
 
         Read observations, settings and command ids from the
@@ -95,80 +98,79 @@ class ZConst(UserDict):
     # DATA EXTRACTION
     #
     @property
-    def charger_operation_modes_list(self):
+    def charger_operation_modes_list(self) -> list[str]:
         """Return a list of all charger operation modes."""
         return list(self.get("ChargerOperationModes", {}))
 
     @property
-    def device_types_list(self):
+    def device_types_list(self) -> list[str]:
         """Return a list of all device types."""
         return list(self.get("DeviceTypes", {}))
 
     @property
-    def installation_authentication_type_list(self):
+    def installation_authentication_type_list(self) -> list[str]:
         """Return a list of all installation authentication types."""
         return list(self.get("InstallationAuthenticationType", {}))
 
     @property
-    def installation_types_list(self):
+    def installation_types_list(self) -> list[str]:
         """Return a list of all installation types."""
         return list(self.get("InstallationTypes", {}))
 
     @property
-    def network_types_list(self):
+    def network_types_list(self) -> list[str]:
         """Return a list of all electrical network types."""
         return list(self.get("NetworkTypes", {}))
 
     #
     # ATTRIBUTE TYPE CONVERTERS
     #
-    def type_authentication_type(self, v):
+    def type_authentication_type(self, val: int) -> str:
         """Convert the authentication type to a string."""
         modes = {str(v): k for k, v in self.get("InstallationAuthenticationType", {}).items()}
-        return modes.get(str(v), str(v))
+        return modes.get(str(val), str(val))
 
-    def type_completed_session(self, data):
+    def type_completed_session(self, val: str) -> dict[str, Any]:
         """Convert the CompletedSession to a dict."""
-        data = json.loads(data)
+        data = json.loads(val)
         if "SignedSession" in data:
             data["SignedSession"] = self.type_ocmf(data["SignedSession"])
         return data
 
-    def type_device_type(self, v):
+    def type_device_type(self, val: int) -> str:
         """Convert the device type to a string."""
         modes = {str(v): k for k, v in self.get("DeviceTypes", {}).items()}
-        return modes.get(str(v), str(v))
+        return modes.get(str(val), str(val))
 
-    def type_installation_type(self, v):
+    def type_installation_type(self, val: int) -> str:
         """Convert the installation type to a string."""
         modes = {
             str(v.get("Id")): v.get("Name") for v in self.get("InstallationTypes", {}).values()
         }
-        return modes.get(str(v), str(v))
+        return modes.get(str(val), str(val))
 
-    def type_network_type(self, v):
+    def type_network_type(self, val: int) -> str:
         """Convert the network type to a string."""
         modes = {str(v): k for k, v in self.get("NetworkTypes", {}).items()}
-        return modes.get(str(v), str(v))
+        return modes.get(str(val), str(val))
 
-    def type_ocmf(self, data):
+    def type_ocmf(self, data: str) -> dict[str, Any]:
         """Open Charge Metering Format (OCMF) type."""
         # https://github.com/SAFE-eV/OCMF-Open-Charge-Metering-Format/blob/master/OCMF-en.md
         sects = data.split("|")
         if len(sects) not in (2, 3) or sects[0] != "OCMF":
-            raise ValueError(f"Invalid OCMF data: {data}")
-        data = json.loads(sects[1])
-        return data
+            msg = f"Invalid OCMF data: {data}"
+            raise ValueError(msg)
+        return json.loads(sects[1])
 
-    def type_charger_operation_mode(self, v):
+    def type_charger_operation_mode(self, val: int) -> str:
         """Convert the operation mode to a string."""
         modes = {str(v): k for k, v in self.get("ChargerOperationModes", {}).items()}
-        return modes.get(str(v), str(v))
+        return modes.get(str(val), str(val))
 
-    def type_user_roles(self, v):
+    def type_user_roles(self, val: int) -> str:
         """Convert the user roles to a string."""
-        val = int(v)
-        if not val:
+        if val == 0:
             return "None"
-        roles = set(k for k, v in self.get("UserRoles", {}).items() if v & val == v)
+        roles = {k for k, v in self.get("UserRoles", {}).items() if v != 0 and v & val == v}
         return ", ".join(roles)
