@@ -88,7 +88,7 @@ class ZaptecFlowHandler(ConfigFlow, domain=DOMAIN):
             _LOGGER.exception("Unexpected exception")
             errors["base"] = "unknown"
 
-        def charger_text(charger: Charger):
+        def charger_text(charger: Charger) -> str:
             """Format the charger text for display."""
             text = f"{charger.name} ({charger.get('DeviceId', '-')})"
             if circuit := charger.get("CircuitName"):

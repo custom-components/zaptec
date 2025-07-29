@@ -88,7 +88,7 @@ class ZaptecChargeSensor(ZaptecSensorTranslate):
     def _update_from_zaptec(self) -> None:
         """Update the entity from Zaptec data."""
         # Called from ZaptecBaseEntity._handle_coordinator_update()
-        self._attr_native_value = self._get_zaptec_value(lower_case_str=True)
+        self._attr_native_value: str = self._get_zaptec_value(lower_case_str=True)
         self._attr_icon = self.CHARGE_MODE_ICON_MAP.get(
             self._attr_native_value, self.CHARGE_MODE_ICON_MAP["unknown"]
         )

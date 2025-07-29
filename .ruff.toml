@@ -20,6 +20,12 @@ ignore = [
     "D212",   # multi-line-summary-first-line (incompatible with formatter)
     "D213",   # Multi-line docstring summary should start at the second line
     "ISC001", # incompatible with formatter
+
+    # Moving imports into type-checking blocks can mess with pytest.patch()
+    "TC001", # Move application import {} into a type-checking block
+    "TC002", # Move third-party import {} into a type-checking block
+    "TC003", # Move standard library import {} into a type-checking block
+
     "TRY003", # Avoid specifying long messages outside the exception class
     "TRY400", # Use `logging.exception` instead of `logging.error`
 ]

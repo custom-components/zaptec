@@ -1054,7 +1054,7 @@ class Zaptec(Mapping[str, ZaptecBase]):
                         _LOGGER.debug("     TOKEN OK")
                     return
 
-                elif response.status == 400:
+                if response.status == 400:
                     data = await response.json()
                     raise log_exc(
                         AuthenticationError(
@@ -1103,11 +1103,11 @@ class Zaptec(Mapping[str, ZaptecBase]):
                     kwargs["headers"]["Authorization"] = f"Bearer {self._access_token}"
                     continue  # Retry request
 
-                elif response.status in (201, 204):  # Created, no content
+                if response.status in (201, 204):  # Created, no content
                     content = await response.read()
                     return content
 
-                elif response.status == 200:  # OK
+                if response.status == 200:  # OK
                     # Read the JSON payload
                     try:
                         json_result = await response.json(content_type=None)
@@ -1250,7 +1250,7 @@ class Zaptec(Mapping[str, ZaptecBase]):
 
         # Update the observation, settings and commands ids based on the
         # discovered device types.
-        ZCONST.update_ids_from_schema({chg["DeviceType"] for chg in self.chargers})
+        ZCONST.update_ids_from_schema({str(chg["DeviceType"]) for chg in self.chargers})
 
         self.is_built = True
 

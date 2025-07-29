@@ -37,7 +37,7 @@ class ZaptecBinarySensor(ZaptecBaseEntity, BinarySensorEntity):
 class ZaptecBinarySensorWithAttrs(ZaptecBinarySensor):
     """Zaptec binary sensor with additional attributes."""
 
-    def _post_init(self):
+    def _post_init(self) -> None:
         self._attr_extra_state_attributes = self.zaptec_obj.asdict()
         self._attr_unique_id = self.zaptec_obj.id
 
