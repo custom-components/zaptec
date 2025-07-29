@@ -9,6 +9,12 @@ ISSUEURL = "https://github.com/custom-components/zaptec/issues"
 DOMAIN = "zaptec"
 MANUFACTURER = "Zaptec"
 
+REDACT_LOGS = True
+"""Whether to redact sensitive data in logs."""
+
+REDACT_DUMP_ON_STARTUP = True
+"""Whether to dump the redaction database on startup."""
+
 TOKEN_URL = "https://api.zaptec.com/oauth/token"
 API_URL = "https://api.zaptec.com/api/"
 CONST_URL = "https://api.zaptec.com/api/constants"

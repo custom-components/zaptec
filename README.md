@@ -306,15 +306,33 @@ logger:
     custom_components.zaptec: debug
 ```
 
-> [!WARNING]
-> The debug logs will contain identifiable information
-> about your Zaptec setup such as login and password. Do not share logs without
-> filtering them.
-
 > [!NOTE]
 > The Zaptec integration logs massive amounts in
 > debug. This is nice for finding errors, but it will generate large amount of
 > data if left enabled for long. Do not use in production setups.
+
+#### Redaction filter
+
+The integration has a *redaction filter* which replaces sensitive information by
+redaction strings. E.g. A full Charger UID `184abd73-19c6-bc88-9844-ab3874bf82ed`
+becomes `<--Charger[bf82ed]>`. This makes the logs safer to share.
+
+Each redaction is given a unique name which can be used to trace back the actual
+value. At startup the list of redactions will be printed in the logs. This
+list must **NOT** be shared.
+
+
+#### Sharing debug logs
+
+> [!WARNING]
+> The debug logs may contain identifiable information about your Zaptec setup
+> such as name or serial numbers. The redaction filter is designed to remove
+> most of sensitive information, but it is not perfect. Please review any
+> logs before it is shared or made public.
+>
+> The Zaptec entity names might contain sensitive information. These are not
+> redacted from the logs. E.g. by default name is using the unit serial number,
+> `ZAP123456`. You need to evaluate this information before sharing the logs.
 
 
 ## Using the integration

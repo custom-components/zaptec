@@ -32,6 +32,7 @@ from .const import (
     TRUTHY,
 )
 from .misc import mc_nbfx_decoder, to_under
+from .redact import Redactor
 from .validate import validate
 from .zconst import CommandType, ZConst
 
@@ -43,7 +44,6 @@ _LOGGER = logging.getLogger(__name__)
 DEBUG_API_CALLS = True
 DEBUG_API_DATA = False
 DEBUG_API_EXCEPTIONS = False
-DEBUG_STREAM_DATA = True
 
 # Global var for the API constants from Zaptec
 ZCONST: ZConst = ZConst()
@@ -152,6 +152,7 @@ class ZaptecBase(Mapping[str, TValue]):
 
     def set_attributes(self, data: TDict) -> bool:
         """Set the class attributes from the given data."""
+        redact = self.zaptec.redact
         for k, v in data.items():
             # Cast the value to the correct type
             new_key = to_under(k)
@@ -161,42 +162,42 @@ class ZaptecBase(Mapping[str, TValue]):
                 new_v = type_fn(v)
             except Exception as err:
                 _LOGGER.error(
-                    "Failed to convert attribute %s (%s) value <%s> %s: %s",
+                    "Failed to convert attribute %s (%s) value <%s> %r: %s",
                     k,
                     new_key,
                     type(v).__qualname__,
-                    repr(v),
+                    redact(v, key=k),
                     err,
                 )
                 new_v = v
             new_vt = type(new_v).__qualname__
             if new_key not in self._attrs:
                 _LOGGER.debug(
-                    ">>>  Adding   %s.%s (%s)  =  <%s> %s",
+                    ">>>  Adding   %s.%s (%s)  =  <%s> %r",
                     self.qual_id,
                     new_key,
                     k,
                     new_vt,
-                    repr(new_v),
+                    redact(new_v, key=k),
                 )
             elif self._attrs[new_key] != new_v:
                 _LOGGER.debug(
-                    ">>>  Updating %s.%s (%s)  =  <%s> %s  (was %s)",
+                    ">>>  Updating %s.%s (%s)  =  <%s> %r  (was %r)",
                     self.qual_id,
                     new_key,
                     k,
                     new_vt,
-                    repr(new_v),
-                    self._attrs[new_key],
+                    redact(new_v, key=k),
+                    redact(self._attrs[new_key], key=k),
                 )
             elif self.zaptec.show_all_updates:
                 _LOGGER.debug(
-                    ">>>  Ignoring %s.%s (%s)  =  <%s> %s  (no change)",
+                    ">>>  Ignoring %s.%s (%s)  =  <%s> %r  (no change)",
                     self.qual_id,
                     new_key,
                     k,
                     new_vt,
-                    repr(new_v),
+                    redact(new_v, key=k),
                 )
             self._attrs[new_key] = new_v
 
@@ -270,13 +271,17 @@ class Installation(ZaptecBase):
                 return
             raise
 
+        redact = self.zaptec.redact
+
         self.chargers = []
         for circuit in hierarchy["Circuits"]:
             ctid = circuit["Id"]
-            _LOGGER.debug("    Circuit %s", ctid)
+            redact.add_uid(ctid, "Circuit")
+            _LOGGER.debug("    Circuit %s", redact(ctid))
 
             for charger_item in circuit["Chargers"]:
                 chgid = charger_item["Id"]
+                redact.add_uid(chgid, "Charger")
 
                 # Inject additional attributes
                 charger_item["InstallationId"] = self.id
@@ -286,11 +291,11 @@ class Installation(ZaptecBase):
 
                 # Add or update the charger
                 if chgid in self.zaptec:
-                    _LOGGER.debug("      Charger %s  (existing)", chgid)
+                    _LOGGER.debug("      Charger %s  (existing)", redact(chgid))
                     charger: Charger = self.zaptec[chgid]
                     charger.set_attributes(charger_item)
                 else:
-                    _LOGGER.debug("      Charger %s  (adding)", chgid)
+                    _LOGGER.debug("      Charger %s  (adding)", redact(chgid))
                     charger = Charger(charger_item, self.zaptec, installation=self)
                     self.zaptec.register(chgid, charger)
 
@@ -369,12 +374,10 @@ class Installation(ZaptecBase):
                 data["StateId"] = (
                     f"{data['StateId']} ({ZCONST.observations.get(data['StateId'])})"
                 )
-            if "ChargerId" in data:
-                data["ChargerId"] = self.zaptec.qual_id(data["ChargerId"])
             # Silenty delete these from logging. They are never used
             data.pop("DeviceId", None)
             data.pop("DeviceType", None)
-        _LOGGER.debug("@@@  EVENT %s", data)
+        _LOGGER.debug("@@@  EVENT %s", self.zaptec.redact(data))
 
     async def stream_main(self, cb=None, ssl_context=None):
         """Main stream handler."""
@@ -775,6 +778,7 @@ class Zaptec(Mapping[str, ZaptecBase]):
         client: aiohttp.ClientSession | None = None,
         max_time: float = API_RETRY_MAXTIME,
         show_all_updates: bool = False,
+        redact_logs: bool = True,
     ) -> None:
         """Initialize the Zaptec account handler."""
         self._username = username
@@ -789,6 +793,9 @@ class Zaptec(Mapping[str, ZaptecBase]):
         self._ratelimiter = AsyncLimiter(
             max_rate=API_RATELIMIT_MAX_REQUEST_RATE, time_period=API_RATELIMIT_PERIOD
         )
+
+        self.redact = Redactor(redact_logs)
+        """Redactor for sensitive data in logs."""
 
         self.is_built: bool = False
         """Flag to indicate if the structure of objectes is built and ready to use."""
@@ -938,7 +945,7 @@ class Zaptec(Mapping[str, ZaptecBase]):
                     await asyncio.sleep(sleep_delay)
 
                 # Log the request
-                log_req = list(self._request_log(url, method, iteration, **kwargs))
+                log_req = list(self._request_log(self.redact(url), method, iteration, **kwargs))
                 if DEBUG_API_CALLS:
                     for msg in log_req:
                         _LOGGER.debug(msg)
@@ -1136,7 +1143,7 @@ class Zaptec(Mapping[str, ZaptecBase]):
                         text = await response.text()
                         if len(text) > 60:
                             text = text[:60] + "..."
-                        _LOGGER.debug(f"     PAYLOAD %s", repr(text))
+                        _LOGGER.debug("     PAYLOAD %r", text)
                     if method.lower() == "get":
                         continue  # GET: Retry request
                     raise error  # POST/PUT: Raise error
@@ -1156,20 +1163,28 @@ class Zaptec(Mapping[str, ZaptecBase]):
         const = await self.request("constants")
         ZCONST.clear()
         ZCONST.update(const)
+        ZCONST.update_ids_from_schema(None)
+
+        # Update the redactor
+        self.redact.obs_ids = ZCONST.observations
+        for objid, obj in self._map.items():
+            self.redact.add(objid, replace_by=f"<--{obj.qual_id}-->")
+        redact = self.redact
 
         # Get list of installations
         installations = await self.request("installation")
 
         for inst_item in installations["Data"]:
             instid = inst_item["Id"]
+            self.redact.add_uid(instid, "Inst")
 
             # Add or update the installation object.
             if instid in self:
-                _LOGGER.debug("  Installation %s  (existing)", instid)
+                _LOGGER.debug("  Installation %s  (existing)", redact(instid))
                 installation: Installation = self[instid]
                 installation.set_attributes(inst_item)
             else:
-                _LOGGER.debug("  Installation %s  (adding)", instid)
+                _LOGGER.debug("  Installation %s  (adding)", redact(instid))
                 installation = Installation(inst_item, self)
                 self.register(instid, installation)
 
@@ -1181,7 +1196,7 @@ class Zaptec(Mapping[str, ZaptecBase]):
         if missing_installations := (have_installations - new_installations):
             _LOGGER.warning(
                 "These installations are no longer available but remain in use: %s",
-                missing_installations,
+                redact(missing_installations),
             )
             _LOGGER.warning("To remove them, please restart the integration.")
 
@@ -1190,7 +1205,9 @@ class Zaptec(Mapping[str, ZaptecBase]):
         new_chargers = {d["Id"] for d in chargers["Data"]}
         have_chargers = {c.id for c in self.chargers}
         if missing_chargers := (have_chargers - new_chargers):
-            _LOGGER.warning("These chargers are no longer available: %s", missing_chargers)
+            _LOGGER.warning(
+                "These chargers are no longer available: %s", redact(missing_chargers)
+            )
             _LOGGER.warning("To remove them, please restart the integration.")
 
         # Find the installation based chargers
@@ -1205,15 +1222,16 @@ class Zaptec(Mapping[str, ZaptecBase]):
         # object, so we need to add all the object at this point.
         for charger_item in chargers["Data"]:
             chgid = charger_item["Id"]
+            self.redact.add_uid(chgid, "Charger")
 
             if chgid in installation_chargers:
                 continue  # Skip the chargers which have already been found in installations
             if chgid in self:
-                _LOGGER.debug("  Standalone charger %s  (existing)", chgid)
+                _LOGGER.debug("  Standalone charger %s  (existing)", redact(chgid))
                 charger: Charger = self[chgid]
                 charger.set_attributes(charger_item)
             else:
-                _LOGGER.debug("  Standalone charger %s  (adding)", chgid)
+                _LOGGER.debug("  Standalone charger %s  (adding)", redact(chgid))
                 charger = Charger(charger_item, self, installation=None)
                 self.register(chgid, charger)
 
@@ -1277,6 +1295,10 @@ if __name__ == "__main__":
             await zaptec.login()
             await zaptec.build()
             await zaptec.poll(info=True, state=True, firmware=True)
+
+            # Dump redaction database
+            print("Redaction database:")
+            print(zaptec.redact.dumps())
 
             # Print all the attributes.
             for obj in zaptec.objects():

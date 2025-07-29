@@ -43,6 +43,8 @@ from .const import (
     KEYS_TO_SKIP_ENTITY_AVAILABILITY_CHECK,
     MANUFACTURER,
     MISSING,
+    REDACT_DUMP_ON_STARTUP,
+    REDACT_LOGS,
     REQUEST_REFRESH_DELAY,
     ZAPTEC_POLL_CHARGER_TRIGGER_DELAYS,
     ZAPTEC_POLL_INSTALLATION_TRIGGER_DELAYS,
@@ -123,6 +125,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         client=async_get_clientsession(hass),
         max_time=ZAPTEC_POLL_INTERVAL_CHARGING,  # The shortest of the intervals
         show_all_updates=True,  # During setup we'd like to log all updates
+        redact_logs=REDACT_LOGS,
     )
 
     # Login to the Zaptec account
@@ -223,6 +226,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # will create a lot of debug log output.
     zaptec.show_all_updates = False
     _LOGGER.debug("Zaptec setup complete")
+
+    # Dump the redaction database
+    if REDACT_LOGS and REDACT_DUMP_ON_STARTUP:
+        message = "Redaction database:\n------  DO NOT PUBLISH THE FOLLOWING DATA  ------\n"
+        message += manager.zaptec.redact.dumps()
+        message += "\n------  DO NOT PUBLISH THE ABOVE ^^^ DATA  ------"
+        _LOGGER.debug(message)
 
     # Attach the local data to the HA config entry so it can be accessed later
     # in various HA functions.
@@ -830,9 +840,9 @@ class ZaptecBaseEntity(CoordinatorEntity[ZaptecUpdateCoordinator]):
         if force or value != self._prev_value:
             self._prev_value = value
             _LOGGER.debug(
-                "    %s  =  %s <%s>   from %s%s",
+                "    %s  =  %r <%s>   from %s%s",
                 self.entity_id,
-                repr(value),
+                value,
                 type(value).__qualname__,
                 self.zaptec_obj.qual_id,
                 self._log_zaptec_attribute,
