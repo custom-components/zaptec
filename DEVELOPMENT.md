@@ -32,6 +32,27 @@ should be inclined to follow suit.
 - https://github.com/home-assistant/core/blob/dev/pyproject.toml#L652
 
 
+## Logging
+
+The zaptec integration have a number of internal ways to increase debug logging
+for developers.
+
+* `const.REDACT_LOGS` - Enables or disables the redaction of sensitive data
+  from `api.py`.
+
+* `const.REDACT_DUMP_ON_STARTUP` - Enables or disables the printing of the
+  redaction database on HA initalization.
+
+* `api.DEBUG_API_CALLS` - Enables the logging of the API calls that are made.
+  The have the `@@@` marker in the logs.
+
+* `api.DEBUG_API_DATA` - Set this to `True` to print verbose data and headers
+  about every REST call and response.
+
+* `api.DEBUG_API_EXEPTION` - With this enabled, every unexpected response
+  from the API cloud will be logged, including TB.
+
+
 # Setup development environment
 
 This section goes through the steps of setting up the development environment

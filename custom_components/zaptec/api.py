@@ -44,7 +44,6 @@ _LOGGER = logging.getLogger(__name__)
 DEBUG_API_CALLS = True
 DEBUG_API_DATA = False
 DEBUG_API_EXCEPTIONS = False
-DEBUG_STREAM_DATA = True
 
 # Global var for the API constants from Zaptec
 ZCONST: ZConst = ZConst()
