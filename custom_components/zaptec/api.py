@@ -162,42 +162,42 @@ class ZaptecBase(Mapping[str, TValue]):
                 new_v = type_fn(v)
             except Exception as err:
                 _LOGGER.error(
-                    "Failed to convert attribute %s (%s) value <%s> %s: %s",
+                    "Failed to convert attribute %s (%s) value <%s> %r: %s",
                     k,
                     new_key,
                     type(v).__qualname__,
-                    repr(v),
+                    redact(v, key=k),
                     err,
                 )
                 new_v = v
             new_vt = type(new_v).__qualname__
             if new_key not in self._attrs:
                 _LOGGER.debug(
-                    ">>>  Adding   %s.%s (%s)  =  <%s> %s",
+                    ">>>  Adding   %s.%s (%s)  =  <%s> %r",
                     self.qual_id,
                     new_key,
                     k,
                     new_vt,
-                    repr(redact(new_v, key=k)),
+                    redact(new_v, key=k),
                 )
             elif self._attrs[new_key] != new_v:
                 _LOGGER.debug(
-                    ">>>  Updating %s.%s (%s)  =  <%s> %s  (was %s)",
+                    ">>>  Updating %s.%s (%s)  =  <%s> %r  (was %r)",
                     self.qual_id,
                     new_key,
                     k,
                     new_vt,
-                    repr(redact(new_v, key=k)),
+                    redact(new_v, key=k),
                     redact(self._attrs[new_key], key=k),
                 )
             elif self.zaptec.show_all_updates:
                 _LOGGER.debug(
-                    ">>>  Ignoring %s.%s (%s)  =  <%s> %s  (no change)",
+                    ">>>  Ignoring %s.%s (%s)  =  <%s> %r  (no change)",
                     self.qual_id,
                     new_key,
                     k,
                     new_vt,
-                    repr(redact(new_v, key=k)),
+                    redact(new_v, key=k),
                 )
             self._attrs[new_key] = new_v
 
@@ -1143,7 +1143,7 @@ class Zaptec(Mapping[str, ZaptecBase]):
                         text = await response.text()
                         if len(text) > 60:
                             text = text[:60] + "..."
-                        _LOGGER.debug(f"     PAYLOAD %s", repr(text))
+                        _LOGGER.debug("     PAYLOAD %r", text)
                     if method.lower() == "get":
                         continue  # GET: Retry request
                     raise error  # POST/PUT: Raise error

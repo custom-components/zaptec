@@ -840,9 +840,9 @@ class ZaptecBaseEntity(CoordinatorEntity[ZaptecUpdateCoordinator]):
         if force or value != self._prev_value:
             self._prev_value = value
             _LOGGER.debug(
-                "    %s  =  %s <%s>   from %s%s",
+                "    %s  =  %r <%s>   from %s%s",
                 self.entity_id,
-                repr(value),
+                value,
                 type(value).__qualname__,
                 self.zaptec_obj.qual_id,
                 self._log_zaptec_attribute,
