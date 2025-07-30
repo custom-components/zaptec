@@ -426,7 +426,7 @@ class ZaptecManager:
                     )
                 else:
                     _LOGGER.info(
-                        "%s is not available, failing to add entity %s %r",
+                        "%s is not available, skip add of entity %s %r",
                         attr,
                         cls.__name__,
                         description.key,
