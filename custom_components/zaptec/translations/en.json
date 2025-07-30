@@ -75,6 +75,9 @@
             },
             "hmi_brightness": {
                 "name": "Status indicator brightness"
+            },
+            "three_to_one_phase_switch_current": {
+                "name": "3 to 1-phase switch current"
             }
         },
         "sensor": {

@@ -558,6 +558,17 @@ class Installation(ZaptecBase):
         )
         return data
 
+    async def set_three_to_one_phase_switch_current(self, current: float):
+        """Set the 3 to 1-phase switch current."""
+        if not (0 <= current <= 32):
+            raise ValueError("Current must be between 0 and 32 amps")
+        data = await self.zaptec.request(
+            f"installation/{self.id}/update",
+            method="post",
+            data={"threeToOnePhaseSwitchCurrent": current},
+        )
+        return data
+
 
 class Charger(ZaptecBase):
     """Represents a charger."""
