@@ -30,21 +30,22 @@ To use this component, a user with access to
 [Zaptec Portal](https://portal.zaptec.com/) is required.
 
 
-# ⭐ Version 0.8
+# ⭐ Version 0.8.0
 
-> [!IMPORTANT]
-> This is a pre-release version and may not be stable for production use.
-> It has not undergone extensive testing, so your feedback is valuable.
-> Please try it out, and if you encounter any problems, report them at
+> [!INFO]
+> The release has not undergone extensive testing, so your feedback is valuable.
+> If you encounter any problems, please report them at
 > https://github.com/custom-components/zaptec/issues
+> We are grateful for all contributions, ranging from documentation, examples
+> of how to use, tesing, to code development.
 
-The v0.8 is a major release with a lot of changes. The integration has been
+The v0.8.0 is a major release with a lot of changes. The integration has been
 completely redesigned and may impact your existing automations.
 
 The main goal of this release has been to adopt to the
 [Zaptec API Fair Use policy](https://docs.zaptec.com/docs/api-fair-use-policy#/).
 The mechanism for synchronizing HA entities with the Zaptec portal has been made
-more robust. This reduces the number of requests to Zaptec and fixes the issues
+more robust. It reduces the number of requests to Zaptec and fixes the issues
 of getting "429 Too many request" -- especially on larger installations.
 
 ## ✨ Feature highlight
@@ -55,35 +56,36 @@ of getting "429 Too many request" -- especially on larger installations.
   * Firmware version updates are polled once per day
 * Implemented request rate limiter to avoid "429 Too many requests"
 * Automatic polling from Zaptec after any button or value changes from HA
-  to update the UI quickly
+  to update the UI more quickly
 * Change charger settings to use the official settings API
 * Prevent sending pause/resume when not in the correct charging mode
 * Support for reconfiguring the integration and integraion reload now works
-* Many internal changes and cleanups to classes and methods
+* Many internal changes and cleanups to classes and methods, including better
+  logging
+
+The full list of changes are available in [CHANGELOG.md](CHANGELOG.md#080)
 
 ## ℹ️ Breaking changes
 
-* `charger_mode` have changed values. E.g. from "Charging" to
-  connected_charging" due to using the lowe-case native Zaptec values. Your
+* `charger_mode` have changed values. E.g. from *"Charging"* to
+  *"connected_charging"* due to using the lower-case native Zaptec values. Your
   automation might need an update.
-* `permanent_cable_lock` have changed from "lock" type to "switch" type.
-* There is no support for configuring Zaptec by YAML, only using the UI
+* `permanent_cable_lock` have changed from *"lock"* type to *"switch"* type.
+* There is no longer support for configuring Zaptec by YAML, only using the UI
 * The user setting poll/scan interval have been removed, in favor of the
   improved polling system
-* The "Circuit" device and entity, notably "Max Current", have been removed
+* The *"Circuit"* device and entity, notably *"Max Current"*, have been removed
 * Service/action calls to named commands, such as "resume_charging" is now
   deprecated in favor of the button entities. They will be removed in a later
   release.
 
 ## ⚠️ Known issues
 
-* If entities are not available from Zaptec on startup, they will cause errors
-  in the log. If you encounter this, please add an issue and we'll add an
-  exception for this entity to the startup.
-* Sending a "deauthorize_and_stop" command will give an error. This is due to
-  Zaptec sending back error code 500. However, the command seems to do its
-  task.
-* Setting custom poll intervals, like described [here](https://www.home-assistant.io/common-tasks/general/#defining-a-custom-polling-interval),
+* Sending a *"deauthorize_and_stop"* command will give an error. This is due to
+  Zaptec sending back error code `500` (internal server error). However, the
+  command seems to execute the task, despite the error.
+* Setting custom poll intervals, like described
+  [here](https://www.home-assistant.io/common-tasks/general/#defining-a-custom-polling-interval),
   will have unexpected effects. If the automatic polling is turned off, not all
   the data in the integraion will update properly.
 
@@ -359,9 +361,9 @@ how to develop the Zaptec integration. It contains tips and tricks and how to
 setup the Dev Container.
 
 
-# CHanges
+# Changes
 
-## Changes from 0.7 to 0.8
+## Changes from 0.7.x to 0.8.x
 
 The Circuit device type has been removed since it was not really used in HA. The
 information in the old Circuit device is now included with the full data of the
