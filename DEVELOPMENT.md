@@ -47,7 +47,7 @@ for developers.
 * `api.DEBUG_API_DATA` - Set this to `True` to print verbose data and headers
   about every REST call and response.
 
-* `api.DEBUG_API_EXCEPTION` - With this enabled, every unexpected response
+* `api.DEBUG_API_EXCEPTIONS` - With this enabled, every unexpected response
   from the API cloud will be logged, including TB.
 
 # Setup development environment
