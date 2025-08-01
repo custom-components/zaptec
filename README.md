@@ -388,7 +388,7 @@ updated. The English mapping of the changed values is
 ## Changes from older versions <0.7.0
 
 > [!CAUTION]
-> **This release will BREAK your current automations**
+> This release will BREAK your current automations
 
 The Zaptec integration has been completely refactored. The way to interact
 with you Zaptec charger from Home Assistant has been changed. The Zaptec data

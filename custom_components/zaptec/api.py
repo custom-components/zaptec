@@ -39,8 +39,6 @@ from .zconst import CommandType, ZConst
 _LOGGER = logging.getLogger(__name__)
 
 # API debug flags
-# FIXME: For the v0.8b1 beta version, leaving this on for debugging.
-#        Remove before final release.
 DEBUG_API_CALLS = True
 DEBUG_API_DATA = False
 DEBUG_API_EXCEPTIONS = False
