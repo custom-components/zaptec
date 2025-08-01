@@ -75,6 +75,9 @@
             },
             "hmi_brightness": {
                 "name": "Jasność wskaźnika statusu"
+            },
+            "three_to_one_phase_switch_current": {
+                "name": "Prąd przełączania ładowania 3-fazowego na 1-fazowe"
             }
         },
         "sensor": {

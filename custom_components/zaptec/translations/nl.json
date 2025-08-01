@@ -75,6 +75,9 @@
             },
             "hmi_brightness": {
                 "name": "Helderheid statusindicator"
+            },
+            "three_to_one_phase_switch_current": {
+                "name": "Terugschakelen van drie naar één fase"
             }
         },
         "sensor": {

@@ -91,5 +91,6 @@ CHARGER_EXCLUDES = {
 # These keys will not be checked at startup for entity availability. This is
 # useful for keys that are not always present in the API response, such as
 KEYS_TO_SKIP_ENTITY_AVAILABILITY_CHECK = {
+    "three_to_one_phase_switch_current",
     "total_charge_power_session",
 }

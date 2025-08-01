@@ -75,6 +75,9 @@
             },
             "hmi_brightness": {
                 "name": "Statusindikator ljusstyrka"
+            },
+            "three_to_one_phase_switch_current": {
+                "name": "Trefas till enfas växelström"
             }
         },
         "sensor": {
