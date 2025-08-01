@@ -39,8 +39,9 @@ To use this component, a user with access to
 > We are grateful for all contributions, ranging from documentation, examples
 > of how to use, testing, to code development.
 
-The v0.8.0 is a major release with a lot of changes. The integration has been
-completely redesigned and may impact your existing automations.
+The  [v0.8.0](https://github.com/custom-components/zaptec/releases/tag/v0.8.0)
+is a major release with a lot of changes. The integration has been completely
+redesigned and may impact your existing automations.
 
 The main goal of this release has been to adopt the
 [Zaptec API Fair Use policy](https://docs.zaptec.com/docs/api-fair-use-policy#/).
@@ -65,7 +66,7 @@ of getting "429 Too many requests" -- especially on larger installations.
 
 The full list of changes is available in [CHANGELOG.md](CHANGELOG.md#080)
 
-## ℹ️ Breaking changes
+## ⚠️ Breaking changes
 
 * `charger_mode` has changed values. E.g. from _"Charging"_ to
   _"connected_charging"_ due to using the lower-case native Zaptec values. Your
@@ -79,7 +80,7 @@ The full list of changes is available in [CHANGELOG.md](CHANGELOG.md#080)
   deprecated in favor of the button entities. They will be removed in a later
   release.
 
-## ⚠️ Known issues
+## ℹ️ Known issues
 
 * Sending a _"deauthorize_and_stop"_ command will give an error. This is due to
   Zaptec sending back error code `500` (internal server error). However, the
