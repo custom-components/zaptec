@@ -137,6 +137,11 @@ class ZaptecBase(Mapping[str, TValue]):
             return qn
         return f"{qn}[{self.id[-6:]}]"
 
+    @property
+    def model(self) -> str:
+        """Return the model of the object."""
+        return f"Zaptec {self.__class__.__qualname__}"
+
     def asdict(self):
         """Return the attributes as a dict."""
         return self._attrs
@@ -765,6 +770,20 @@ class Charger(ZaptecBase):
     def is_charging(self) -> bool:
         """Check if the charger is charging."""
         return self.get("ChargerOperationMode") == "Connected_Charging"
+
+    @property
+    def model_prefix(self) -> str:
+        """Return the model prefix of the charger.
+
+        In Zaptec charger this is the first 3 characters in the DeviceId.
+        """
+        device_id: str = self.get("DeviceId", "")
+        return device_id[0:3].upper()
+
+    @property
+    def model(self) -> str:
+        """Return the model of the charger."""
+        return ZCONST.serial_to_model.get(self.model_prefix, super().model)
 
 
 class Zaptec(Mapping[str, ZaptecBase]):
