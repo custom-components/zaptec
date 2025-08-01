@@ -32,7 +32,7 @@ To use this component, a user with access to
 
 # ⭐ Version 0.8.0
 
-> [!INFO]
+> [!IMPORTANT]
 > The release has not undergone extensive testing, so your feedback is valuable.
 > If you encounter any problems, please report them at
 > https://github.com/custom-components/zaptec/issues
