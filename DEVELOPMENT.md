@@ -11,8 +11,9 @@ This is a collection of guidelines that should be considered when working with:
   best if this integration is doing the same.
 
 - When adding a new entity, check that it's a "state" variable. The state vars
-  are polled much more frequently than any of the others. Some vars exist in either
-  under slightly different names and then the state variant should be preferred.
+  are polled much more frequently than any of the others. Some vars exist in
+  either under slightly different names and then the state variant should be
+  preferred.
 
 - Use the HA quality scale guidelines:
   https://developers.home-assistant.io/docs/core/integration-quality-scale/rules

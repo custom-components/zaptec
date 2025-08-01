@@ -67,21 +67,21 @@ The full list of changes is available in [CHANGELOG.md](CHANGELOG.md#080)
 
 ## ℹ️ Breaking changes
 
-* `charger_mode` has changed values. E.g. from *"Charging"* to
-  *"connected_charging"* due to using the lower-case native Zaptec values. Your
+* `charger_mode` has changed values. E.g. from _"Charging"_ to
+  _"connected_charging"_ due to using the lower-case native Zaptec values. Your
   automation might need an update.
-* `permanent_cable_lock` has changed from *"lock"* type to *"switch"* type.
+* `permanent_cable_lock` has changed from _"lock"_ type to _"switch"_ type.
 * There is no longer support for configuring Zaptec by YAML, only using the UI
 * The user setting poll/scan interval has been removed, in favor of the
   improved polling system
-* The *"Circuit"* device and entity, notably *"Max Current"*, have been removed
-* Service/action calls to named commands, such as *"resume_charging"* are now
+* The _"Circuit"_ device and entity, notably _"Max Current"_, have been removed
+* Service/action calls to named commands, such as _"resume_charging"_ are now
   deprecated in favor of the button entities. They will be removed in a later
   release.
 
 ## ⚠️ Known issues
 
-* Sending a *"deauthorize_and_stop"* command will give an error. This is due to
+* Sending a _"deauthorize_and_stop"_ command will give an error. This is due to
   Zaptec sending back error code `500` (internal server error). However, the
   command seems to execute the task, despite the error.
 * Setting custom poll intervals, like described
@@ -200,7 +200,7 @@ of the following will prevent auto start:
    * _"Charger max current"_ in the charger object
 
 > [!TIP]
-> Using _"Available current" will affect __all__ chargers if there are more
+> Using _"Available current"_ will affect __all__ chargers if there are more
 > than one charger.
 
 
@@ -284,10 +284,13 @@ _"Charger max current"_ is `charger_max_current` in the template.
 ## Diagnostics
 
 The integration supports downloading of diagnostics data. This can be reached
-by `Settings -> Devices & Services -> <one of your zaptec devices>` and then
-press the "Download diagnostics". The file downloaded is anonymized and should
-not contain any personal information. Please double check that the file
-doesn't contain any personal information before sharing.
+by **Settings -> Devices & Services -> <one of your zaptec devices>** and then
+press **Download diagnostics**. The file downloaded is anonymized and should
+not contain any personal information.
+
+> [!IMPORTANT]
+> Please review the diagnostics file and double check that it doesn't contain
+> any personal information before sharing.
 
 
 ## Debugging
@@ -423,4 +426,3 @@ for the new treatment of the Circuit level)
 [downloads-shield]: https://img.shields.io/github/downloads/custom-components/zaptec/total.svg
 [hellowlol-profile]: https://github.com/hellowlol
 [sveinse-profile]: https://github.com/sveinse
-
