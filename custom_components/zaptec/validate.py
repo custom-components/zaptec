@@ -132,7 +132,13 @@ _URLS = [(k, re.compile(k), v) for k, v in URLS.items()]
 
 
 def validate(data: Any, url: str) -> None:
-    """Validate the data."""
+    """
+    Validate the data.
+
+    Raises:
+        ValidationError: If data doesn't match the pydantic model associated with the url.
+
+    """
 
     for pat, re_pat, model in _URLS:
         # Mathes either the exact string or its regexp
