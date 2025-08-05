@@ -110,7 +110,7 @@ class Redactor:
         if not self.do_redact:
             return obj
 
-        if isinstance(obj, (tuple, list)):
+        if isinstance(obj, (tuple, list, set)):
             # Redact each element in the list
             return cast(
                 T,
