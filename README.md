@@ -218,7 +218,7 @@ the same time.
 > current. Zaptec recommends not changing the values more often than 15 minutes.
 
 
-#### 3 phase current adjustment
+### 3 phase current adjustment
 
 The service call `limit_current` can be used with the arguments
 `available_current_phase1`, `available_current_phase2` and
