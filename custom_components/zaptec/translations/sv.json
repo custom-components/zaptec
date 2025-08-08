@@ -17,6 +17,16 @@
                     "chargers": "Laddare"
                 }
             },
+            "reconfigure": {
+                "title": "Konfigurera om Zaptec",
+                "description": "Inloggningsuppgifter för Zaptec-portalen.\n\nDet valfria prefixet kommer att bli tillagt på alla enheter. Notera att det oftast är bättre att ändra namn på enheterna i HA än att lägga till prefix.",
+                "data": {
+                    "manual_select": "Välj laddare manuellt. Nästa ruta visar vilka laddare att lägga till.",
+                    "password": "Lösenord",
+                    "prefix": "Valfritt prefix",
+                    "username": "Användarnamn"
+                }
+            },
             "user": {
                 "title": "Zaptec setup",
                 "description": "Lägg till dina Zaptec Portal login detaljer.\n\nDet valfria prefixet kommer att bli tillagt på alla enheter. Notera att det oftast är bättre att ändra namn på enheterna i HA än att lägga till prefix.",
@@ -24,7 +34,6 @@
                     "manual_select": "Välj laddare manuellt. Nästa ruta visar vilka laddare att lägga till.",
                     "password": "Lösenord",
                     "prefix": "Valfritt prefix",
-                    "scan_interval": "Uppdaterings intervall",
                     "username": "Användarnamn"
                 }
             }
