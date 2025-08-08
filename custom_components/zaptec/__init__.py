@@ -399,6 +399,10 @@ class ZaptecManager:
 
         entities: list[ZaptecBaseEntity] = []
         for description in descriptions:
+            # Make sure this zaptec object is tracked
+            if zaptec_obj.id not in self.tracked_devices:
+                continue
+
             # Use provided class if it exists, otherwise use the class this
             # function was called from
             cls: type[ZaptecBaseEntity] = description.cls
