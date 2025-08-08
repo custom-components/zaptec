@@ -17,6 +17,16 @@
                     "chargers": "Opladers"
                 }
             },
+            "reconfigure": {
+                "title": "Zaptec opnieuw configureren",
+                "description": "Inloggegevens voor Zaptec Portal.\n\nMet het optionele voorvoegsel wordt het voorvoegsel aan alle apparaten toegevoegd. Merk op dat het doorgaans beter is om de apparaatnamen in HA te hernoemen dan een voorvoegsel toe te voegen.",
+                "data": {
+                    "manual_select": "Handmatig opladers selecteren. Op het volgende scherm worden de opladers weergegeven die toegevoegd kunnen worden.",
+                    "password": "Wachtwoord",
+                    "prefix": "Optioneel voorvoegsel",
+                    "username": "Gebruikersnaam"
+                }
+            },
             "user": {
                 "title": "Zaptec setup",
                 "description": "Voeg uw Zaptec Portal inloggegevens toe.\n\nMet het optionele voorvoegsel wordt het voorvoegsel aan alle apparaten toegevoegd. Merk op dat het doorgaans beter is om de apparaatnamen in HA te hernoemen dan een voorvoegsel toe te voegen.",
@@ -24,7 +34,6 @@
                     "manual_select": "Handmatig opladers selecteren. Op het volgende scherm worden de opladers weergegeven die toegevoegd kunnen worden.",
                     "password": "Wachtwoord",
                     "prefix": "Optioneel voorvoegsel",
-                    "scan_interval": "Scaninterval",
                     "username": "Gebruikersnaam"
                 }
             }

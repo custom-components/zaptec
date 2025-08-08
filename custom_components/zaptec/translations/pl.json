@@ -17,6 +17,16 @@
                     "chargers": "Ładowarki"
                 }
             },
+            "reconfigure": {
+                "title": "Ponowna konfiguracja Zaptec",
+                "description": "Dane logowania do Zaptec Portal.\n\nOpcjonalny prefiks doda prefiks do wszystkich urządzeń. Należy pamiętać, że lepiej jest zmienić nazwy urządzeń w HA niż dodawać prefiks.",
+                "data": {
+                    "manual_select": "Ręczne wybieranie ładowarek. Na następnym ekranie wybierz ładowarki do dodania.",
+                    "password": "Hasło",
+                    "prefix": "Opcjonalny prefiks",
+                    "username": "Nazwa użytkownika"
+                }
+            },
             "user": {
                 "title": "Konfiguracja Zaptec",
                 "description": "Dodaj swoje dane logowania do Zaptec Portal.\n\nOpcjonalny prefiks doda prefiks do wszystkich urządzeń. Należy pamiętać, że lepiej jest zmienić nazwy urządzeń w HA niż dodawać prefiks.",
@@ -24,7 +34,6 @@
                     "manual_select": "Ręczne wybieranie ładowarek. Na następnym ekranie wybierz ładowarki do dodania.",
                     "password": "Hasło",
                     "prefix": "Opcjonalny prefiks",
-                    "scan_interval": "Interwał skanowania",
                     "username": "Nazwa użytkownika"
                 }
             }
