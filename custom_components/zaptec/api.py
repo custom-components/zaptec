@@ -549,13 +549,27 @@ class Installation(ZaptecBase):
                 "availableCurrentPhase3",
             )
         )
-
         if not (has_availablecurrent ^ has_availablecurrentphases):
             raise ValueError(
                 "Either availableCurrent or all of availableCurrentPhase1, "
                 "availableCurrentPhase2, availableCurrentPhase3 must be set"
             )
-
+        # Use 32 as default if missing or invalid value.
+        try:
+            max_current = float(self.get("max_current", 32.0))
+        except (TypeError, ValueError):
+            max_current = 32.0
+        # Make sure the arguments and values are valid
+        for k, v in kwargs.items():
+            if k not in (
+                "availableCurrent",
+                "availableCurrentPhase1",
+                "availableCurrentPhase2",
+                "availableCurrentPhase3",
+            ):
+                raise Error(f"Invalid argument {k!r}")
+            if not (0 <= v <= max_current):
+                raise ValueError(f"{k} must be between 0 and {max_current:.0f} amps")
         data = await self.zaptec.request(
             f"installation/{self.id}/update", method="post", data=kwargs
         )
