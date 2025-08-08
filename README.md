@@ -30,7 +30,7 @@ To use this component, a user with access to
 [Zaptec Portal](https://portal.zaptec.com/) is required.
 
 
-# ⭐ Version 0.8.0
+# ⭐ Version 0.8.*
 
 > [!IMPORTANT]
 > The release has not undergone extensive testing, so your feedback is valuable.
@@ -63,6 +63,7 @@ of getting "429 Too many requests" -- especially on larger installations.
 * Support for reconfiguring the integration and integration reload now works
 * Many internal changes and cleanups to classes and methods, including better
   logging
+* Add support for 3 to 1-phase switching (PRO and Go 2 changers only)
 
 The full list of changes is available in [CHANGELOG.md](CHANGELOG.md#080)
 
