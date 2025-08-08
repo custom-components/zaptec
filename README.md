@@ -222,11 +222,33 @@ the same time.
 > 15 minutes.
 
 
-#### 3 phase current adjustment
+### 3 phase current adjustment
 
 The service call `limit_current` can be used with the arguments
 `available_current_phase1`, `available_current_phase2` and
 `available_current_phase3` to set the available current on individual phases.
+
+
+### 3 phase to 1 phase switch
+
+For more recent chargers (currently Zaptec PRO and Go 2), switching between
+3-phase and 1-phase charging is supported. This is done by controlling the
+entity "3 to 1-phase switch current" found in the Installation device.
+
+It can be set to three modes:
+1. Forced 3-phase charging: Set value to 0
+2. Forced 1-phase charging: Set value to 32
+3. Automatic switchover from 3-phase to 1-phase: Value 1–31 sets the
+   switchover current threshold. If the current is lower than this threshold,
+   the chargers will switch to 1-phase charging. Above it will use 3-phase
+   charging.
+
+> [!NOTE]
+> Adjusting this value for installations with chargers that don't support
+> 3-to-1 phase switching won't have any effect.
+
+See documentation from Zaptec:
+https://docs.zaptec.com/docs/3-to-1-phase-switching-with-zaptec-go-2#/
 
 
 ## Require charging authorization
