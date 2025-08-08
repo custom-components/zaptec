@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass, replace
 import logging
-from typing import Any
 
 from homeassistant import const
 from homeassistant.components.number import (
@@ -37,7 +36,7 @@ class ZaptecNumber(ZaptecBaseEntity, NumberEntity):
         self._attr_native_value = self._get_zaptec_value()
         self._attr_available = True
 
-    def _log_number(self, value: Any) -> None:
+    def _log_number(self, value: float) -> None:
         """Log the number value change."""
         _LOGGER.debug(
             "Setting %s.%s to <%s> %s   (in %s)",
