@@ -201,7 +201,7 @@ CHARGER_ENTITIES: list[EntityDescription] = [
     ZapNumberEntityDescription(
         key="hmi_brightness",
         translation_key="hmi_brightness",
-        entity_category=EntityCategory.DIAGNOSTIC,
+        entity_category=EntityCategory.CONFIG,
         icon="mdi:brightness-6",
         native_unit_of_measurement=const.PERCENTAGE,
         cls=ZaptecHmiBrightness,

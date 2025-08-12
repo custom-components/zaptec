@@ -81,14 +81,14 @@ CHARGER_ENTITIES: list[EntityDescription] = [
     ZapButtonEntityDescription(
         key="restart_charger",
         translation_key="restart_charger",
-        entity_category=const.EntityCategory.DIAGNOSTIC,
+        entity_category=const.EntityCategory.CONFIG,
         icon="mdi:restart",
         cls=ZaptecButton,
     ),
     ZapButtonEntityDescription(
         key="upgrade_firmware",
         translation_key="upgrade_firmware",
-        entity_category=const.EntityCategory.DIAGNOSTIC,
+        entity_category=const.EntityCategory.CONFIG,
         icon="mdi:memory",
         cls=ZaptecButton,
     ),
