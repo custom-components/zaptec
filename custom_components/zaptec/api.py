@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 from collections.abc import AsyncGenerator, Callable, Iterable, Iterator, Mapping
 from contextlib import aclosing
+from http import HTTPStatus
 import itertools
 import json
 import logging
@@ -262,7 +263,7 @@ class Installation(ZaptecBase):
         try:
             hierarchy = await self.zaptec.request(f"installation/{self.id}/hierarchy")
         except RequestError as err:
-            if err.error_code == 403:
+            if err.error_code == HTTPStatus.FORBIDDEN:
                 _LOGGER.warning(
                     (
                         "Access denied to installation hierarchy of %s. "
@@ -341,7 +342,7 @@ class Installation(ZaptecBase):
                     }
                 )
         except RequestError as err:
-            if err.error_code != 403:
+            if err.error_code != HTTPStatus.FORBIDDEN:
                 raise
             _LOGGER.debug("Access denied to installation %s firmware info", self.qual_id)
 
@@ -402,7 +403,7 @@ class Installation(ZaptecBase):
             try:
                 conf = await self.live_stream_connection_details()
             except RequestError as err:
-                if err.error_code != 403:
+                if err.error_code != HTTPStatus.FORBIDDEN:
                     raise
                 _LOGGER.warning(
                     "Failed to get live stream info. Check if user have access in the zaptec portal"
@@ -652,7 +653,7 @@ class Charger(ZaptecBase):
             # An unprivileged user will get a 403 error, but the user is able
             # to get _some_ info about the charger by getting a list of
             # chargers.
-            if err.error_code != 403:
+            if err.error_code != HTTPStatus.FORBIDDEN:
                 raise
             _LOGGER.debug("Access denied to charger %s, attempting list", self.qual_id)
             chargers = await self.zaptec.request("chargers")
@@ -673,7 +674,7 @@ class Charger(ZaptecBase):
             )
             self.set_attributes(data)
         except RequestError as err:
-            if err.error_code != 403:
+            if err.error_code != HTTPStatus.FORBIDDEN:
                 raise
             _LOGGER.debug("Access denied to charger %s state", self.qual_id)
 
@@ -964,7 +965,7 @@ class Zaptec(Mapping[str, ZaptecBase]):
             yield f"     headers {dict((k, v) for k, v in resp.headers.items())}"
             if not contents:
                 return
-            if resp.status != 200:
+            if resp.status != HTTPStatus.OK:
                 yield f"     data '{await resp.text()}'"
             else:
                 yield f"     json '{await resp.json(content_type=None)}'"
@@ -1094,7 +1095,7 @@ class Zaptec(Mapping[str, ZaptecBase]):
             # log_exc is a callback that will log the exception if the request
             # fails.
             async for response, log_exc in ctx:
-                if response.status == 200:
+                if response.status == HTTPStatus.OK:
                     data = await response.json()
                     # The data includes the time the access token expires
                     # atm we just ignore it and refresh token when needed.
@@ -1104,7 +1105,7 @@ class Zaptec(Mapping[str, ZaptecBase]):
                         _LOGGER.debug("     TOKEN OK")
                     return
 
-                if response.status == 400:
+                if response.status == HTTPStatus.BAD_REQUEST:
                     data = await response.json()
                     raise log_exc(
                         AuthenticationError(
@@ -1148,16 +1149,15 @@ class Zaptec(Mapping[str, ZaptecBase]):
             # log_exc is a callback that will log the exception if the request
             # fails.
             async for response, log_exc in ctx:
-                if response.status == 401:  # Unauthorized
+                if response.status == HTTPStatus.UNAUTHORIZED:
                     await self._refresh_token()
                     kwargs["headers"]["Authorization"] = f"Bearer {self._access_token}"
                     continue  # Retry request
 
-                if response.status in (201, 204):  # Created, no content
-                    content = await response.read()
-                    return content
+                if response.status in (HTTPStatus.CREATED, HTTPStatus.NO_CONTENT):
+                    return await response.read()
 
-                if response.status == 200:  # OK
+                if response.status == HTTPStatus.OK:
                     # Read the JSON payload
                     try:
                         json_result = await response.json(content_type=None)
@@ -1185,7 +1185,7 @@ class Zaptec(Mapping[str, ZaptecBase]):
                 # this error in varous cases, so we handled it specially here.
                 # GET request gets logged and then retried, while POST and
                 # PUT requests are not retried.
-                if response.status == 500:  # Internal server error
+                if response.status == HTTPStatus.INTERNAL_SERVER_ERROR:
                     log_exc(error)  # Log the error
                     if DEBUG_API_CALLS:
                         # There are additional details in the response that Zaptec
