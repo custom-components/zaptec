@@ -170,21 +170,46 @@ Starting and stopping charging can be done by several methods. If the charger
 is configured to not require authentication, connecting the charger to the
 EV will by default start charging.
 
-To start the charging from HA, this can be done in several ways:
-
-- Press the _"Resume charging"_ button, or
-- Toggle the _"Charging"_ switch, or
-- Send `zaptec.restart_charger` service call (deprecated)
-
-Similarly, pausing the charging can be done by:
+To stop the charging from HA, this can be done in several ways:
 
 - Pressing the _"Stop charging"_ button, or
 - Turn off the _"Charging"_ switch, or
-- Send `zaptec.stop_pause_charging` service call (deprecated)
+- Send `zaptec.stop_charging` service call (deprecated)
+
+Similarly, starting the charging again can be done by:
+
+- Press the _"Resume charging"_ button, or
+- Turn on the _"Charging"_ switch, or
+- Send `zaptec.resume_charging` service call (deprecated)
 
 > [!TIP]
 > Zaptec will unlock the cable when charging is paused unless it is permanently
 > locked.
+
+
+### The limitations of the Resume command
+
+It is important to understand that the _"Resume charging"_ command as it is
+implemented in the Zaptec API will only start charging if the charger was
+stopped by a _"Stop charging"_ command.
+
+Some example cases where the _"Resume charging"_ command will **not** start
+charging:
+
+* Charging current is set to `0 A` (
+  [Setting charging current](#setting-charging-current)).
+* The car has reached its configured target battery level.
+* The charging was stopped using the app/api of the car.
+* The charging has stopped because the time is outside of the charging schedule
+  configured in the app of the car.
+
+> [!TIP]
+> As a general rule: To start charging, you need to reverse what stopped it in
+> the first place.
+
+> [!NOTE]
+> The charging buttons will only be available/clickable when the command they
+> trigger is valid.
 
 
 ## Prevent charging auto start
@@ -215,7 +240,7 @@ the same time.
 > [!NOTE]
 > This entity is adjusting the available current for the entire installation.
 > If the installation has several chargers installed, changing this value will
-> affect all.
+> affect all of them.
 
 > [!IMPORTANT]
 > Many EVs don't like getting too frequent changes to the available charge
