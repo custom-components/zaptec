@@ -487,7 +487,7 @@ class ZaptecManager:
 
         return entities
 
-    def create_streams(self):
+    def create_streams(self) -> None:
         """Create the streams for all installations."""
         for install in self.zaptec.installations:
             if install.id in self.zaptec:
@@ -501,7 +501,7 @@ class ZaptecManager:
                 )
                 self.streams.append((task, install))
 
-    async def cancel_streams(self):
+    async def cancel_streams(self) -> None:
         """Cancel all streams for the account."""
         for task, install in self.streams:
             _LOGGER.debug("Cancelling stream for %s", install.qual_id)
@@ -707,7 +707,7 @@ class ZaptecUpdateCoordinator(DataUpdateCoordinator[None]):
             finally:
                 self._trigger_task = None
 
-        def cleanup_task(_task: asyncio.Task):
+        def cleanup_task(_task: asyncio.Task) -> None:
             """Cleanup the task after it has run."""
             self._trigger_task = None
 
@@ -797,6 +797,7 @@ class ZaptecBaseEntity(CoordinatorEntity[ZaptecUpdateCoordinator]):
         Raises:
             KeyUnavailableError: If key doesn't exist or obj doesn't have
             `.get()`, which indicates that obj isn't a Mapping-like object
+
         """
         obj = self.zaptec_obj
         key = key or self.key
@@ -835,7 +836,7 @@ class ZaptecBaseEntity(CoordinatorEntity[ZaptecUpdateCoordinator]):
         return f".{v}"
 
     @callback
-    def _log_value(self, attribute: str | None, force=False):
+    def _log_value(self, attribute: str | None, force=False) -> None:
         """Helper to log a new value."""
         if attribute is None:
             return
@@ -854,7 +855,7 @@ class ZaptecBaseEntity(CoordinatorEntity[ZaptecUpdateCoordinator]):
             )
 
     @callback
-    def _log_unavailable(self, exception: Exception | None = None):
+    def _log_unavailable(self, exception: Exception | None = None) -> None:
         """Helper to log when unavailable."""
         available = self._attr_available
         prev_available = self._prev_available
@@ -885,7 +886,7 @@ class ZaptecBaseEntity(CoordinatorEntity[ZaptecUpdateCoordinator]):
             _LOGGER.info("Entity %s is available", self.entity_id)
 
     @property
-    def key(self):
+    def key(self) -> str:
         """Helper to retrieve the key from the entity description."""
         return self.entity_description.key
 
