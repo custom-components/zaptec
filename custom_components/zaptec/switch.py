@@ -142,7 +142,7 @@ CHARGER_ENTITIES: list[EntityDescription] = [
     ZapSwitchEntityDescription(
         key="permanent_cable_lock",
         translation_key="permanent_cable_lock",
-        entity_category=EntityCategory.DIAGNOSTIC,
+        entity_category=EntityCategory.CONFIG,
         cls=ZaptecCableLockSwitch,
     ),
 ]

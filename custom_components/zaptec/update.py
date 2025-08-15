@@ -69,8 +69,7 @@ CHARGER_ENTITIES: list[EntityDescription] = [
         key="firmware_update",
         translation_key="firmware_update",
         device_class=UpdateDeviceClass.FIRMWARE,
-        entity_category=const.EntityCategory.DIAGNOSTIC,
-        # icon="mdi:lock",  # FIXME: Find how icons work for firmware
+        entity_category=const.EntityCategory.CONFIG,
         cls=ZaptecUpdate,
     ),
 ]
