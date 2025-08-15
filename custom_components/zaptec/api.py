@@ -551,14 +551,13 @@ class Installation(ZaptecBase):
         ]
         if not (has_availablecurrent ^ all(has_availablecurrentphases)):
             raise ValueError(
-                "Either availableCurrent OR all of availableCurrentPhase1, "
+                "Either availableCurrent or all of availableCurrentPhase1, "
                 "availableCurrentPhase2, availableCurrentPhase3 must be set"
             )
-        if has_availablecurrent and any(has_availablecurrentphases):
+        if any(has_availablecurrentphases) and not all(has_availablecurrentphases):
             raise ValueError(
-                "A combination of both availableCurrent and any of "
-                "availableCurrentPhase1, availableCurrentPhase2, "
-                "availableCurrentPhase3 is not allowed, choose one"
+                "If any of availableCurrentPhase1, availableCurrentPhase2 and "
+                "availableCurrentPhase3 are set, then all of them must be set"
             )
 
         # Use 32 as default if missing or invalid value.
