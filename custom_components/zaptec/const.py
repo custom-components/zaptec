@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 NAME = "zaptec"
-VERSION = "0.8b2"
+VERSION = "0.8.1"
 ISSUEURL = "https://github.com/custom-components/zaptec/issues"
 
 DOMAIN = "zaptec"
@@ -91,5 +91,6 @@ CHARGER_EXCLUDES = {
 # These keys will not be checked at startup for entity availability. This is
 # useful for keys that are not always present in the API response, such as
 KEYS_TO_SKIP_ENTITY_AVAILABILITY_CHECK = {
+    "three_to_one_phase_switch_current",
     "total_charge_power_session",
 }

@@ -39,8 +39,6 @@ from .zconst import CommandType, ZConst
 _LOGGER = logging.getLogger(__name__)
 
 # API debug flags
-# FIXME: For the v0.8b1 beta version, leaving this on for debugging.
-#        Remove before final release.
 DEBUG_API_CALLS = True
 DEBUG_API_DATA = False
 DEBUG_API_EXCEPTIONS = False
@@ -136,6 +134,11 @@ class ZaptecBase(Mapping[str, TValue]):
         if "id" not in self._attrs:
             return qn
         return f"{qn}[{self.id[-6:]}]"
+
+    @property
+    def model(self) -> str:
+        """Return the model of the object."""
+        return f"Zaptec {self.__class__.__qualname__}"
 
     def asdict(self):
         """Return the attributes as a dict."""
@@ -546,15 +549,40 @@ class Installation(ZaptecBase):
                 "availableCurrentPhase3",
             )
         )
-
         if not (has_availablecurrent ^ has_availablecurrentphases):
             raise ValueError(
                 "Either availableCurrent or all of availableCurrentPhase1, "
                 "availableCurrentPhase2, availableCurrentPhase3 must be set"
             )
-
+        # Use 32 as default if missing or invalid value.
+        try:
+            max_current = float(self.get("max_current", 32.0))
+        except (TypeError, ValueError):
+            max_current = 32.0
+        # Make sure the arguments and values are valid
+        for k, v in kwargs.items():
+            if k not in (
+                "availableCurrent",
+                "availableCurrentPhase1",
+                "availableCurrentPhase2",
+                "availableCurrentPhase3",
+            ):
+                raise Error(f"Invalid argument {k!r}")
+            if not (0 <= v <= max_current):
+                raise ValueError(f"{k} must be between 0 and {max_current:.0f} amps")
         data = await self.zaptec.request(
             f"installation/{self.id}/update", method="post", data=kwargs
+        )
+        return data
+
+    async def set_three_to_one_phase_switch_current(self, current: float):
+        """Set the 3 to 1-phase switch current."""
+        if not (0 <= current <= 32):
+            raise ValueError("Current must be between 0 and 32 amps")
+        data = await self.zaptec.request(
+            f"installation/{self.id}/update",
+            method="post",
+            data={"threeToOnePhaseSwitchCurrent": current},
         )
         return data
 
@@ -765,6 +793,20 @@ class Charger(ZaptecBase):
     def is_charging(self) -> bool:
         """Check if the charger is charging."""
         return self.get("ChargerOperationMode") == "Connected_Charging"
+
+    @property
+    def model_prefix(self) -> str:
+        """Return the model prefix of the charger.
+
+        In Zaptec charger this is the first 3 characters in the DeviceId.
+        """
+        device_id: str = self.get("DeviceId", "")
+        return device_id[0:3].upper()
+
+    @property
+    def model(self) -> str:
+        """Return the model of the charger."""
+        return ZCONST.serial_to_model.get(self.model_prefix, super().model)
 
 
 class Zaptec(Mapping[str, ZaptecBase]):

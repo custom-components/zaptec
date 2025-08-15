@@ -43,6 +43,16 @@ class ZConst(UserDict):
     ]
     """Valid parameters for charger settings (`chargers/{id}/update`)."""
 
+    # Copied from the Zaptec API documentation
+    # https://docs.zaptec.com/docs/identify-device-types
+    charger_models: ClassVar[dict[str, set[str]]] = {
+        "Zaptec Pro": {"ZCS", "ZPR", "ZCH", "ZPG"},
+        "Zaptec Go": {"ZAP", "ZGB", "ZAG"},
+        "Zaptec Go2": {"GPN", "GPG"},
+        "Zaptec Sense:": {"APH", "APG", "APM"},
+    }
+    """Mapping of charger models to device serial number prefixes."""
+
     def get_remap(
         self, wanted: list[str], device_types: set[str] | None = None
     ) -> dict[str, int]:
@@ -121,8 +131,19 @@ class ZConst(UserDict):
         """Return a list of all electrical network types."""
         return list(self.get("NetworkTypes", {}))
 
+    @property
+    def serial_to_model(self) -> dict[str, str]:
+        """Return a mapping of serial number prefixes to charger models."""
+        return {
+            prefix: model
+            for model, prefixes in self.charger_models.items()
+            for prefix in prefixes
+        }
+
     #
     # ATTRIBUTE TYPE CONVERTERS
+    # Want these to be methods so they can be used for type convertions of
+    # attributes in the API responses.
     #
     def type_authentication_type(self, val: int) -> str:
         """Convert the authentication type to a string."""

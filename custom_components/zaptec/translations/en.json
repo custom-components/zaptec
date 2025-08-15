@@ -17,6 +17,16 @@
                     "chargers": "Chargers"
                 }
             },
+            "reconfigure": {
+                "title": "Reconfigure Zaptec",
+                "description": "Zaptec Portal login details.\n\nThe optional prefix will add the prefix to all devices. Note that it is generally better to rename the device names in HA than adding a prefix.",
+                "data": {
+                    "manual_select": "Manually select chargers. Next screen will select the chargers to add.",
+                    "password": "Password",
+                    "prefix": "Optional prefix",
+                    "username": "Username"
+                }
+            },
             "user": {
                 "title": "Zaptec setup",
                 "description": "Add your Zaptec Portal login details.\n\nThe optional prefix will add the prefix to all devices. Note that it is generally better to rename the device names in HA than adding a prefix.",
@@ -24,7 +34,6 @@
                     "manual_select": "Manually select chargers. Next screen will select the chargers to add.",
                     "password": "Password",
                     "prefix": "Optional prefix",
-                    "scan_interval": "Scan interval",
                     "username": "Username"
                 }
             }
@@ -75,6 +84,9 @@
             },
             "hmi_brightness": {
                 "name": "Status indicator brightness"
+            },
+            "three_to_one_phase_switch_current": {
+                "name": "3 to 1-phase switch current"
             }
         },
         "sensor": {

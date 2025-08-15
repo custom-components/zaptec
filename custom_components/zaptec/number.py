@@ -36,6 +36,17 @@ class ZaptecNumber(ZaptecBaseEntity, NumberEntity):
         self._attr_native_value = self._get_zaptec_value()
         self._attr_available = True
 
+    def _log_number(self, value: float) -> None:
+        """Log the number value change."""
+        _LOGGER.debug(
+            "Setting %s.%s to <%s> %s   (in %s)",
+            self.__class__.__qualname__,
+            self.key,
+            type(value).__qualname__,
+            value,
+            self.zaptec_obj.qual_id,
+        )
+
 
 class ZaptecAvailableCurrentNumber(ZaptecNumber):
     """Zaptec available current number entity."""
@@ -52,18 +63,30 @@ class ZaptecAvailableCurrentNumber(ZaptecNumber):
 
     async def async_set_native_value(self, value: float) -> None:
         """Update to Zaptec."""
-        _LOGGER.debug(
-            "Set %s to <%s> %s in %s",
-            self.entity_id,
-            type(value).__qualname__,
-            value,
-            self.zaptec_obj.qual_id,
-        )
-
+        self._log_number(value)
         try:
             await self.zaptec_obj.set_limit_current(availableCurrent=value)
         except Exception as exc:
             raise HomeAssistantError(f"Set current limit to {value} failed") from exc
+
+        await self.trigger_poll()
+
+
+class ZaptecThreeToOnePhaseSwitchCurrent(ZaptecNumber):
+    """Zaptec three to one phase switch current number entity."""
+
+    zaptec_obj: Installation
+    entity_description: ZapNumberEntityDescription
+
+    async def async_set_native_value(self, value: float) -> None:
+        """Update to Zaptec."""
+        self._log_number(value)
+        try:
+            await self.zaptec_obj.set_three_to_one_phase_switch_current(value)
+        except Exception as exc:
+            raise HomeAssistantError(
+                f"Setting three to one phase switch current to {value} failed"
+            ) from exc
 
         await self.trigger_poll()
 
@@ -83,15 +106,7 @@ class ZaptecSettingNumber(ZaptecNumber):
 
     async def async_set_native_value(self, value: float) -> None:
         """Update to Zaptec."""
-        _LOGGER.debug(
-            "Setting %s.%s to <%s> %s   (in %s)",
-            self.__class__.__qualname__,
-            self.key,
-            type(value).__qualname__,
-            value,
-            self.zaptec_obj.qual_id,
-        )
-
+        self._log_number(value)
         try:
             await self.zaptec_obj.set_settings({self.entity_description.setting: value})
         except Exception as exc:
@@ -118,14 +133,7 @@ class ZaptecHmiBrightness(ZaptecNumber):
 
     async def async_set_native_value(self, value: float) -> None:
         """Update to Zaptec."""
-        _LOGGER.debug(
-            "Set %s to <%s> %s in %s",
-            self.entity_id,
-            type(value).__qualname__,
-            value,
-            self.zaptec_obj.qual_id,
-        )
-
+        self._log_number(value)
         try:
             await self.zaptec_obj.set_hmi_brightness(value / 100)
         except Exception as exc:
@@ -152,6 +160,16 @@ INSTALLATION_ENTITIES: list[EntityDescription] = [
         icon="mdi:waves",
         native_unit_of_measurement=const.UnitOfElectricCurrent.AMPERE,
         cls=ZaptecAvailableCurrentNumber,
+    ),
+    ZapNumberEntityDescription(
+        key="three_to_one_phase_switch_current",
+        translation_key="three_to_one_phase_switch_current",
+        device_class=NumberDeviceClass.CURRENT,
+        native_min_value=0,
+        native_max_value=32,
+        icon="mdi:waves",
+        native_unit_of_measurement=const.UnitOfElectricCurrent.AMPERE,
+        cls=ZaptecThreeToOnePhaseSwitchCurrent,
     ),
 ]
 
@@ -183,7 +201,7 @@ CHARGER_ENTITIES: list[EntityDescription] = [
     ZapNumberEntityDescription(
         key="hmi_brightness",
         translation_key="hmi_brightness",
-        entity_category=EntityCategory.DIAGNOSTIC,
+        entity_category=EntityCategory.CONFIG,
         icon="mdi:brightness-6",
         native_unit_of_measurement=const.PERCENTAGE,
         cls=ZaptecHmiBrightness,

@@ -392,12 +392,17 @@ class ZaptecManager:
         dev_info = DeviceInfo(
             manufacturer=MANUFACTURER,
             identifiers={(DOMAIN, zaptec_obj.id)},
+            model=zaptec_obj.model,
             name=self.name_prefix + zaptec_obj.name,
         )
         dev_info.update(device_info)
 
         entities: list[ZaptecBaseEntity] = []
         for description in descriptions:
+            # Make sure this zaptec object is tracked
+            if zaptec_obj.id not in self.tracked_devices:
+                continue
+
             # Use provided class if it exists, otherwise use the class this
             # function was called from
             cls: type[ZaptecBaseEntity] = description.cls
@@ -426,7 +431,7 @@ class ZaptecManager:
                     )
                 else:
                     _LOGGER.info(
-                        "%s is not available, failing to add entity %s %r",
+                        "%s is not available, skip add of entity %s %r",
                         attr,
                         cls.__name__,
                         description.key,
@@ -454,7 +459,7 @@ class ZaptecManager:
         # the listed entities for each object type
         for obj in self.zaptec.objects():
             if isinstance(obj, Installation):
-                info = DeviceInfo(model=f"{obj.name} Installation")
+                info = DeviceInfo()
 
                 entities.extend(
                     self.create_entities_from_descriptions(
@@ -465,7 +470,7 @@ class ZaptecManager:
                 )
 
             elif isinstance(obj, Charger):
-                info = DeviceInfo(model=f"{obj.name} Charger")
+                info = DeviceInfo()
                 if obj.installation:
                     info["via_device"] = (DOMAIN, obj.installation.id)
 

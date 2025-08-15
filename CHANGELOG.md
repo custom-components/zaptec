@@ -1,7 +1,18 @@
 # Changelog
 
-## 0.8b2
+## 0.8.1
 
+* Update translations for reconfigure (#276)
+* Fix startup of deselected chargers (#275)
+* Minor improvements (#265)
+* Add new "3 to 1-phase switch current" number in installation (#264)
+* Fix redactor unable to handle sets (#271)
+
+## 0.8.0
+
+* Add model attribute and set proper model in HA devices (#263)
+* Prevent logging sensitive data in debug logs (#256)
+* Minor improvements (#254)
 * Fixup missing entity logging during startup (#251)
 * Add support for adding standalone chargers (#250)
 * Organize translation into alphabetical order and remove upper case keys (#249)
@@ -9,9 +20,6 @@
 * Updated ruff settings and fixed the simplest errors in the code (#247)
 * Update dev container with latest reference (#246)
 * Replace unavailable common string-keys with the translated strings (#245)
-
-## 0.8b1
-
 * Remove unused set_authentication_required-function (#240)
 * Fix exponential retry error on API requests (#239)
 * Change data source for charger energy meter (#235)
