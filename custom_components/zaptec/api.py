@@ -541,19 +541,26 @@ class Installation(ZaptecBase):
         availableCurrentPhase* to set each phase individually.
         """
         has_availablecurrent = kwargs.get("availableCurrent") is not None
-        has_availablecurrentphases = all(
+        has_availablecurrentphases = [
             kwargs.get(k) is not None
             for k in (
                 "availableCurrentPhase1",
                 "availableCurrentPhase2",
                 "availableCurrentPhase3",
             )
-        )
-        if not (has_availablecurrent ^ has_availablecurrentphases):
+        ]
+        if not (has_availablecurrent ^ all(has_availablecurrentphases)):
             raise ValueError(
-                "Either availableCurrent or all of availableCurrentPhase1, "
+                "Either availableCurrent OR all of availableCurrentPhase1, "
                 "availableCurrentPhase2, availableCurrentPhase3 must be set"
             )
+        if has_availablecurrent and any(has_availablecurrentphases):
+            raise ValueError(
+                "A combination of both availableCurrent and any of "
+                "availableCurrentPhase1, availableCurrentPhase2, "
+                "availableCurrentPhase3 is not allowed, choose one"
+            )
+
         # Use 32 as default if missing or invalid value.
         try:
             max_current = float(self.get("max_current", 32.0))
@@ -567,7 +574,9 @@ class Installation(ZaptecBase):
                 "availableCurrentPhase2",
                 "availableCurrentPhase3",
             ):
-                raise Error(f"Invalid argument {k!r}")
+                raise TypeError(f"Invalid argument {k!r}")
+            if v is None:
+                raise ValueError(f"{k} cannot be None")
             if not (0 <= v <= max_current):
                 raise ValueError(f"{k} must be between 0 and {max_current:.0f} amps")
         data = await self.zaptec.request(

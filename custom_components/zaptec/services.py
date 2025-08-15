@@ -81,9 +81,9 @@ LIMIT_CURRENT_SCHEMA = vol.Schema(
                 },
             ),
             msg=(
-                "Missing either 'available_current' or all three of "
-                "'available_current_phase1' "
-                "'available_current_phase2' and 'available_current_phase3'."
+                "Either 'available_current' OR all three of "
+                "'available_current_phase1', 'available_current_phase2' "
+                "and 'available_current_phase3' must be set."
             ),
         ),
     )
@@ -279,19 +279,20 @@ async def async_setup_services(hass: HomeAssistant, manager: ZaptecManager) -> N
 
     async def service_handle_limit_current(service_call: ServiceCall) -> None:
         _LOGGER.debug("Called set current limit")
-        available_current = service_call.data.get("available_current")
-        available_current_phase1 = service_call.data.get("available_current_phase1")
-        available_current_phase2 = service_call.data.get("available_current_phase2")
-        available_current_phase3 = service_call.data.get("available_current_phase3")
+        limit_args = {}
+        # only add the relevant arguments if they are not None
+        if available_current := service_call.data.get("available_current"):
+            limit_args["availableCurrent"] = available_current
+        if available_current_phase1 := service_call.data.get("available_current_phase1"):
+            limit_args["availableCurrentPhase1"] = available_current_phase1
+        if available_current_phase2 := service_call.data.get("available_current_phase2"):
+            limit_args["availableCurrentPhase2"] = available_current_phase2
+        if available_current_phase3 := service_call.data.get("available_current_phase3"):
+            limit_args["availableCurrentPhase3"] = available_current_phase3
         for coordinator, obj in iter_objects(service_call, mustbe=Installation):
             _LOGGER.debug("  >> to %s", obj.id)
             try:
-                await obj.set_limit_current(
-                    availableCurrent=available_current,
-                    availableCurrentPhase1=available_current_phase1,
-                    availableCurrentPhase2=available_current_phase2,
-                    availableCurrentPhase3=available_current_phase3,
-                )
+                await obj.set_limit_current(**limit_args)
             except Exception as exc:
                 raise HomeAssistantError(f"Limit current failed: {exc}") from exc
             await coordinator.trigger_poll()
