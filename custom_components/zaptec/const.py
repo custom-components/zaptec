@@ -15,7 +15,7 @@ REDACT_LOGS = True
 REDACT_DUMP_ON_STARTUP = True
 """Whether to dump the redaction database on startup."""
 
-TOKEN_URL = "https://api.zaptec.com/oauth/token"
+TOKEN_URL = "https://api.zaptec.com/oauth/token"  # noqa: S105
 API_URL = "https://api.zaptec.com/api/"
 CONST_URL = "https://api.zaptec.com/api/constants"
 
