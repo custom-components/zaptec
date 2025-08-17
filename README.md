@@ -71,7 +71,8 @@ The full list of changes is available in [CHANGELOG.md](CHANGELOG.md#080)
 
 * `charger_mode` has changed values. E.g. from _"Charging"_ to
   _"connected_charging"_ due to using the lower-case native Zaptec values. Your
-  automation might need an update.
+  automation might need an update. This also affects the
+  [Load Balancing blueprint](#load-balancing-your-charger).
 * `permanent_cable_lock` has changed from _"lock"_ type to _"switch"_ type.
 * There is no longer support for configuring Zaptec by YAML, only using the UI
 * The user setting poll/scan interval has been removed, in favor of the
@@ -436,6 +437,12 @@ updated. The English mapping of the changed values is
 - connected_finished:   Charge done
 - disconnected:         Disconnected
 - unknown:              Unknown
+
+The changes to the Charger mode will also cause the
+[Load Balancing blueprint](#load-balancing-your-charger) compatible with 0.7.x
+to stop working. There is an [open PR](https://github.com/svenakela/ha/pull/10)
+for a 0.8.x-compatible version. If you use this blueprint, or a variant of it,
+you will need to update your blueprint/automation accordingly.
 
 
 ## Changes from older versions <0.7.0
