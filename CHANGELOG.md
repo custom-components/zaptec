@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.8.2
+
+* Add breaking changes warning about blueprint (#288)
+* Add explanation of resume_charging-limitations (#282)
+* Use HTTPStatus instead of hardcoded numbers (#285)
+* Add more explicit typing (#261)
+* Avoid limit_current service call passing None-values and clarify error messages (#284)
+* Reclassify entities from diagnostic to config where appropriate (#281)
+
 ## 0.8.1
 
 * Update translations for reconfigure (#276)
