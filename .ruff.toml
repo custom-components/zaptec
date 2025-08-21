@@ -28,6 +28,10 @@ ignore = [
 
     "TRY003", # Avoid specifying long messages outside the exception class
     "TRY400", # Use `logging.exception` instead of `logging.error`
+
+    # definitely skipped in HA, not obvious how
+    "EM101",  # Exception must not use a string literal, assign to variable first
+    "EM102",  # Exception must not use an f-string literal, assign to variable first
 ]
 
 [lint.flake8-pytest-style]
