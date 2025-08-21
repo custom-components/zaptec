@@ -26,3 +26,22 @@ jobs:
         uses: hacs/action@main
         with:
           category: integration
+
+  lint-ruff:
+    name: Ruff validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout the repository
+        uses: actions/checkout@v4
+
+      - name: Run ruff format
+        uses: astral-sh/ruff-action@v3
+        with:
+          args: format --diff
+          src: "."
+
+      - name: Run ruff check
+        uses: astral-sh/ruff-action@v3
+        with:
+          args: check --exit-zero # succeed despite errors until https://github.com/custom-components/zaptec/issues/258 is done
+          src: "."
