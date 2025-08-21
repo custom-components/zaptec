@@ -52,7 +52,7 @@ class ZaptecSensorTranslate(ZaptecSensor):
     # What to log on entity update
     _log_attribute = "_attr_native_value"
 
-    def _post_init(self):
+    def _post_init(self) -> None:
         """Post initialization."""
         # Convert any options strings into lower case for translations
         if (options := self.entity_description.options) is not None:
@@ -355,4 +355,4 @@ async def async_setup_entry(
         INSTALLATION_ENTITIES,
         CHARGER_ENTITIES,
     )
-    async_add_entities(entities, True)
+    async_add_entities(entities, update_before_add=True)

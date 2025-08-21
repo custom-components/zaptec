@@ -54,7 +54,7 @@ class ZaptecAvailableCurrentNumber(ZaptecNumber):
     zaptec_obj: Installation
     entity_description: ZapNumberEntityDescription
 
-    def _post_init(self):
+    def _post_init(self) -> None:
         # Get the max current rating from the reported max current
         self.entity_description = replace(
             self.entity_description,
@@ -97,7 +97,7 @@ class ZaptecSettingNumber(ZaptecNumber):
     zaptec_obj: Charger
     entity_description: ZapNumberEntityDescription
 
-    def _post_init(self):
+    def _post_init(self) -> None:
         # Get the max current rating from the reported max current
         self.entity_description = replace(
             self.entity_description,
@@ -219,4 +219,4 @@ async def async_setup_entry(
         INSTALLATION_ENTITIES,
         CHARGER_ENTITIES,
     )
-    async_add_entities(entities, True)
+    async_add_entities(entities, update_before_add=True)

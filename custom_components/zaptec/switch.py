@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import logging
+from typing import Any
 
 from homeassistant.components.switch import (
     SwitchDeviceClass,
@@ -56,7 +57,7 @@ class ZaptecChargeSwitch(ZaptecSwitch):
         self._attr_is_on = state in ["Connected_Charging"]
         self._attr_available = True
 
-    async def async_turn_on(self, **kwargs):  # pylint: disable=unused-argument
+    async def async_turn_on(self, **kwargs: Any) -> None:  # pylint: disable=unused-argument
         """Turn on the switch."""
         _LOGGER.debug(
             "Turn on %s in %s",
@@ -71,7 +72,7 @@ class ZaptecChargeSwitch(ZaptecSwitch):
 
         await self.trigger_poll()
 
-    async def async_turn_off(self, **kwargs):  # pylint: disable=unused-argument
+    async def async_turn_off(self, **kwargs: Any) -> None:  # pylint: disable=unused-argument
         """Turn off the switch."""
         _LOGGER.debug(
             "Turn off %s in %s",
@@ -92,7 +93,7 @@ class ZaptecCableLockSwitch(ZaptecSwitch):
 
     zaptec_obj: Charger
 
-    async def async_turn_off(self, **kwargs) -> None:
+    async def async_turn_off(self, **kwargs: Any) -> None:
         """Unlock the cable lock."""
         _LOGGER.debug(
             "Turn off %s in %s",
@@ -107,7 +108,7 @@ class ZaptecCableLockSwitch(ZaptecSwitch):
 
         await self.trigger_poll()
 
-    async def async_turn_on(self, **kwargs) -> None:
+    async def async_turn_on(self, **kwargs: Any) -> None:
         """Lock the cable lock."""
         _LOGGER.debug(
             "Turn on %s in %s",
@@ -158,4 +159,4 @@ async def async_setup_entry(
         INSTALLATION_ENTITIES,
         CHARGER_ENTITIES,
     )
-    async_add_entities(entities, True)
+    async_add_entities(entities, update_before_add=True)

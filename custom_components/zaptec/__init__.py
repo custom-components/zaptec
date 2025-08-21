@@ -54,6 +54,7 @@ from .const import (
     ZAPTEC_POLL_INTERVAL_INFO,
 )
 from .services import async_setup_services, async_unload_services
+import contextlib
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -269,7 +270,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         for _, zap_dev_id in dev.identifiers:
             if zap_dev_id in circuit_ids:
                 _LOGGER.warning(
-                    "Detected deprecated Circuit device %s, removing device and associated entities",
+                    "Detected deprecated Circuit device %s, "
+                    "removing device and associated entities",
                     zap_dev_id,
                 )
                 for ent in dev_entities:
@@ -507,12 +509,10 @@ class ZaptecManager:
             _LOGGER.debug("Cancelling stream for %s", install.qual_id)
             await install.stream_close()
             task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await task
-            except asyncio.CancelledError:
-                pass
 
-    async def stream_callback(self, event):
+    async def stream_callback(self, event) -> None:
         """Handle new update event from the zaptec stream.
 
         The zaptec objects are updated in-place prior to this callback being called.
@@ -668,7 +668,7 @@ class ZaptecUpdateCoordinator(DataUpdateCoordinator[None]):
         _LOGGER.debug("Triggering poll of %s after %s seconds", zaptec_obj.qual_id, delays)
 
         # Calculcate the deltas for the delays. E.g. [2, 5, 10] -> [2, 3, 5]
-        deltas = [b - a for a, b in zip([0] + delays[:-1], delays)]
+        deltas = [b - a for a, b in zip([0] + delays[:-1], delays, strict=True)]
 
         for i, delta in enumerate(deltas, start=1):
             await asyncio.sleep(delta)
@@ -836,7 +836,7 @@ class ZaptecBaseEntity(CoordinatorEntity[ZaptecUpdateCoordinator]):
         return f".{v}"
 
     @callback
-    def _log_value(self, attribute: str | None, force=False) -> None:
+    def _log_value(self, attribute: str | None, force: bool = False) -> None:
         """Helper to log a new value."""
         if attribute is None:
             return
