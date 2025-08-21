@@ -11,17 +11,17 @@
         },
         "step": {
             "chargers": {
-                "title": "Zaptec-laderutvalg",
+                "title": "Valg av Zaptec-ladere",
                 "description": "Velg laderne du vil legge til i Home Assistant.",
                 "data": {
                     "chargers": "Ladere"
                 }
             },
             "reconfigure": {
-                "title": "Konfigurer Zaptec på nytt",
-                "description": "Zaptec Portal innloggingsdetaljer.\n\nDet valgfrie prefikset vil legge til prefikset på alle enheter. Merk at det vanligvis er bedre å endre enhetsnavnene i HA enn å legge til et prefiks.",
+                "title": "Omkonfigurer Zaptec",
+                "description": "Zaptec Portal-innloggingsdetaljer.\n\nDet valgfrie prefikset vil bli lagt til alle enheter. Merk at det som regel er bedre å endre enhetsnavnene i HA enn å bruke et prefiks.",
                 "data": {
-                    "manual_select": "Velg ladere manuelt. Neste dialog lar deg velge laderne som skal legges til.",
+                    "manual_select": "Velg ladere manuelt. Neste dialog lar deg velge hvilke ladere som skal legges til.",
                     "password": "Passord",
                     "prefix": "Valgfritt prefiks",
                     "username": "Brukernavn"
@@ -29,9 +29,9 @@
             },
             "user": {
                 "title": "Zaptec-oppsett",
-                "description": "Legg inn dine Zaptec Portal innloggingsdetaljer.\n\nDet valgfrie prefikset vil legge til prefikset på alle enheter. Merk at det vanligvis er bedre å endre enhetsnavnene i HA enn å legge til et prefiks.",
+                "description": "Legg inn innloggingsdetaljer for Zaptec Portal.\n\nDet valgfrie prefikset vil bli lagt til alle enheter. Merk at det som regel er bedre å endre enhetsnavnene i HA enn å bruke et prefiks.",
                 "data": {
-                    "manual_select": "Velg ladere manuelt. Neste skjerm lar deg velge laderne som skal legges til.",
+                    "manual_select": "Velg ladere manuelt. Neste skjermbilde lar deg velge hvilke ladere som skal legges til.",
                     "password": "Passord",
                     "prefix": "Valgfritt prefiks",
                     "username": "Brukernavn"
@@ -42,14 +42,14 @@
     "entity": {
         "binary_sensor": {
             "authorization_required": {
-                "name": "Autorisasjon kreves",
+                "name": "Autorisasjon påkrevd",
                 "state": {
                     "off": "Ikke påkrevd",
                     "on": "Påkrevd"
                 }
             },
             "online": {
-                "name": "Online"
+                "name": "Tilkoblet"
             }
         },
         "button": {
@@ -57,7 +57,7 @@
                 "name": "Autoriser lading"
             },
             "deauthorize_and_stop": {
-                "name": "Deautoriser lading"
+                "name": "Fjern autorisasjon og stopp"
             },
             "restart_charger": {
                 "name": "Start lader på nytt"
@@ -74,28 +74,28 @@
         },
         "number": {
             "available_current": {
-                "name": "Tilgjengelig strømstyrke"
+                "name": "Tilgjengelig strøm"
             },
             "charger_max_current": {
-                "name": "Lader maks strømstyrke"
+                "name": "Maks strøm for lader"
             },
             "charger_min_current": {
-                "name": "Lader minimum strømstyrke"
+                "name": "Min. strøm for lader"
             },
             "hmi_brightness": {
-                "name": "Statusindikator lysstyrke"
+                "name": "Lysstyrke statusindikator"
             },
             "three_to_one_phase_switch_current": {
-                "name": "3 til 1-fase bryterstrømstyrke"
+                "name": "3- til 1-fase-bytte strømterskel"
             }
         },
         "sensor": {
             "authentication_type": {
                 "name": "Autentiseringstype",
                 "state": {
-                    "native": "Native",
+                    "native": "Innebygd",
                     "ocpp": "OCPP",
-                    "webhooks": "Web Hooks"
+                    "webhooks": "Webhooks"
                 }
             },
             "available_current_phase1": {
@@ -111,7 +111,7 @@
                 "name": "Tildelt ladestrøm"
             },
             "charger_operation_mode": {
-                "name": "Ladermodus",
+                "name": "Lademodus",
                 "state": {
                     "connected_charging": "Lader",
                     "connected_finished": "Lading ferdig",
@@ -121,7 +121,7 @@
                 }
             },
             "completed_session_energy": {
-                "name": "Fullført sesjonsenergibruk"
+                "name": "Energiforbruk etter fullført økt"
             },
             "current_phase1": {
                 "name": "Strøm fase 1"
@@ -161,7 +161,7 @@
                 "name": "Temperatur (intern)"
             },
             "total_charge_power_session": {
-                "name": "Total lading per økt"
+                "name": "Total energi for økt"
             },
             "total_charge_power": {
                 "name": "Ladeeffekt"
@@ -178,7 +178,7 @@
         },
         "switch": {
             "authorization_required": {
-                "name": "Autorisasjon kreves"
+                "name": "Autorisasjon påkrevd"
             },
             "charger_operation_mode": {
                 "name": "Lader"
