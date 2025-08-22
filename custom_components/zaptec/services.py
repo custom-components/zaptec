@@ -283,11 +283,17 @@ async def async_setup_services(hass: HomeAssistant, manager: ZaptecManager) -> N
         # only add the relevant arguments if they are not None
         if (available_current := service_call.data.get("available_current")) is not None:
             limit_args["availableCurrent"] = available_current
-        if (available_current_phase1 := service_call.data.get("available_current_phase1")) is not None:
+        if (
+            available_current_phase1 := service_call.data.get("available_current_phase1")
+        ) is not None:
             limit_args["availableCurrentPhase1"] = available_current_phase1
-        if (available_current_phase2 := service_call.data.get("available_current_phase2")) is not None:
+        if (
+            available_current_phase2 := service_call.data.get("available_current_phase2")
+        ) is not None:
             limit_args["availableCurrentPhase2"] = available_current_phase2
-        if (available_current_phase3 := service_call.data.get("available_current_phase3")) is not None:
+        if (
+            available_current_phase3 := service_call.data.get("available_current_phase3")
+        ) is not None:
             limit_args["availableCurrentPhase3"] = available_current_phase3
         for coordinator, obj in iter_objects(service_call, mustbe=Installation):
             _LOGGER.debug("  >> to %s", obj.id)
