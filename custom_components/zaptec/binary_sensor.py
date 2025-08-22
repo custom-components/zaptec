@@ -74,8 +74,7 @@ INSTALLATION_ENTITIES: list[EntityDescription] = [
 CHARGER_ENTITIES: list[EntityDescription] = [
     ZapBinarySensorEntityDescription(
         key="active",
-        name="Charger",
-        translation_key="charger",  # added to facilitate for other integrations
+        name="Charger",  # Special case, no translation
         device_class=BinarySensorDeviceClass.CONNECTIVITY,  # False=disconnected, True=connected
         entity_category=const.EntityCategory.DIAGNOSTIC,
         icon="mdi:cloud",
