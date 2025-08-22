@@ -26,9 +26,10 @@ Confirmed to work with Zaptec products
 * Zaptec Home
 * Zaptec PRO
 
-To use this component, a user with access to
-[Zaptec Portal](https://portal.zaptec.com/) is required.
+# Requirements
 
+* Home Assistant 2025.7 or newer.
+* A user with access to [Zaptec Portal](https://portal.zaptec.com/).
 
 # ⭐ Version 0.8.*
 
