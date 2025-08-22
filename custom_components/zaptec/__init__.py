@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Iterable
+import contextlib
 from copy import copy
 from dataclasses import dataclass
 from datetime import timedelta
@@ -54,7 +55,6 @@ from .const import (
     ZAPTEC_POLL_INTERVAL_INFO,
 )
 from .services import async_setup_services, async_unload_services
-import contextlib
 
 _LOGGER = logging.getLogger(__name__)
 

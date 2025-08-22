@@ -15,6 +15,7 @@ from typing import Any, ClassVar, Protocol, Self
 
 import aiohttp
 from aiolimiter import AsyncLimiter
+from azure.servicebus.aio import ServiceBusClient
 from azure.servicebus.exceptions import ServiceBusError
 import pydantic
 
@@ -358,13 +359,6 @@ class Installation(ZaptecBase):
 
     async def stream(self, cb=None, ssl_context=None) -> asyncio.Task | None:
         """Kickoff the steam in the background."""
-        try:
-            from azure.servicebus.aio import ServiceBusClient
-            from azure.servicebus.exceptions import ServiceBusError
-        except ImportError:
-            _LOGGER.debug("Azure Service bus is not available. Resolving to polling")
-            return None
-
         await self.cancel_stream()
         self._stream_task = asyncio.create_task(self.stream_main(cb=cb, ssl_context=ssl_context))
         return self._stream_task
@@ -386,12 +380,6 @@ class Installation(ZaptecBase):
     async def stream_main(self, cb=None, ssl_context=None) -> None:
         """Main stream handler."""
         try:
-            try:
-                from azure.servicebus.aio import ServiceBusClient
-            except ImportError:
-                _LOGGER.warning("Azure Service bus is not available. Resolving to polling")
-                return
-
             # Already running?
             if self._stream_running:
                 raise RuntimeError(

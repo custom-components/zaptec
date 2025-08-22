@@ -21,6 +21,11 @@ ignore = [
     "D213",   # Multi-line docstring summary should start at the second line
     "ISC001", # incompatible with formatter
 
+    "PLR0911", # Too many return statements ({returns} > {max_returns})
+    "PLR0912", # Too many branches ({branches} > {max_branches})
+    "PLR0913", # Too many arguments to function call ({c_args} > {max_args})
+    "PLR0915", # Too many statements ({statements} > {max_statements})
+
     # Moving imports into type-checking blocks can mess with pytest.patch()
     "TC001", # Move application import {} into a type-checking block
     "TC002", # Move third-party import {} into a type-checking block
