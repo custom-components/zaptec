@@ -57,7 +57,7 @@
                 "name": "Autoriser lading"
             },
             "deauthorize_and_stop": {
-                "name": "Fjern autorisasjon og stopp"
+                "name": "Fjern lade-autorisasjon"
             },
             "restart_charger": {
                 "name": "Start lader på nytt"
@@ -86,7 +86,7 @@
                 "name": "Lysstyrke statusindikator"
             },
             "three_to_one_phase_switch_current": {
-                "name": "3- til 1-fase-bytte strømterskel"
+                "name": "3- til 1-fase bytteterskel"
             }
         },
         "sensor": {
@@ -114,7 +114,7 @@
                 "name": "Lademodus",
                 "state": {
                     "connected_charging": "Lader",
-                    "connected_finished": "Lading ferdig",
+                    "connected_finished": "Ferdigladet",
                     "connected_requesting": "Venter",
                     "disconnected": "Frakoblet",
                     "unknown": "Ukjent"

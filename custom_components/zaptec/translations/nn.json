@@ -57,7 +57,7 @@
                 "name": "Godkjenn lading"
             },
             "deauthorize_and_stop": {
-                "name": "Trekk tilbake godkjenning og stopp"
+                "name": "Trekk lade-godkjenning"
             },
             "restart_charger": {
                 "name": "Start ladar på nytt"
@@ -86,7 +86,7 @@
                 "name": "Lysstyrke statusindikator"
             },
             "three_to_one_phase_switch_current": {
-                "name": "3- til 1-fase-bytte straumterskel"
+                "name": "3- til 1-fase bytteterskel"
             }
         },
         "sensor": {
@@ -114,7 +114,7 @@
                 "name": "Lademodus",
                 "state": {
                     "connected_charging": "Ladar",
-                    "connected_finished": "Lading ferdig",
+                    "connected_finished": "Ferdiglada",
                     "connected_requesting": "Ventar",
                     "disconnected": "Fråkopla",
                     "unknown": "Ukjend"
