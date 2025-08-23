@@ -73,7 +73,8 @@ class Redactor:
         "ValueAsString",
     ]
 
-    def __init__(self, do_redact: bool, obs_ids: dict[str, str] | None = None):
+    def __init__(self, do_redact: bool, obs_ids: dict[str, str] | None = None) -> None:
+        """Initialize redactor."""
         self.do_redact = do_redact
         self.obs_ids = obs_ids or {}
         self.redacts = {}

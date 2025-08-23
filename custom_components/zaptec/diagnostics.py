@@ -100,7 +100,7 @@ async def _get_diagnostics(
                     "tb": list(traceback.format_exc().splitlines()),
                 }
 
-        def add(url, obj, ctx=None):
+        def add(url, obj, ctx=None) -> None:
             api[redact(url, ctx=ctx)] = redact(obj, ctx=ctx)
 
         data = await request(url := "installation")

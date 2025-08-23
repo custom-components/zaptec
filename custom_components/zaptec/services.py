@@ -177,10 +177,7 @@ async def async_setup_services(hass: HomeAssistant, manager: ZaptecManager) -> N
         # Loop through every uid and find the object
         for uid in uids:
             # Set the human readable identifier for the error message
-            if uid in lookup:
-                err_device = f"{lookup[uid]} ({uid})"
-            else:
-                err_device = f"id {uid}"
+            err_device = f"{lookup[uid]} ({uid})" if uid in lookup else f"id {uid}"
 
             zaptec_object = manager.zaptec.get(uid)
             if zaptec_object is None:
@@ -224,8 +221,8 @@ async def async_setup_services(hass: HomeAssistant, manager: ZaptecManager) -> N
     async def service_handle_authorize_charging(service_call: ServiceCall) -> None:
         _LOGGER.debug("Called authorize charging")
         _LOGGER.warning(
-            "The 'authorize_charging' action is deprecated and will be removed in a future release. "
-            "Use the 'Authorize charging' button entity instead"
+            "The 'authorize_charging' action is deprecated and will be removed in a future "
+            "release. Use the 'Authorize charging' button entity instead"
         )
         for coordinator, obj in iter_objects(service_call, mustbe=Charger):
             _LOGGER.debug("  >> to %s", obj.id)
@@ -238,8 +235,8 @@ async def async_setup_services(hass: HomeAssistant, manager: ZaptecManager) -> N
     async def service_handle_deauthorize_charging(service_call: ServiceCall) -> None:
         _LOGGER.debug("Called deauthorize charging and stop")
         _LOGGER.warning(
-            "The 'deauthorize_charging' action is deprecated and will be removed in a future release. "
-            "Use the 'Deauthorize charging' button entity instead"
+            "The 'deauthorize_charging' action is deprecated and will be removed in a future "
+            "release. Use the 'Deauthorize charging' button entity instead"
         )
         for coordinator, obj in iter_objects(service_call, mustbe=Charger):
             _LOGGER.debug("  >> to %s", obj.id)
@@ -266,8 +263,8 @@ async def async_setup_services(hass: HomeAssistant, manager: ZaptecManager) -> N
     async def service_handle_upgrade_firmware(service_call: ServiceCall) -> None:
         _LOGGER.debug("Called update firmware")
         _LOGGER.warning(
-            "The 'upgrade_firmware' action is deprecated and will be removed in a future release. "
-            "Use the 'Upgrade firmware' button entity instead"
+            "The 'upgrade_firmware' action is deprecated and will be removed in a future "
+            "release. Use the 'Upgrade firmware' button entity instead"
         )
         for coordinator, obj in iter_objects(service_call, mustbe=Charger):
             _LOGGER.debug("  >> to %s", obj.id)

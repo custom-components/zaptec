@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import logging
+from typing import Any
 
 from homeassistant import const
 from homeassistant.components.update import (
@@ -39,7 +40,7 @@ class ZaptecUpdate(ZaptecBaseEntity, UpdateEntity):
         self._attr_latest_version = self._get_zaptec_value(key="firmware_available_version")
         self._attr_available = True
 
-    async def async_install(self, version, backup, **kwargs):
+    async def async_install(self, version: str | None, backup: bool, **kwargs: Any) -> None:
         """Install the update."""
         _LOGGER.debug(
             "Updating firmware %s of %s",
@@ -85,4 +86,4 @@ async def async_setup_entry(
         INSTALLATION_ENTITIES,
         CHARGER_ENTITIES,
     )
-    async_add_entities(entities, True)
+    async_add_entities(entities, update_before_add=True)

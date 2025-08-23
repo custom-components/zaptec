@@ -109,4 +109,4 @@ async def async_setup_entry(
         INSTALLATION_ENTITIES,
         CHARGER_ENTITIES,
     )
-    async_add_entities(entities, True)
+    async_add_entities(entities, update_before_add=True)
