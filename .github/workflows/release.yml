@@ -1,0 +1,28 @@
+name: Release
+
+on:
+  release:
+    types:
+      - published
+
+permissions: {}
+
+jobs:
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout the repository
+        uses: actions/checkout@v5
+
+      - name: ZIP the integration directory
+        run: |
+          cd ${{ github.workspace }}/custom_components/zaptec
+          zip zaptec.zip -r ./
+
+      - name: Upload the ZIP file to the release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ github.workspace }}/custom_components/zaptec/zaptec.zip
