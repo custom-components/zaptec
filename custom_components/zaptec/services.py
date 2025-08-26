@@ -16,7 +16,8 @@ from .api import Charger, Installation
 from .const import DOMAIN
 
 if TYPE_CHECKING:
-    from . import ZaptecManager, ZaptecUpdateCoordinator
+    from .coordinator import ZaptecUpdateCoordinator
+    from .manager import ZaptecManager
 
 _LOGGER = logging.getLogger(__name__)
 
