@@ -7,10 +7,10 @@ cd "$(dirname "$0")/.."
 if [ "$1" = "ci" ]; then
     # Don't try to fix errors, just fail
     ruff format . --diff
-    ruff check . --exit-zero # succeed despite errors until https://github.com/custom-components/zaptec/issues/258 is done
+    ruff check ./custom_components/zaptec --exit-zero # succeed despite errors until https://github.com/custom-components/zaptec/issues/258 is done
     # ruff check .
 else
     # Auto-fix as much as possible
     ruff format .
-    ruff check . --fix
+    ruff check ./custom_components/zaptec --fix
 fi

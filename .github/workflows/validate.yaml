@@ -44,4 +44,4 @@ jobs:
         uses: astral-sh/ruff-action@v3
         with:
           args: check --exit-zero # succeed despite errors until https://github.com/custom-components/zaptec/issues/258 is done
-          src: "."
+          src: "./custom_components/zaptec"
