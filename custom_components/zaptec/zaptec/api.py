@@ -34,6 +34,14 @@ from .const import (
     TOKEN_URL,
     TRUTHY,
 )
+from .exceptions import (
+    AuthenticationError,
+    RequestConnectionError,
+    RequestDataError,
+    RequestError,
+    RequestRetryError,
+    RequestTimeoutError,
+)
 from .misc import mc_nbfx_decoder, to_under
 from .redact import Redactor
 from .validate import validate
@@ -58,39 +66,6 @@ class TLogExc(Protocol):
     """Protocol for logging exceptions."""
 
     def __call__(self, exc: Exception) -> Exception: ...
-
-
-class ZaptecApiError(Exception):
-    """Base exception for all Zaptec API errors."""
-
-
-class AuthenticationError(ZaptecApiError):
-    """Authenatication failed."""
-
-
-class RequestError(ZaptecApiError):
-    """Failed to get the results from the API."""
-
-    def __init__(self, message: str, error_code: int) -> None:
-        """Initialize the RequestError."""
-        super().__init__(message)
-        self.error_code = error_code
-
-
-class RequestConnectionError(ZaptecApiError):
-    """Failed to make the request to the API."""
-
-
-class RequestTimeoutError(ZaptecApiError):
-    """Failed to get the results from the API."""
-
-
-class RequestRetryError(ZaptecApiError):
-    """Retries too many times."""
-
-
-class RequestDataError(ZaptecApiError):
-    """Data is not valid."""
 
 
 class ZaptecBase(Mapping[str, TValue]):

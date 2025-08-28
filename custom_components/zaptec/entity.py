@@ -10,9 +10,9 @@ from homeassistant.core import callback
 from homeassistant.helpers.entity import DeviceInfo, EntityDescription
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .api import ZaptecBase
-from .const import KEYS_TO_SKIP_ENTITY_AVAILABILITY_CHECK, MISSING, Missing
+from .const import KEYS_TO_SKIP_ENTITY_AVAILABILITY_CHECK
 from .coordinator import ZaptecUpdateCoordinator
+from .zaptec import MISSING, Missing, ZaptecBase
 
 _LOGGER = logging.getLogger(__name__)
 
