@@ -1,4 +1,4 @@
-name: Monitor HA requirements Compatibility
+name: Monitor HA Compatibility
 
 on:
   schedule:
@@ -7,6 +7,7 @@ on:
 
 jobs:
   check:
+    name: Manifest requirements check
     runs-on: ubuntu-latest
     steps:
       - name: Checkout zaptec repo

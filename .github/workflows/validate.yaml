@@ -46,7 +46,8 @@ jobs:
           args: check --exit-zero # succeed despite errors until https://github.com/custom-components/zaptec/issues/258 is done
           src: "./custom_components/zaptec"
 
-  manifest_requirements:
+  manifest-requirements:
+    name: Manifest requirements validation
     runs-on: ubuntu-latest
     steps:
       - name: Checkout zaptec repo

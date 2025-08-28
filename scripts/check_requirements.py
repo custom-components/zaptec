@@ -33,7 +33,6 @@ def load_minimum_ha_version() -> Version:  # noqa: D103
 
 
 def load_relevant_constraints(url: str, reqs: list[Requirement]) -> dict[str, Requirement]:  # noqa: D103
-    print(url)
     names = [req.name for req in reqs]
     constraints: dict[str, Requirement] = {}
     with urllib.request.urlopen(url) as response:
@@ -113,11 +112,9 @@ def get_ha_tags() -> list[str]:  # noqa: D103
     for tag in tags:
         name: str = tag["name"]
         if (name.startswith("202") or name.count(".") >= 1) and name.find("b") == -1:
-            try:
-                versions.append(name)
-            except Exception:
-                continue
-    return list(reversed(sorted(versions)))
+            versions.append(name)
+
+    return sorted(versions, reverse=True)
 
 
 def get_constraints_url(version: str = "") -> str:  # noqa: D103
@@ -157,7 +154,7 @@ if __name__ == "__main__":
         print("Checking manifest.json requirements against the minimum HA version in hacs.json\n")
         ha_versions = get_ha_tags()
         print(f"Checking HA tags: {ha_versions}")
-        works = None
+        last_working = None
         minimum_ha_version = load_minimum_ha_version()
         pypi_versions: dict[str, list[Version]] = {}
         for ha_version in ha_versions:
@@ -171,17 +168,25 @@ if __name__ == "__main__":
                 print(f"Found incompatibilities with HA version {ha_version}:")
                 for e in errors:
                     print(" -", e)
-                v = Version(works)
+
+                if not last_working:
+                    print("Latest HA version is incompatible, please update manifest.json")
+                    sys.exit(1)
+
+                v = Version(last_working)
                 if v > minimum_ha_version:
-                    print(f"Oldest compatible version was {works}, please update hacs.json.")
+                    print(
+                        f"Oldest compatible version was {last_working}, which "
+                        f"is newer than {minimum_ha_version}, please update hacs.json."
+                    )
                     sys.exit(1)
                 elif v < minimum_ha_version:
                     print(
-                        f"Oldest compatible version was {works}, minimum in hacs.json is "
+                        f"Oldest compatible version was {last_working}, minimum in hacs.json is "
                         f"{minimum_ha_version}, consider relaxing ha requirement."
                     )
                 else:
                     print("Oldest compatible version matches hacs.json.")
                 break
             else:
-                works = ha_version
+                last_working = ha_version
