@@ -15,8 +15,8 @@ jobs:
 
       - name: Check manifest requirements against latest HA dev branch
         run: |
-          cd ${{ github.workspace }}/scripts
-          ./check_requirements.py --current-ha-dev
+          cd ${{ github.workspace }}
+          python3 scripts/check_requirements.py --current-ha-dev
 
       # Consider adding auto-generated issues, need to make sure we don't create duplicates first
       # - name: Create issue if incompatible

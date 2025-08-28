@@ -44,7 +44,7 @@ jobs:
         uses: astral-sh/ruff-action@v3
         with:
           args: check --exit-zero # succeed despite errors until https://github.com/custom-components/zaptec/issues/258 is done
-          src: "./custom_components/zaptec"
+          src: "custom_components/zaptec"
 
   manifest-requirements:
     name: Manifest requirements validation
@@ -55,8 +55,8 @@ jobs:
 
       - name: Check manifest requirements against latest HA dev branch
         run: |
-          cd ${{ github.workspace }}/scripts
-          ./check_requirements.py --current-ha-dev
+          cd ${{ github.workspace }}
+          python3 scripts/check_requirements.py --current-ha-dev
 
       - uses: dorny/paths-filter@v3
         id: changes
@@ -69,5 +69,5 @@ jobs:
       - name: Check minimum HA version if manifest.json or hacs.json changed
         if: steps.changes.outputs.requirement_files == 'true'
         run: |
-          cd ${{ github.workspace }}/scripts
-          ./check_requirements.py --minimum-ha-version
+          cd ${{ github.workspace }}
+          python3 scripts/check_requirements.py --minimum-ha-version
