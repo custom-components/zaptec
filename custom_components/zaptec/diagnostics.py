@@ -11,9 +11,8 @@ if __name__ != "__main__":
     from homeassistant.core import HomeAssistant
     from homeassistant.helpers import device_registry as dr, entity_registry as er
 
-from .api import ZCONST, Zaptec, ZaptecBase
 from .manager import ZaptecConfigEntry, ZaptecManager
-from .redact import Redactor
+from .zaptec import ZCONST, Redactor, Zaptec, ZaptecBase
 
 _LOGGER = logging.getLogger(__name__)
 

@@ -12,13 +12,13 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.debounce import Debouncer
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
-from .api import Charger, Installation, Zaptec, ZaptecApiError, ZaptecBase
 from .const import (
     DOMAIN,
     REQUEST_REFRESH_DELAY,
     ZAPTEC_POLL_CHARGER_TRIGGER_DELAYS,
     ZAPTEC_POLL_INSTALLATION_TRIGGER_DELAYS,
 )
+from .zaptec import Charger, Installation, Zaptec, ZaptecApiError, ZaptecBase
 
 if TYPE_CHECKING:
     from .manager import ZaptecConfigEntry, ZaptecManager

@@ -14,10 +14,10 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity import DeviceInfo, EntityDescription
 from homeassistant.util.ssl import get_default_context
 
-from .api import Charger, Installation, Zaptec, ZaptecBase
 from .const import DOMAIN, KEYS_TO_SKIP_ENTITY_AVAILABILITY_CHECK, MANUFACTURER
 from .coordinator import ZaptecUpdateCoordinator
 from .entity import KeyUnavailableError, ZaptecBaseEntity
+from .zaptec import Charger, Installation, Zaptec, ZaptecBase
 
 _LOGGER = logging.getLogger(__name__)
 

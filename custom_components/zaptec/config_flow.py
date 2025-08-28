@@ -12,7 +12,8 @@ import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.selector import TextSelector, TextSelectorConfig, TextSelectorType
 import voluptuous as vol
 
-from .api import (
+from .const import CONF_CHARGERS, CONF_MANUAL_SELECT, CONF_PREFIX, DOMAIN
+from .zaptec import (
     AuthenticationError,
     Charger,
     RequestConnectionError,
@@ -21,7 +22,6 @@ from .api import (
     RequestTimeoutError,
     Zaptec,
 )
-from .const import CONF_CHARGERS, CONF_MANUAL_SELECT, CONF_PREFIX, DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
