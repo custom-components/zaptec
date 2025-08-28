@@ -45,3 +45,28 @@ jobs:
         with:
           args: check --exit-zero # succeed despite errors until https://github.com/custom-components/zaptec/issues/258 is done
           src: "./custom_components/zaptec"
+
+  manifest_requirements:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout zaptec repo
+        uses: actions/checkout@v4
+
+      - name: Check manifest requirements against latest HA dev branch
+        run: |
+          cd ${{ github.workspace }}/scripts
+          ./check_requirements.py --current-ha-dev
+
+      - uses: dorny/paths-filter@v3
+        id: changes
+        with:
+          filters: |
+            requirement_files:
+              - 'custom_components/zaptec/manifest.json'
+              - 'hacs.json'
+
+      - name: Check minimum HA version if manifest.json or hacs.json changed
+        if: steps.changes.outputs.requirement_files == 'true'
+        run: |
+          cd ${{ github.workspace }}/scripts
+          ./check_requirements.py --minimum-ha-version

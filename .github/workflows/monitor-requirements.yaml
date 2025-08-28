@@ -1,0 +1,27 @@
+name: Monitor HA requirements Compatibility
+
+on:
+  schedule:
+    - cron: "0 9 * * 6"  # every Saturday at 09:00 UTC
+  workflow_dispatch:      # allow manual runs
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout zaptec repo
+        uses: actions/checkout@v4
+
+      - name: Check manifest requirements against latest HA dev branch
+        run: |
+          cd ${{ github.workspace }}/scripts
+          ./check_requirements.py --current-ha-dev
+
+      # Consider adding auto-generated issues, need to make sure we don't create duplicates first
+      # - name: Create issue if incompatible
+      #   if: failure()  # only run if previous step exited 1
+      #   uses: peter-evans/create-issue-from-file@v5
+      #   with:
+      #     title: "Requirements incompatibility detected"
+      #     content-filepath: ./issue.md
+      #     labels: bug, compatibility
