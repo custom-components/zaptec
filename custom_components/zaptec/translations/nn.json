@@ -45,7 +45,7 @@
                 "name": "Autorisasjon kravd",
                 "state": {
                     "off": "Ikkje kravd",
-                    "on": "kravd"
+                    "on": "Kravd"
                 }
             },
             "online": {
