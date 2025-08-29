@@ -42,10 +42,10 @@
     "entity": {
         "binary_sensor": {
             "authorization_required": {
-                "name": "Autorisasjon krevd",
+                "name": "Autorisasjon kravd",
                 "state": {
-                    "off": "Ikkje krevd",
-                    "on": "Krevd"
+                    "off": "Ikkje kravd",
+                    "on": "kravd"
                 }
             },
             "online": {
@@ -178,7 +178,7 @@
         },
         "switch": {
             "authorization_required": {
-                "name": "Autorisasjon krevd"
+                "name": "Autorisasjon kravd"
             },
             "charger_operation_mode": {
                 "name": "Ladar"
