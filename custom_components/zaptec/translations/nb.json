@@ -1,0 +1,196 @@
+{
+    "config": {
+        "abort": {
+            "already_exists": "En Zaptec-instans finnes allerede."
+        },
+        "error": {
+            "cannot_connect": "Kunne ikke koble til",
+            "invalid_auth": "Ugyldig autentisering",
+            "no_chargers_selected": "Ingen ladere valgt. Vennligst velg minst én lader.",
+            "unknown": "Uventet feil"
+        },
+        "step": {
+            "chargers": {
+                "title": "Valg av Zaptec-ladere",
+                "description": "Velg laderne du vil legge til i Home Assistant.",
+                "data": {
+                    "chargers": "Ladere"
+                }
+            },
+            "reconfigure": {
+                "title": "Omkonfigurer Zaptec",
+                "description": "Zaptec Portal-innloggingsdetaljer.\n\nDet valgfrie prefikset vil bli lagt til alle enheter. Merk at det som regel er bedre å endre enhetsnavnene i HA enn å bruke et prefiks.",
+                "data": {
+                    "manual_select": "Velg ladere manuelt. Neste dialog lar deg velge hvilke ladere som skal legges til.",
+                    "password": "Passord",
+                    "prefix": "Valgfritt prefiks",
+                    "username": "Brukernavn"
+                }
+            },
+            "user": {
+                "title": "Zaptec-oppsett",
+                "description": "Legg inn innloggingsdetaljer for Zaptec Portal.\n\nDet valgfrie prefikset vil bli lagt til alle enheter. Merk at det som regel er bedre å endre enhetsnavnene i HA enn å bruke et prefiks.",
+                "data": {
+                    "manual_select": "Velg ladere manuelt. Neste skjermbilde lar deg velge hvilke ladere som skal legges til.",
+                    "password": "Passord",
+                    "prefix": "Valgfritt prefiks",
+                    "username": "Brukernavn"
+                }
+            }
+        }
+    },
+    "entity": {
+        "binary_sensor": {
+            "authorization_required": {
+                "name": "Autorisasjon påkrevd",
+                "state": {
+                    "off": "Ikke påkrevd",
+                    "on": "Påkrevd"
+                }
+            },
+            "online": {
+                "name": "Tilkoblet"
+            }
+        },
+        "button": {
+            "authorize_charge": {
+                "name": "Autoriser lading"
+            },
+            "deauthorize_and_stop": {
+                "name": "Fjern lade-autorisasjon"
+            },
+            "restart_charger": {
+                "name": "Start lader på nytt"
+            },
+            "resume_charging": {
+                "name": "Gjenoppta lading"
+            },
+            "stop_charging": {
+                "name": "Stopp lading"
+            },
+            "upgrade_firmware": {
+                "name": "Oppgrader fastvare"
+            }
+        },
+        "number": {
+            "available_current": {
+                "name": "Tilgjengelig strøm"
+            },
+            "charger_max_current": {
+                "name": "Maks strøm for lader"
+            },
+            "charger_min_current": {
+                "name": "Min. strøm for lader"
+            },
+            "hmi_brightness": {
+                "name": "Lysstyrke statusindikator"
+            },
+            "three_to_one_phase_switch_current": {
+                "name": "3- til 1-fase bytteterskel"
+            }
+        },
+        "sensor": {
+            "authentication_type": {
+                "name": "Autentiseringstype",
+                "state": {
+                    "native": "Innebygd",
+                    "ocpp": "OCPP",
+                    "webhooks": "Webhooks"
+                }
+            },
+            "available_current_phase1": {
+                "name": "Tilgjengelig strøm fase 1"
+            },
+            "available_current_phase2": {
+                "name": "Tilgjengelig strøm fase 2"
+            },
+            "available_current_phase3": {
+                "name": "Tilgjengelig strøm fase 3"
+            },
+            "charge_current_set": {
+                "name": "Tildelt ladestrøm"
+            },
+            "charger_operation_mode": {
+                "name": "Lademodus",
+                "state": {
+                    "connected_charging": "Lader",
+                    "connected_finished": "Ferdigladet",
+                    "connected_requesting": "Venter",
+                    "disconnected": "Frakoblet",
+                    "unknown": "Ukjent"
+                }
+            },
+            "completed_session_energy": {
+                "name": "Energiforbruk etter fullført økt"
+            },
+            "current_phase1": {
+                "name": "Strøm fase 1"
+            },
+            "current_phase2": {
+                "name": "Strøm fase 2"
+            },
+            "current_phase3": {
+                "name": "Strøm fase 3"
+            },
+            "device_type": {
+                "name": "Enhetstype"
+            },
+            "humidity": {
+                "name": "Luftfuktighet"
+            },
+            "installation_type": {
+                "name": "Installasjonstype"
+            },
+            "max_current": {
+                "name": "Maks strøm"
+            },
+            "network_type": {
+                "name": "Nettverkstype",
+                "state": {
+                    "it_1_phase": "IT 1-fase",
+                    "it_3_phase": "IT 3-fase",
+                    "tn_1_phase": "TN 1-fase",
+                    "tn_3_phase": "TN 3-fase",
+                    "unknown": "Ukjent"
+                }
+            },
+            "signed_meter_value": {
+                "name": "Energimåler"
+            },
+            "temperature_internal5": {
+                "name": "Temperatur (intern)"
+            },
+            "total_charge_power_session": {
+                "name": "Total energi for økt"
+            },
+            "total_charge_power": {
+                "name": "Ladeeffekt"
+            },
+            "voltage_phase1": {
+                "name": "Spenning fase 1"
+            },
+            "voltage_phase2": {
+                "name": "Spenning fase 2"
+            },
+            "voltage_phase3": {
+                "name": "Spenning fase 3"
+            }
+        },
+        "switch": {
+            "authorization_required": {
+                "name": "Autorisasjon påkrevd"
+            },
+            "charger_operation_mode": {
+                "name": "Lader"
+            },
+            "permanent_cable_lock": {
+                "name": "Permanent kabelås"
+            }
+        },
+        "update": {
+            "firmware_update": {
+                "name": "Fastvareoppdatering"
+            }
+        }
+    }
+}
