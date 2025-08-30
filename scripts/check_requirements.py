@@ -19,7 +19,7 @@ HA_RELEASES_URL = "https://api.github.com/repos/home-assistant/core/tags"
 PYPI_URL = "https://pypi.org/pypi/{package}/json"
 
 
-def load_manifest_requirements() -> list[Requirement]:  # noqa: D103
+def load_manifest_requirements() -> list[Requirement]:  # noqa: D103 (disable docstrings requirement)
     with MANIFEST.open() as f:
         manifest = json.load(f)
         reqs: list[str] = manifest.get("requirements", [])
