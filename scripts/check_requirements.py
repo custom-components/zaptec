@@ -13,8 +13,7 @@ from packaging.version import InvalidVersion, Version
 ROOT = Path(__file__).resolve().parents[1]
 MANIFEST = ROOT / "custom_components" / "zaptec" / "manifest.json"
 HACS = ROOT / "hacs.json"
-CONSTRAINTS_URL = "https://raw.githubusercontent.com/home-assistant/core/dev/homeassistant/package_constraints.txt"
-CONSTRAINTS_V_URL = "https://raw.githubusercontent.com/home-assistant/core/{version}/homeassistant/package_constraints.txt"
+CONSTRAINTS_URL = "https://raw.githubusercontent.com/home-assistant/core/{v}/homeassistant/package_constraints.txt"
 HA_RELEASES_URL = "https://api.github.com/repos/home-assistant/core/tags"
 PYPI_URL = "https://pypi.org/pypi/{package}/json"
 
@@ -111,16 +110,14 @@ def get_ha_tags() -> list[str]:  # noqa: D103
     versions: list[str] = []
     for tag in tags:
         name: str = tag["name"]
-        if (name.startswith("202") or name.count(".") >= 1) and name.find("b") == -1:
+        if name.startswith("202") and name.find("b") == -1:  # only 202x.y.z versions and not beta
             versions.append(name)
 
     return sorted(versions, reverse=True)
 
 
 def get_constraints_url(version: str = "") -> str:  # noqa: D103
-    if not version:
-        return CONSTRAINTS_URL
-    return CONSTRAINTS_V_URL.format(version=version)
+    return CONSTRAINTS_URL.format(v=version if version else "dev")
 
 
 if __name__ == "__main__":
