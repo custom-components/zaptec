@@ -24,15 +24,15 @@ def to_under(word: str) -> str:
 def data_producer(data: bytes) -> Generator[bytes, int, None]:  # noqa: UP043
     """Generate data segments from input bytes.
 
-    Use send(count) to get the next block of 'size' bytes.
+    Use successive send(size) to get the next block of 'size' bytes.
     """
     size = 0
-    first = True  # Make sure the first next() goes through with empty data
+    first = True  # Make sure the first next() goes through even with empty data
     while first or data:
         first = False
         block = data[:size]
         data = data[size:]
-        # Send the block of data of count size
+        # Send the block of data of size bytes
         size = yield block
 
 
