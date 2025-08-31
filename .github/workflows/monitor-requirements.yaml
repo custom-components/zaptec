@@ -1,0 +1,19 @@
+name: Monitor HA Compatibility
+
+on:
+  schedule:
+    - cron: "0 9 * * 6"  # every Saturday at 09:00 UTC
+  workflow_dispatch:      # allow manual runs
+
+jobs:
+  check:
+    name: Manifest requirements check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout zaptec repo
+        uses: actions/checkout@v4
+
+      - name: Check manifest requirements against latest HA dev branch
+        run: |
+          cd ${{ github.workspace }}
+          python3 scripts/check_requirements.py --current-ha-dev
