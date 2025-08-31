@@ -7,9 +7,6 @@ on:
 
 permissions: {}
 
-env:
-  DEFAULT_PYTHON: 3.13
-
 jobs:
   hassfest: # https://developers.home-assistant.io/blog/2020/04/16/hassfest
     name: Hassfest validation
@@ -59,7 +56,7 @@ jobs:
       - name: Setup Python {{ "${{ env.DEFAULT_PYTHON }}" }}
         uses: "actions/setup-python@v5"
         with:
-          python-version: {{ "${{ env.DEFAULT_PYTHON }}" }}
+          python-version: '3.13'
 
       - name: Install requirements
         run: |
