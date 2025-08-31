@@ -8,6 +8,10 @@ line-length = 98
     "S101",  # Allow assert in tests
     "INP001",  # Don't complain over missing __init__.py in test dirs
 ]
+"scripts/*" = [
+    "D103",  # Don't complain over missing docstrings in scripts
+    "T201",  # Allow for scripts to write to stdout
+]
 
 [lint]
 select = [

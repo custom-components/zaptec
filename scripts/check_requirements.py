@@ -18,23 +18,23 @@ HA_RELEASES_URL = "https://api.github.com/repos/home-assistant/core/tags"
 PYPI_URL = "https://pypi.org/pypi/{package}/json"
 
 
-def load_manifest_requirements() -> list[Requirement]:  # noqa: D103 (disable docstrings requirement)
+def load_manifest_requirements() -> list[Requirement]:
     with MANIFEST.open() as f:
         manifest = json.load(f)
         reqs: list[str] = manifest.get("requirements", [])
         return [Requirement(req) for req in reqs]
 
 
-def load_minimum_ha_version() -> Version:  # noqa: D103
+def load_minimum_ha_version() -> Version:
     with HACS.open() as f:
         hacs = json.load(f)
         return Version(hacs.get("homeassistant", None))
 
 
-def load_relevant_constraints(url: str, reqs: list[Requirement]) -> dict[str, Requirement]:  # noqa: D103
+def load_relevant_constraints(url: str, reqs: list[Requirement]) -> dict[str, Requirement]:
     names = [req.name for req in reqs]
     constraints: dict[str, Requirement] = {}
-    with urllib.request.urlopen(url) as response:
+    with urllib.request.urlopen(url) as response:  # noqa: S310 (ignore suspicious-url-open-usage since url is hardcoded https)
         for raw_line in response:
             line = raw_line.decode().strip()
             if not line or line.startswith("#"):
@@ -46,11 +46,11 @@ def load_relevant_constraints(url: str, reqs: list[Requirement]) -> dict[str, Re
     return constraints
 
 
-def get_pypi_versions_for_package(package: str) -> list[Version]:  # noqa: D103
+def get_pypi_versions_for_package(package: str) -> list[Version]:
     url = PYPI_URL.format(package=package)
 
     versions: list[Version] = []
-    with urllib.request.urlopen(url) as resp:
+    with urllib.request.urlopen(url) as resp:  # noqa: S310
         data = json.load(resp)
 
         for v in data.get("releases", {}):
@@ -61,14 +61,14 @@ def get_pypi_versions_for_package(package: str) -> list[Version]:  # noqa: D103
     return versions
 
 
-def get_pypi_versions(packages: list[str]) -> dict[str, list[Version]]:  # noqa: D103
+def get_pypi_versions(packages: list[str]) -> dict[str, list[Version]]:
     versions: dict[str, list[Version]] = {}
     for package in packages:
         versions[package] = get_pypi_versions_for_package(package)
     return versions
 
 
-def check_compatibility(  # noqa: D103
+def check_compatibility(
     requirements: list[Requirement],
     constraints: dict[str, Requirement],
     pypi_lib: dict[str, list[Version]],
@@ -94,13 +94,13 @@ def check_compatibility(  # noqa: D103
     return errors
 
 
-def get_ha_tags() -> list[str]:  # noqa: D103
+def get_ha_tags() -> list[str]:
     tags = []
     page = 1
     last_page = 3
     while page <= last_page:
         url = f"{HA_RELEASES_URL}?per_page=100&page={page}"
-        with urllib.request.urlopen(url) as resp:
+        with urllib.request.urlopen(url) as resp:  # noqa: S310
             data = json.load(resp)
         if not data:
             break
@@ -116,7 +116,7 @@ def get_ha_tags() -> list[str]:  # noqa: D103
     return sorted(versions, reverse=True)
 
 
-def get_constraints_url(version: str = "") -> str:  # noqa: D103
+def get_constraints_url(version: str = "") -> str:
     return CONSTRAINTS_URL.format(v=version if version else "dev")
 
 
