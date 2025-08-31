@@ -26,7 +26,12 @@ type CommandType = Literal[
 # Helper wrapper for reading constants from the API
 #
 class ZConst(UserDict):
-    """Zaptec constants wrapper class."""
+    """Zaptec constants wrapper class.
+
+    This class contains a collection of attributes and methods which contain
+    the constants from the Zaptec API. These constants are typically enums and
+    mappings for various attributes in the API.
+    """
 
     observations: dict[str, int]
     settings: dict[str, int]
@@ -194,3 +199,14 @@ class ZConst(UserDict):
         # v != 0 is needed to avoid the 0 == 0 case leading to None always being included
         roles = {k for k, v in self.get("UserRoles", {}).items() if v != 0 and (v & val) == v}
         return ", ".join(roles)
+
+
+ZCONST = ZConst()
+"""Global Zaptec constants instance.
+
+This class contains a collection of attributes and methods mapping various
+constants from the Zaptec API. It is initialized when the Zaptec connection is
+logged in and build() is called. It can then be used to lookup ids and names for
+various attributes in the API. It is global and can be used from anywhere without
+the need for a Zaptec instance.
+"""

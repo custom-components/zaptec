@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from .api import ZCONST, Charger, Installation, Zaptec, ZaptecBase
+from .api import Charger, Installation, Zaptec, ZaptecBase
 from .const import MISSING, Missing
 from .exceptions import (
     AuthenticationError,
@@ -14,6 +14,7 @@ from .exceptions import (
 )
 from .misc import get_ocmf_max_reader_value
 from .redact import Redactor
+from .zconst import ZCONST
 
 __all__ = [
     "MISSING",
