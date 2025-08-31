@@ -23,6 +23,7 @@
 Confirmed to work with Zaptec products
 
 * Zaptec Go
+* Zaptec Go 2
 * Zaptec Home
 * Zaptec PRO
 
@@ -30,6 +31,9 @@ Confirmed to work with Zaptec products
 
 * Home Assistant 2025.7 or newer.
 * A user with access to [Zaptec Portal](https://portal.zaptec.com/).
+* If you want to use the controls at the [Installation](#zaptec-device-concept) level:
+  * A Zaptec Portal user with _Owner_ or _Service_ privileges.
+  * Disable [Zaptec Sense](https://help.zaptec.com/hc/en-001/articles/11155142597137-How-to-manage-Zaptec-Sense-in-the-Zaptec-Portal) (aka APM/Automatic Power Management).
 
 # ⭐ Version 0.8.*
 
@@ -243,6 +247,9 @@ the same time.
 > This entity is adjusting the available current for the entire installation.
 > If the installation has several chargers installed, changing this value will
 > affect all of them.
+
+> [!NOTE]
+> Controlling entities on the installation level has additional [requirements](#requirements).
 
 > [!IMPORTANT]
 > Many EVs don't like getting too frequent changes to the available charge
