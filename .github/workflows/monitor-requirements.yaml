@@ -17,12 +17,3 @@ jobs:
         run: |
           cd ${{ github.workspace }}
           python3 scripts/check_requirements.py --current-ha-dev
-
-      # Consider adding auto-generated issues, need to make sure we don't create duplicates first
-      # - name: Create issue if incompatible
-      #   if: failure()  # only run if previous step exited 1
-      #   uses: peter-evans/create-issue-from-file@v5
-      #   with:
-      #     title: "Requirements incompatibility detected"
-      #     content-filepath: ./issue.md
-      #     labels: bug, compatibility
