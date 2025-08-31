@@ -53,7 +53,7 @@ jobs:
       - name: Checkout the repository
         uses: actions/checkout@v4
 
-      - name: Setup Python {{ "${{ env.DEFAULT_PYTHON }}" }}
+      - name: Setup Python
         uses: "actions/setup-python@v5"
         with:
           python-version: '3.13'
