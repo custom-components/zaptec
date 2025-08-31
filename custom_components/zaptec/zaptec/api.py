@@ -33,7 +33,6 @@ from .const import (
     MISSING,
     TOKEN_URL,
     TRUTHY,
-    ZCONST,
 )
 from .exceptions import (
     AuthenticationError,
@@ -46,7 +45,7 @@ from .exceptions import (
 from .misc import mc_nbfx_decoder, to_under
 from .redact import Redactor
 from .validate import validate
-from .zconst import CommandType
+from .zconst import ZCONST, CommandType
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -1166,7 +1165,7 @@ class Zaptec(Mapping[str, ZaptecBase]):
         _LOGGER.debug("Discover and build hierarchy")
 
         # Get the API constants
-        const = await self.request("constants")
+        const: dict = await self.request("constants")
         ZCONST.clear()
         ZCONST.update(const)
         ZCONST.update_ids_from_schema(None)

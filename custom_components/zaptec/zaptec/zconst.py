@@ -194,3 +194,7 @@ class ZConst(UserDict):
         # v != 0 is needed to avoid the 0 == 0 case leading to None always being included
         roles = {k for k, v in self.get("UserRoles", {}).items() if v != 0 and (v & val) == v}
         return ", ".join(roles)
+
+
+ZCONST = ZConst()
+"""Zaptec constants instance."""
