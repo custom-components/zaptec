@@ -30,6 +30,7 @@ from .const import (
     API_TIMEOUT,
     API_URL,
     CHARGER_EXCLUDES,
+    MAX_DEBUG_TEXT_LEN_ON_500,
     MISSING,
     TOKEN_URL,
     TRUTHY,
@@ -1149,8 +1150,8 @@ class Zaptec(Mapping[str, ZaptecBase]):
                         # There are additional details in the response that Zaptec
                         # provides on 500. Let's log it.
                         text = await response.text()
-                        if len(text) > 60:
-                            text = text[:60] + "..."
+                        if len(text) > MAX_DEBUG_TEXT_LEN_ON_500:
+                            text = text[:MAX_DEBUG_TEXT_LEN_ON_500] + "..."
                         _LOGGER.debug("     PAYLOAD %r", text)
                     if method.lower() == "get":
                         continue  # GET: Retry request

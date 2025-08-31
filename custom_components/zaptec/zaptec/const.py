@@ -39,6 +39,9 @@ API_RATELIMIT_PERIOD = 1
 API_RATELIMIT_MAX_REQUEST_RATE = 10
 """Maximum number of requests allowed per API rate limit period."""
 
+MAX_DEBUG_TEXT_LEN_ON_500 = 150
+"""Maximum text length to add to debug log without truncating."""
+
 TRUTHY = ["true", "1", "on", "yes", 1, True]
 FALSY = ["false", "0", "off", "no", 0, False]
 
