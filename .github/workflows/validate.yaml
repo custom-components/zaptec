@@ -48,7 +48,9 @@ jobs:
         uses: astral-sh/ruff-action@v3
         with:
           args: check --exit-zero # succeed despite errors until https://github.com/custom-components/zaptec/issues/258 is done
-          src: "custom_components/zaptec"
+          src: >-
+            custom_components/zaptec
+            tests
 
   manifest-requirements:
     name: Manifest requirements validation
@@ -75,3 +77,26 @@ jobs:
         run: |
           cd ${{ github.workspace }}
           python3 scripts/check_requirements.py --minimum-ha-version
+
+  tests:
+    name: Unit testing
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout the repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: "actions/setup-python@v5"
+        with:
+          python-version: '3.13'
+
+      - name: Install requirements
+        run: |
+          pip install \
+              -r requirements.txt \
+              -r requirements_test.txt
+
+      - name: Tests suite
+        run: |
+          pytest
+

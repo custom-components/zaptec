@@ -3,6 +3,12 @@
 target-version = "py313"
 line-length = 98
 
+[lint.per-file-ignores]
+"tests/**/*.py" = [
+    "S101",  # Allow assert in tests
+    "INP001",  # Don't complain over missing __init__.py in test dirs
+]
+
 [lint]
 select = [
     "ALL",
