@@ -2,14 +2,7 @@
 
 from __future__ import annotations
 
-
-class Missing:
-    """Singleton class representing a missing value."""
-
-
-MISSING = Missing()
-"""Singleton instance representing a missing value."""
-
+from .zconst import ZConst
 
 TOKEN_URL = "https://api.zaptec.com/oauth/token"  # noqa: S105
 API_URL = "https://api.zaptec.com/api/"
@@ -49,3 +42,15 @@ CHARGER_EXCLUDES = {
     "900",  # ProductionTestResults
     "980",  # MIDCalibration
 }
+
+
+class Missing:
+    """Singleton class representing a missing value."""
+
+
+MISSING = Missing()
+"""Singleton instance representing a missing value."""
+
+
+ZCONST = ZConst()
+"""Zaptec constants wrapper instance."""

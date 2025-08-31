@@ -5,6 +5,8 @@ from __future__ import annotations
 from pprint import pformat
 from typing import ClassVar, TypeVar, cast
 
+from .const import ZCONST
+
 T = TypeVar("T")
 
 
@@ -73,10 +75,9 @@ class Redactor:
         "ValueAsString",
     ]
 
-    def __init__(self, do_redact: bool, obs_ids: dict[str, str] | None = None) -> None:
+    def __init__(self, do_redact: bool) -> None:
         """Initialize redactor."""
         self.do_redact = do_redact
-        self.obs_ids = obs_ids or {}
         self.redacts = {}
         self.redact_info = {}
 
@@ -156,7 +157,7 @@ class Redactor:
             for key in self.OBS_KEYS:
                 if key not in obj:
                     continue
-                keyv = self.obs_ids.get(obj[key])
+                keyv = ZCONST.observations.get(obj[key])
                 if keyv is not None:
                     obj[key] = f"{obj[key]} ({keyv})"
                 if keyv not in self.REDACT_KEYS:

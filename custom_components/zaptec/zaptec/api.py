@@ -33,6 +33,7 @@ from .const import (
     MISSING,
     TOKEN_URL,
     TRUTHY,
+    ZCONST,
 )
 from .exceptions import (
     AuthenticationError,
@@ -45,7 +46,7 @@ from .exceptions import (
 from .misc import mc_nbfx_decoder, to_under
 from .redact import Redactor
 from .validate import validate
-from .zconst import CommandType, ZConst
+from .zconst import CommandType
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -53,9 +54,6 @@ _LOGGER = logging.getLogger(__name__)
 DEBUG_API_CALLS = True
 DEBUG_API_DATA = False
 DEBUG_API_EXCEPTIONS = False
-
-# Global var for the API constants from Zaptec
-ZCONST: ZConst = ZConst()
 
 # Type definitions
 TValue = str | int | float | bool
@@ -1174,7 +1172,6 @@ class Zaptec(Mapping[str, ZaptecBase]):
         ZCONST.update_ids_from_schema(None)
 
         # Update the redactor
-        self.redact.obs_ids = ZCONST.observations
         for objid, obj in self._map.items():
             self.redact.add(objid, replace_by=f"<--{obj.qual_id}-->")
         redact = self.redact

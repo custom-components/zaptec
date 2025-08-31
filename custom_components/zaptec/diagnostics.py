@@ -56,7 +56,7 @@ async def _get_diagnostics(
     zaptec: Zaptec = manager.zaptec
 
     # Helper to redact the output data
-    redact = Redactor(DO_REDACT, ZCONST.observations)
+    redact = Redactor(DO_REDACT)
 
     def add_failure(err: Exception) -> None:
         """Add a failure to the output."""
