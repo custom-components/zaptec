@@ -3,12 +3,6 @@
 target-version = "py313"
 line-length = 98
 
-[lint.per-file-ignores]
-"tests/**/*.py" = [
-    "S101",  # Allow assert in tests
-    "INP001",  # Don't complain over missing __init__.py in test dirs
-]
-
 [lint]
 select = [
     "ALL",
@@ -49,14 +43,29 @@ ignore = [
 
 [lint.flake8-pytest-style]
 fixture-parentheses = false
+mark-parentheses = false
 
 [lint.pyupgrade]
 keep-runtime-typing = true
-
-[lint.mccabe]
-max-complexity = 25
 
 [lint.isort]
 force-sort-within-sections = true
 combine-as-imports = true
 split-on-trailing-comma = false
+
+[lint.per-file-ignores]
+"tests/**/*.py" = [
+    "S101",  # Allow assert in tests
+    "INP001",  # Don't complain over missing __init__.py in test dirs
+]
+"scripts/*" = [
+    "D103",  # Don't complain over missing docstrings in scripts
+    "T201",  # Allow for scripts to write to stdout
+]
+
+[lint.mccabe]
+max-complexity = 25
+
+[lint.pydocstyle]
+convention = "google"
+property-decorators = ["propcache.api.cached_property"]
