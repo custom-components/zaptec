@@ -1,4 +1,4 @@
-"""Misc helper stuff."""
+"""Zaptec utilities."""
 
 from __future__ import annotations
 

@@ -1,8 +1,8 @@
-"""Tests for zaptec.misc.py."""
+"""Tests for zaptec/utils.py."""
 
 import pytest
 
-from custom_components.zaptec.zaptec.misc import (
+from custom_components.zaptec.zaptec.utils import (
     data_producer,
     get_ocmf_max_reader_value,
     mc_nbfx_decoder,
@@ -10,7 +10,7 @@ from custom_components.zaptec.zaptec.misc import (
 )
 
 
-def test_misc_data_producer() -> None:
+def test_utils_data_producer() -> None:
     """Test the data_producer function."""
     data = b"Hello, World!"
     producer = data_producer(data)
@@ -30,7 +30,7 @@ def test_misc_data_producer() -> None:
         producer.send(5)  # Data is exhausted
 
 
-def test_misc_get_ocmf_max_reader_value() -> None:
+def test_utils_get_ocmf_max_reader_value() -> None:
     """Test the get_ocmf_max_reader_value function."""
     data = {
         "RD": [
@@ -54,7 +54,7 @@ def test_misc_get_ocmf_max_reader_value() -> None:
     assert get_ocmf_max_reader_value(data_missing_rv) == 0.0
 
 
-def test_misc_mc_nbfx_decoder() -> None:
+def test_utils_mc_nbfx_decoder() -> None:
     """Test the mc_nbfx_decoder function."""
     # Example NBFX encoded message (hex)
     nbfx_message = bytes.fromhex(
@@ -70,7 +70,7 @@ def test_misc_mc_nbfx_decoder() -> None:
     assert result == expected_output
 
 
-def test_misc_mc_nbfx_decoder_example1() -> None:
+def test_utils_mc_nbfx_decoder_example1() -> None:
     """Test the mc_nbfx_decoder function with a real-world example."""
     nbfx_message = (
         b"@\x06string\x083http://schemas.microsoft.com/2003/10/Serialization/"
@@ -95,7 +95,7 @@ def test_misc_mc_nbfx_decoder_example1() -> None:
     assert result == expected_output, f"Expected {expected_output}, got {result}"
 
 
-def test_misc_mc_nbfx_decoder_example2() -> None:
+def test_utils_mc_nbfx_decoder_example2() -> None:
     """Test the mc_nbfx_decoder function with another real-world example."""
     nbfx_message = (
         b"@\x06string\x083http://schemas.microsoft.com/2003/10/Serialization/"
@@ -130,7 +130,7 @@ def test_misc_mc_nbfx_decoder_example2() -> None:
     assert result == expected_output, f"Expected {expected_output}, got {result}"
 
 
-def test_misc_to_under() -> None:
+def test_utils_to_under() -> None:
     """Test the to_under function."""
     assert to_under("HelloWorld") == "hello_world"
     assert to_under("helloWorld") == "hello_world"

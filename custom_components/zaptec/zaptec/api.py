@@ -43,8 +43,8 @@ from .exceptions import (
     RequestRetryError,
     RequestTimeoutError,
 )
-from .misc import mc_nbfx_decoder, to_under
 from .redact import Redactor
+from .utils import mc_nbfx_decoder, to_under
 from .validate import validate
 from .zconst import ZCONST, CommandType
 
