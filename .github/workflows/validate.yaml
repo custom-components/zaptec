@@ -45,3 +45,23 @@ jobs:
         with:
           args: check --exit-zero # succeed despite errors until https://github.com/custom-components/zaptec/issues/258 is done
           src: "."
+
+  tests:
+    name: Unit testing
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout the repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: "actions/setup-python@v5"
+
+      - name: Install requirements
+        run: |
+          pip install \
+              -r requirements.txt \
+              -r requirements_test.txt
+
+      - name: Tests suite
+        run: |
+          pytest
