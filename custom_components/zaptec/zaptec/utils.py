@@ -1,7 +1,8 @@
-"""Misc helper stuff."""
+"""Zaptec utilities."""
 
 from __future__ import annotations
 
+from collections.abc import Generator
 import re
 
 # Precompile the patterns for performance
@@ -10,7 +11,7 @@ RE_TO_UNDER2 = re.compile(r"([a-z\d])([A-Z])")
 
 
 def to_under(word: str) -> str:
-    """Helper to convert TurnOnThisButton to turn_on_this_button."""
+    """Convert TurnOnThisButton to turn_on_this_button."""
     # Ripped from inflection
     word = RE_TO_UNDER1.sub(r"\1_\2", word)
     word = RE_TO_UNDER2.sub(r"\1_\2", word)
@@ -18,38 +19,49 @@ def to_under(word: str) -> str:
     return word.lower()
 
 
-def mc_nbfx_decoder(msg: bytes) -> None:
-    """Decoder of .NET Binary Format XML Data structures."""
+# This Generator[] cannot be shortened to the new 3.13 style, since it use
+# values from send(). Ignoring UP043
+def data_producer(data: bytes) -> Generator[bytes, int, None]:  # noqa: UP043
+    """Generate data segments from input bytes.
+
+    Use successive send(size) to get the next block of 'size' bytes.
+    """
+    size = 0
+    first = True  # Make sure the first next() goes through even with empty data
+    while first or data:
+        first = False
+        block = data[:size]
+        data = data[size:]
+        # Send the block of data of size bytes
+        size = yield block
+
+
+# NBFX Record Types
+END_ELEMENT = 0x01
+SHORT_XMLNS_ATTRIBUTE = 0x08
+SHORT_ELEMENT = 0x40
+CHARS8TEXT = 0x98
+CHARS16TEXT = 0x9A
+
+
+def mc_nbfx_decoder(msg: bytes) -> list[dict[str, str]]:
+    """Decode .NET Binary Format XML Data structures."""
 
     # https://learn.microsoft.com/en-us/openspecs/windows_protocols/mc-nbfx
-
-    def data_producer(data: bytes):
-        """Generator of data."""
-        count = 0
-        while data:
-            block = data[:count]
-            data = data[count:]
-            count = yield block
 
     prod = data_producer(msg)
     next(prod)
 
-    END_ELEMENT = 0x01
-    SHORT_XMLNS_ATTRIBUTE = 0x08
-    SHORT_ELEMENT = 0x40
-    CHARS8TEXT = 0x98
-    CHARS16TEXT = 0x9A
-
-    def read_string(bits16=False):
+    def read_string(record_type: int) -> str:
         """Read a string."""
-        if bits16:
+        if record_type == CHARS16TEXT:
             b = prod.send(2)
             length = b[0] + (b[1] << 8)
         else:
             length = prod.send(1)[0]
         return prod.send(length).decode("utf-8")
 
-    def frame_decoder():
+    def frame_decoder() -> Generator[tuple[int, str | None]]:
         """Decode the stream."""
         while True:
             try:
@@ -63,7 +75,7 @@ def mc_nbfx_decoder(msg: bytes) -> None:
                 CHARS8TEXT,
                 CHARS16TEXT,
             ):
-                yield record_type, read_string(bits16=(record_type == CHARS16TEXT))
+                yield record_type, read_string(record_type)
             elif record_type == END_ELEMENT:
                 yield record_type, None
             else:
@@ -101,14 +113,7 @@ def get_ocmf_max_reader_value(data: dict) -> float:
 
     if not isinstance(data, dict):
         return 0.0
-    return max(float(reading.get("RV", 0.0)) for reading in data.get("RD", []))
-
-
-if __name__ == "__main__":
-    from pprint import pprint
-
-    data = b'@\x06string\x083http://schemas.microsoft.com/2003/10/Serialization/\x98\xa5{"DeviceId":"ZAP000000","DeviceType":4,"ChargerId":"xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx","StateId":523,"Timestamp":"2023-07-28T09:07:19.23","ValueAsString":"0.000"}\x01'
-    data = b'@\x06string\x083http://schemas.microsoft.com/2003/10/Serialization/\x9a\x87\x01{"DeviceId":"ZAP000000","DeviceType":4,"ChargerId":"xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx","StateId":554,"Timestamp":"2023-08-03T00:00:00.0617Z","ValueAsString":"OCMF|{\\"FV\\":\\"1.0\\",\\"GI\\":\\"ZAPTEC GO\\",\\"GS\\":\\"ZAP000000\\",\\"GV\\":\\"2.1.0.4\\",\\"PG\\":\\"F1\\",\\"RD\\":[{\\"TM\\":\\"2023-08-03T00:00:00,000+00:00 R\\",\\"RV\\":179.715,\\"RI\\":\\"1-0:1.8.0\\",\\"RU\\":\\"kWh\\",\\"RT\\":\\"AC\\",\\"ST\\":\\"G\\"}]}"}\x01'
-
-    out = mc_nbfx_decoder(data)
-    pprint(out)
+    rds = data.get("RD", [])
+    if not rds:
+        return 0.0
+    return max(float(reading.get("RV", 0.0)) for reading in rds)

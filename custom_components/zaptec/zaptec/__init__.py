@@ -12,8 +12,8 @@ from .exceptions import (
     RequestTimeoutError,
     ZaptecApiError,
 )
-from .misc import get_ocmf_max_reader_value
 from .redact import Redactor
+from .utils import get_ocmf_max_reader_value
 from .zconst import ZCONST
 
 __all__ = [
