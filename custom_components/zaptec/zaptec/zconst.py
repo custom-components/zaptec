@@ -54,7 +54,7 @@ class ZConst(UserDict):
         "Zaptec Pro": {"ZCS", "ZPR", "ZCH", "ZPG"},
         "Zaptec Go": {"ZAP", "ZGB", "ZAG"},
         "Zaptec Go2": {"GPN", "GPG"},
-        "Zaptec Sense:": {"APH", "APG", "APM"},
+        "Zaptec Sense": {"APH", "APG", "APM"},
     }
     """Mapping of charger models to device serial number prefixes."""
 
