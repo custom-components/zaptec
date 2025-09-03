@@ -8,12 +8,12 @@ from custom_components.zaptec.zaptec.api import Zaptec
 from custom_components.zaptec.zaptec.zconst import ZCONST
 
 
-@pytest.fixture
+@pytest.fixture(scope="module")  # Only runs once
 def zaptec_constants() -> dict:
     """Get latest constants from Zaptec API."""
 
     async def get_zaptec_constants() -> dict:
-        async with Zaptec("username", "password") as zaptec:
+        async with Zaptec("N/A", "N/A") as zaptec:
             # the constants API endpoint does not require login
             const: dict = await zaptec.request("constants")
             return const
@@ -21,7 +21,14 @@ def zaptec_constants() -> dict:
     return asyncio.run(get_zaptec_constants())
 
 
-@pytest.mark.dependency
+@pytest.fixture(autouse=True)  # runs for every test
+def init_zconst(zaptec_constants: dict) -> None:
+    """Initialize the ZCONST instance."""
+    ZCONST.clear()
+    ZCONST.update(zaptec_constants)
+    ZCONST.update_ids_from_schema(None)
+
+
 def test_init_zconst(zaptec_constants: dict) -> None:
     """Test the initialization of the ZCONST instance."""
     ZCONST.clear()
@@ -29,7 +36,6 @@ def test_init_zconst(zaptec_constants: dict) -> None:
     ZCONST.update_ids_from_schema(None)
 
 
-@pytest.mark.dependency(depends=["test_init_zconst"])
 def test_charger_operation_modes() -> None:
     """Test the contents of charger_operation_modes_list."""
     assert "Unknown" in ZCONST.charger_operation_modes_list
@@ -45,7 +51,6 @@ def test_charger_operation_modes() -> None:
     assert ZCONST.type_charger_operation_mode(5) == "Connected_Finished"
 
 
-@pytest.mark.dependency(depends=["test_init_zconst"])
 def test_device_types() -> None:
     """Test the contents of device_types_list."""
     assert "Unknown" in ZCONST.device_types_list
@@ -61,7 +66,6 @@ def test_device_types() -> None:
     assert ZCONST.type_device_type(4) == "Apollo"
 
 
-@pytest.mark.dependency(depends=["test_init_zconst"])
 def test_user_roles() -> None:
     """Test the user roles conversion."""
     assert ZCONST.type_user_roles(0) == "None"
@@ -76,7 +80,6 @@ def test_user_roles() -> None:
     assert "Maintainer" in user_role_5
 
 
-@pytest.mark.dependency(depends=["test_init_zconst"])
 def test_authentication_types() -> None:
     """Test the authentication types."""
     assert "Ocpp" in ZCONST.installation_authentication_type_list
@@ -87,7 +90,6 @@ def test_authentication_types() -> None:
     assert ZCONST.type_authentication_type(2) == "Ocpp"
 
 
-@pytest.mark.dependency(depends=["test_init_zconst"])
 def test_serial_to_model() -> None:
     """Test the serial to model conversion."""
     assert ZCONST.serial_to_model.get("ZAP000042"[0:3]) == "Zaptec Go"
@@ -96,7 +98,6 @@ def test_serial_to_model() -> None:
     assert ZCONST.serial_to_model.get("APM306090"[0:3]) == "Zaptec Sense"
 
 
-@pytest.mark.dependency(depends=["test_init_zconst"])
 def test_network_types() -> None:
     """Test the network types."""
     assert "IT_1_Phase" in ZCONST.network_types_list
@@ -110,7 +111,6 @@ def test_network_types() -> None:
     assert ZCONST.type_network_type(4) == "TN_3_Phase"
 
 
-@pytest.mark.dependency(depends=["test_init_zconst"])
 def test_installation_types() -> None:
     """Test the installation types."""
     assert "Pro" in ZCONST.installation_types_list
@@ -120,7 +120,6 @@ def test_installation_types() -> None:
     assert ZCONST.type_installation_type(1) == "Smart"
 
 
-@pytest.mark.dependency(depends=["test_init_zconst"])
 def test_completed_session() -> None:
     """Test the completed_session conversion."""
     completed_session = (
@@ -174,7 +173,6 @@ def test_completed_session() -> None:
     assert ZCONST.type_completed_session(completed_session) == expected_completed_session_dict
 
 
-@pytest.mark.dependency(depends=["test_init_zconst"])
 def test_update_ids_from_schema() -> None:
     """Test update_ids_from_schema."""
     ZCONST.update_ids_from_schema(set("Apollo"))

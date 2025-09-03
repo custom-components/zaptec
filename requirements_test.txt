@@ -2,4 +2,3 @@ pytest
 pytest-asyncio
 pytest-mock
 pytest-cov
-pytest-dependency
