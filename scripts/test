@@ -3,7 +3,7 @@
 set -e
 
 # run tests with -s to display printouts
-pytest -s --cov=./custom_components/zaptec
+pytest -s --cov=./custom_components/zaptec --cov-branch
 
 # generate coverage report in html and xml
 coverage html
