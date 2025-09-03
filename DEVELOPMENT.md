@@ -137,6 +137,20 @@ To run Home Assistant, the task is simple:
 The Zaptec integration is running in debug mode, so the log output will
 contain a lot of info.
 
+## Running tests
+
+To run tests and check test coverage:
+
+1. Run `./scripts/test` to generate the test- and coverage-reports
+
+2. Either open `htmlcov/index.html` in a browser to view the html coverage
+   report, or enable the "Coverage Gutters" extension to view the coverage
+   directly in VSCode.
+
+HA requires [95% coverage](https://developers.home-assistant.io/docs/core/integration-quality-scale/rules/test-coverage/)
+for all core integration modules, and while HACS doesn't have the same
+requirements, reaching this level is still a goal for this integration.
+
 # Zaptec model and behaviors
 
 This section describes various behaviors of the Zaptec API that might have an
