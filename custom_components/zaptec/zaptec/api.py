@@ -237,6 +237,13 @@ class Installation(ZaptecBase):
         # Get the hierarchy of circurits and chargers
         try:
             hierarchy = await self.zaptec.request(f"installation/{self.id}/hierarchy")
+            if not hierarchy:
+                _LOGGER.warning(
+                    ("No hierarchy returned for installation %s. The user might not have access"),
+                    self.qual_id,
+                )
+                self.chargers = []
+                return
         except RequestError as err:
             if err.error_code == HTTPStatus.FORBIDDEN:
                 _LOGGER.warning(
