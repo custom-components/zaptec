@@ -238,6 +238,8 @@ class Installation(ZaptecBase):
         try:
             hierarchy = await self.zaptec.request(f"installation/{self.id}/hierarchy")
             if not hierarchy:
+                # 2025-09-19: It appears Zaptec started returning HTTPStatus.NO_CONTENT instead of
+                # HTTPStatus.FORBIDDEN when user doesn't have access.
                 _LOGGER.warning(
                     ("No hierarchy returned for installation %s. The user might not have access"),
                     self.qual_id,
