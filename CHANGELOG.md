@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.8.3b1
+
+* Fix TypeError-crash for users without access to Hierarchy-endpoint (#321)
+* Add unit tests for zconst and print test coverage in gh-action by (#318)
+* Cleanup misc - rename to utils, add typing and tests (#317)
+* Readd ruff check for scripts, but allow print and missing docstring (#316)
+* Adding pytest to project (#313)
+* Move ZCONST into zconst to make it importable (#314)
+* Add validation and monitoring of requirement compatibility with HA (#307)
+* Update readme with new APM requirement and extend text limit on 500error (#312)
+* Norwegian Translation by (#295)
+* Move Zaptec API functionality to separate zaptec/ directory. (#308)
+* Add release.yml workflow (#304)
+* Move classes into separate files to be compliant with HA guidelines (#303)
+* Fix more simple ruff errors, mostly typing (#299)
+* Migrate fully to pydantic 2 (#268)
+* Disable ruff errors that HA core is also ignoring (#298)
+* Run ruff ci but ignore errors (#296)
+
 ## 0.8.2
 
 * Add breaking changes warning about blueprint (#288)
