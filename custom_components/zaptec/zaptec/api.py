@@ -318,8 +318,8 @@ class Installation(ZaptecBase):
                 if charger is None:
                     continue
                 if fm.get("CurrentVersion") is None:
-                    # If the charger is already added to the Zaptec platform but not yet 
-                    # initialized, these fields are not available. 
+                    # If the charger is already added to the Zaptec platform but not yet
+                    # initialized, these fields are not available.
                     _LOGGER.warning("Missing firmware info for charger %s", charger.qual_id)
                     continue
 
