@@ -27,6 +27,14 @@ Confirmed to work with Zaptec products
 * Zaptec Home
 * Zaptec PRO
 
+> [!IMPORTANT]
+> The testing of this integration is limited by the developers only being able
+> to test on their own personal chargers, so your feedback is valuable.
+> If you encounter any problems, please report them at
+> https://github.com/custom-components/zaptec/issues
+> We are grateful for all contributions, ranging from documentation, examples
+> of how to use, testing, to [code development](DEVELOPMENT.md).
+
 # Requirements
 
 * Home Assistant 2025.7 or newer.
@@ -35,59 +43,7 @@ Confirmed to work with Zaptec products
   * A Zaptec Portal user with _Owner_ or _Service_ privileges.
   * Disable [Zaptec Sense](https://help.zaptec.com/hc/en-001/articles/11155142597137-How-to-manage-Zaptec-Sense-in-the-Zaptec-Portal) (aka APM/Automatic Power Management).
 
-# ⭐ Version 0.8.*
-
-> [!IMPORTANT]
-> The release has not undergone extensive testing, so your feedback is valuable.
-> If you encounter any problems, please report them at
-> https://github.com/custom-components/zaptec/issues
-> We are grateful for all contributions, ranging from documentation, examples
-> of how to use, testing, to code development.
-
-The  [v0.8.0](https://github.com/custom-components/zaptec/releases/tag/v0.8.0)
-is a major release with a lot of changes. The integration has been completely
-redesigned and may impact your existing automations.
-
-The main goal of this release has been to adopt the
-[Zaptec API Fair Use policy](https://docs.zaptec.com/docs/api-fair-use-policy#/).
-The mechanism for synchronizing HA entities with the Zaptec portal has been made
-more robust. It reduces the number of requests to Zaptec and fixes the issues
-of getting "429 Too many requests" -- especially on larger installations.
-
-## ✨ Feature highlight
-
-* New system for polling and updating information in HA (see #202)
-  * Chargers are polled every 10 minutes in idle, while every minute when charging
-  * General device information is polled every hour
-  * Firmware version updates are polled once per day
-* Implemented request rate limiter to avoid "429 Too many requests"
-* Automatic polling from Zaptec after any button or value changes from HA
-  to update the UI more quickly
-* Change charger settings to use the official settings API
-* Prevent sending pause/resume when not in the correct charging mode
-* Support for reconfiguring the integration and integration reload now works
-* Many internal changes and cleanups to classes and methods, including better
-  logging
-* Add support for 3 to 1-phase switching (PRO and Go 2 changers only)
-
-The full list of changes is available in [CHANGELOG.md](CHANGELOG.md#080)
-
-## ⚠️ Breaking changes
-
-* `charger_mode` has changed values. E.g. from _"Charging"_ to
-  _"connected_charging"_ due to using the lower-case native Zaptec values. Your
-  automation might need an update. This also affects the
-  [Load Balancing blueprint](#load-balancing-your-charger).
-* `permanent_cable_lock` has changed from _"lock"_ type to _"switch"_ type.
-* There is no longer support for configuring Zaptec by YAML, only using the UI
-* The user setting poll/scan interval has been removed, in favor of the
-  improved polling system
-* The _"Circuit"_ device and entity, notably _"Max Current"_, have been removed
-* Service/action calls to named commands, such as _"resume_charging"_ are now
-  deprecated in favor of the button entities. They will be removed in a later
-  release.
-
-## ℹ️ Known issues
+# Known issues
 
 * Sending a _"deauthorize_and_stop"_ command will give an error. This is due to
   Zaptec sending back error code `500` (internal server error). However, the
@@ -427,6 +383,16 @@ set up the Dev Container.
 
 ## Changes from 0.7.x to 0.8.x
 
+The [v0.8.1](https://github.com/custom-components/zaptec/releases/tag/v0.8.1)-release
+is a major release with a lot of changes. The integration has been completely
+redesigned and may impact your existing automations.
+
+The main goal of this release has been to adopt the
+[Zaptec API Fair Use policy](https://docs.zaptec.com/docs/api-fair-use-policy#/).
+The mechanism for synchronizing HA entities with the Zaptec portal has been made
+more robust. It reduces the number of requests to Zaptec and fixes the issues
+of getting "429 Too many requests" -- especially on larger installations.
+
 The Circuit device type has been removed since it was not really used in HA. The
 information in the old Circuit device is now included with the full data of the
 charger in the attributes of the `<name> Charger` diagnostics sensor. If you rely on
@@ -446,10 +412,10 @@ updated. The English mapping of the changed values is
 - disconnected:         Disconnected
 - unknown:              Unknown
 
-The changes to the Charger mode will also cause the
+The changes to the Charger mode will also cause the old
 [Load Balancing blueprint](#load-balancing-your-charger) compatible with 0.7.x
-to stop working. There is an [open PR](https://github.com/svenakela/ha/pull/10)
-for a 0.8.x-compatible version. If you use this blueprint, or a variant of it,
+to stop working. 0.8.x-compatibility was added to the blueprint in [this commit](https://github.com/svenakela/ha/commit/0807441486c512a08c08a44c5ea18b144a1f6fca).
+If you use this blueprint, or a variant of it,
 you will need to update your blueprint/automation accordingly.
 
 
