@@ -96,5 +96,5 @@ jobs:
 
       - name: Tests suite
         run: |
-          pytest --cov=./custom_components/zaptec
+          pytest --cov=./custom_components/zaptec --cov-branch
 
