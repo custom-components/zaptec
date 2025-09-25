@@ -1,6 +1,5 @@
 """Tests for diagnostics.py."""
 
-import asyncio
 from dataclasses import dataclass
 import logging
 import os
@@ -22,7 +21,8 @@ _LOGGER = logging.getLogger(__name__)
 
 @pytest.mark.skipif(IN_GITHUB_ACTIONS, reason="Test doesn't work in Github Actions.")
 @pytest.mark.skipif(SKIP_API_TEST, reason="User disabled the tests requiring API login.")
-def test_diagnostics() -> None:
+@pytest.mark.asyncio
+async def test_diagnostics() -> None:
     """
     Test the Zaptec Integration diagnostics.
 
@@ -44,36 +44,33 @@ def test_diagnostics() -> None:
     logging.basicConfig(level=logging.DEBUG)
     logging.getLogger("azure").setLevel(logging.WARNING)
 
-    async def gogo() -> None:
-        async with (
-            aiohttp.ClientSession(connector=aiohttp.TCPConnector(ssl=False)) as session,
-            Zaptec(username, password, client=session) as zaptec,
-        ):
-            await zaptec.build()
+    async with (
+        aiohttp.ClientSession(connector=aiohttp.TCPConnector(ssl=False)) as session,
+        Zaptec(username, password, client=session) as zaptec,
+    ):
+        await zaptec.build()
 
-            #
-            # Mocking to pretend to be a hass instance
-            # NOTE: This fails on getting entity lists in the output, but that's
-            # ok for this test.
-            #
-            @dataclass
-            class FakeZaptecManager:
-                zaptec: Zaptec
+        #
+        # Mocking to pretend to be a hass instance
+        # NOTE: This fails on getting entity lists in the output, but that's
+        # ok for this test.
+        #
+        @dataclass
+        class FakeZaptecManager:
+            zaptec: Zaptec
 
-            @dataclass
-            class FakeConfig:
-                runtime_data: FakeZaptecManager
+        @dataclass
+        class FakeConfig:
+            runtime_data: FakeZaptecManager
 
-            manager = FakeZaptecManager(
-                zaptec=zaptec,
-            )
-            config = FakeConfig(
-                runtime_data=manager,
-            )
-            hass = None
+        manager = FakeZaptecManager(
+            zaptec=zaptec,
+        )
+        config = FakeConfig(
+            runtime_data=manager,
+        )
+        hass = None
 
-            # Get the diagnostics info
-            out = await _get_diagnostics(hass, config)
-            _LOGGER.info(out)
-
-    asyncio.run(gogo())
+        # Get the diagnostics info
+        out = await _get_diagnostics(hass, config)
+        _LOGGER.info(out)

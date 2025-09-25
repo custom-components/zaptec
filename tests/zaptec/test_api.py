@@ -1,6 +1,5 @@
 """Tests for zaptec/api.py."""
 
-import asyncio
 import logging
 import os
 
@@ -19,7 +18,8 @@ _LOGGER = logging.getLogger(__name__)
 
 @pytest.mark.skipif(IN_GITHUB_ACTIONS, reason="Test doesn't work in Github Actions.")
 @pytest.mark.skipif(SKIP_API_TEST, reason="User disabled the tests requiring API login.")
-def test_api() -> None:
+@pytest.mark.asyncio
+async def test_api() -> None:
     """
     Test the Zaptec API.
 
@@ -41,19 +41,16 @@ def test_api() -> None:
     logging.basicConfig(level=logging.DEBUG)
     logging.getLogger("azure").setLevel(logging.WARNING)
 
-    async def gogo() -> None:
-        async with Zaptec(username, password) as zaptec:
-            # Builds the interface.
-            await zaptec.login()
-            await zaptec.build()
-            await zaptec.poll(info=True, state=True, firmware=True)
+    async with Zaptec(username, password) as zaptec:
+        # Builds the interface.
+        await zaptec.login()
+        await zaptec.build()
+        await zaptec.poll(info=True, state=True, firmware=True)
 
-            # Dump redaction database
-            _LOGGER.info("Redaction database:")
-            _LOGGER.info(zaptec.redact.dumps())
+        # Dump redaction database
+        _LOGGER.info("Redaction database:")
+        _LOGGER.info(zaptec.redact.dumps())
 
-            # Print all the attributes.
-            for obj in zaptec.objects():
-                _LOGGER.info(obj.asdict())
-
-    asyncio.run(gogo())
+        # Print all the attributes.
+        for obj in zaptec.objects():
+            _LOGGER.info(obj.asdict())
