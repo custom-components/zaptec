@@ -30,8 +30,9 @@ Confirmed to work with Zaptec products
 > [!IMPORTANT]
 > The testing of this integration is limited by the developers only being able
 > to test on their own personal chargers, so your feedback is valuable.
-> If you encounter any problems, please report them at
-> https://github.com/custom-components/zaptec/issues
+> If you encounter any problems, please check [here](https://github.com/custom-components/zaptec/issues)
+> for any similar issues (either open or recently closed), and [create a new issue](https://github.com/custom-components/zaptec/issues/new)
+> if you didn't find any relevant existing issues.
 > We are grateful for all contributions, ranging from documentation, examples
 > of how to use, testing, to [code development](DEVELOPMENT.md).
 
