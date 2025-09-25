@@ -6,10 +6,8 @@ import logging
 import traceback
 from typing import Any
 
-# to Support running this as a script.
-if __name__ != "__main__":
-    from homeassistant.core import HomeAssistant
-    from homeassistant.helpers import device_registry as dr, entity_registry as er
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers import device_registry as dr, entity_registry as er
 
 from .manager import ZaptecConfigEntry, ZaptecManager
 from .zaptec import Redactor, Zaptec, ZaptecBase
@@ -18,7 +16,6 @@ _LOGGER = logging.getLogger(__name__)
 
 # If this is true, the output data will be redacted.
 DO_REDACT = True
-
 
 # If this is set to True, the redacted data will be included in the output.
 # USE WITH CAUTION! This will include sensitive data in the output.
@@ -201,51 +198,3 @@ async def _get_diagnostics(
         add_failure(err)
 
     return out
-
-
-if __name__ == "__main__":
-    # Just to execute the script manually. Must be run using
-    # python -m custom_components.zaptec.diagnostics
-    import asyncio
-    from dataclasses import dataclass
-    import os
-    from pprint import pprint
-
-    import aiohttp
-
-    async def gogo():
-        username = os.environ.get("zaptec_username")
-        password = os.environ.get("zaptec_password")
-
-        async with (
-            aiohttp.ClientSession(connector=aiohttp.TCPConnector(ssl=False)) as session,
-            Zaptec(username, password, client=session) as zaptec,
-        ):
-            await zaptec.build()
-
-            #
-            # Mocking to pretend to be a hass instance
-            # NOTE: This fails on getting entity lists in the output, but that's
-            # ok for this test.
-            #
-            @dataclass
-            class FakeConfig:
-                runtime_data: FakeZaptecManager
-
-            @dataclass
-            class FakeZaptecManager:
-                zaptec: Zaptec
-
-            manager = FakeZaptecManager(
-                zaptec=zaptec,
-            )
-            config = FakeConfig(
-                runtime_data=manager,
-            )
-            hass = None
-
-            # Get the diagnostics info
-            out = await _get_diagnostics(hass, config)
-            pprint(out)
-
-    asyncio.run(gogo())
