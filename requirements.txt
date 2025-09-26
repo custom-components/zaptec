@@ -1,10 +1,10 @@
 colorlog==6.9.0
-homeassistant==2025.8.3
+homeassistant==2025.9.4
 pip>=25.0
-ruff==0.12.10
+ruff==0.13.1
 
 # Copy from manifest.json to get this into the dev container
 # without needing to start HA
 azure-servicebus==7.14.2
-pydantic==2.11.7
+pydantic==2.11.9
 aiolimiter==1.2.1

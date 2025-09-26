@@ -2,8 +2,11 @@
 
 set -e
 
-# run tests with -s to display printouts
-pytest -s --cov=./custom_components/zaptec --cov-branch
+if [ "$1" == "--skip-api" ]; then
+    export SKIP_ZAPTEC_API_TEST="true"
+fi
+# run tests with -s to display printouts and --log-cli-level to get logger output
+pytest --cov=./custom_components/zaptec --cov-branch --log-cli-level=INFO -s
 
 # generate coverage report in html and xml
 coverage html
