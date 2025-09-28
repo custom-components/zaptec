@@ -1290,32 +1290,3 @@ class Zaptec(Mapping[str, ZaptecBase]):
                 await obj.poll_state()
             if firmware and isinstance(obj, Installation):
                 await obj.poll_firmware_info()
-
-
-if __name__ == "__main__":
-    # Just to execute the script manually with "python -m custom_components.zaptec.api"
-    import os
-    from pprint import pprint
-
-    logging.basicConfig(level=logging.DEBUG)
-    logging.getLogger("azure").setLevel(logging.WARNING)
-
-    async def gogo():
-        username = os.environ.get("zaptec_username")
-        password = os.environ.get("zaptec_password")
-
-        async with Zaptec(username, password) as zaptec:
-            # Builds the interface.
-            await zaptec.login()
-            await zaptec.build()
-            await zaptec.poll(info=True, state=True, firmware=True)
-
-            # Dump redaction database
-            print("Redaction database:")
-            print(zaptec.redact.dumps())
-
-            # Print all the attributes.
-            for obj in zaptec.objects():
-                pprint(obj.asdict())
-
-    asyncio.run(gogo())
