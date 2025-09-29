@@ -53,6 +53,12 @@ Confirmed to work with Zaptec products
   [here](https://www.home-assistant.io/common-tasks/general/#defining-a-custom-polling-interval),
   will have unexpected effects. If the automatic polling is turned off, not all
   the data in the integration will update properly.
+* Using the _Energy Meter_ entity as an input to the Energy Dashboard will give values that are delayed by 1 hour
+  in the graphs (see [issue 162](https://github.com/custom-components/zaptec/issues/162) for details).
+  There is a plan to solve this in [issue 300](https://github.com/custom-components/zaptec/issues/300), but until that is implemented,
+  a workaround is to use the more frequently updated _Session total charge_ entity instead. This reduces the delay-issue,
+  but has a separate drawback where a restart of Home Assistant during a charging session can give a fake spike in the logged
+  consumption that needs to be manually edited using "Adjust sum" in the Statistics tab of the Developer tools dashboard.
 
 
 # Installation and setup
