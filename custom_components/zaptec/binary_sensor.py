@@ -12,11 +12,10 @@ from homeassistant.components.binary_sensor import (
     BinarySensorEntityDescription,
 )
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.helpers.entity import EntityDescription
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .entity import ZaptecBaseEntity
-from .manager import ZaptecConfigEntry
+from .manager import ZaptecConfigEntry, ZaptecEntityDescription
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -44,13 +43,13 @@ class ZaptecBinarySensorWithAttrs(ZaptecBinarySensor):
 
 
 @dataclass(frozen=True, kw_only=True)
-class ZapBinarySensorEntityDescription(BinarySensorEntityDescription):
+class ZapBinarySensorEntityDescription(ZaptecEntityDescription, BinarySensorEntityDescription):
     """Class describing Zaptec binary sensor entities."""
 
     cls: type[BinarySensorEntity]
 
 
-INSTALLATION_ENTITIES: list[EntityDescription] = [
+INSTALLATION_ENTITIES: list[ZaptecEntityDescription] = [
     ZapBinarySensorEntityDescription(
         key="active",
         name="Installation",  # Special case, no translation
@@ -72,7 +71,7 @@ INSTALLATION_ENTITIES: list[EntityDescription] = [
     ),
 ]
 
-CHARGER_ENTITIES: list[EntityDescription] = [
+CHARGER_ENTITIES: list[ZaptecEntityDescription] = [
     ZapBinarySensorEntityDescription(
         key="active",
         name="Charger",  # Special case, no translation

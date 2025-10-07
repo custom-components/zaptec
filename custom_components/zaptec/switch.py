@@ -14,11 +14,10 @@ from homeassistant.components.switch import (
 from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
-from homeassistant.helpers.entity import EntityDescription
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .entity import ZaptecBaseEntity
-from .manager import ZaptecConfigEntry
+from .manager import ZaptecConfigEntry, ZaptecEntityDescription
 from .zaptec import Charger
 
 _LOGGER = logging.getLogger(__name__)
@@ -126,15 +125,15 @@ class ZaptecCableLockSwitch(ZaptecSwitch):
 
 
 @dataclass(frozen=True, kw_only=True)
-class ZapSwitchEntityDescription(SwitchEntityDescription):
+class ZapSwitchEntityDescription(ZaptecEntityDescription, SwitchEntityDescription):
     """Class describing Zaptec switch entities."""
 
     cls: type[SwitchEntity]
 
 
-INSTALLATION_ENTITIES: list[EntityDescription] = []
+INSTALLATION_ENTITIES: list[ZaptecEntityDescription] = []
 
-CHARGER_ENTITIES: list[EntityDescription] = [
+CHARGER_ENTITIES: list[ZaptecEntityDescription] = [
     ZapSwitchEntityDescription(
         key="charger_operation_mode",
         translation_key="charger_operation_mode",

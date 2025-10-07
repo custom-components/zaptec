@@ -14,11 +14,10 @@ from homeassistant.components.sensor import (
     SensorStateClass,
 )
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.helpers.entity import EntityDescription
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .entity import ZaptecBaseEntity
-from .manager import ZaptecConfigEntry
+from .manager import ZaptecConfigEntry, ZaptecEntityDescription
 from .zaptec import ZCONST, get_ocmf_max_reader_value
 
 _LOGGER = logging.getLogger(__name__)
@@ -131,13 +130,13 @@ class ZaptecEnengySensor(ZaptecSensor):
 
 
 @dataclass(frozen=True, kw_only=True)
-class ZapSensorEntityDescription(SensorEntityDescription):
+class ZapSensorEntityDescription(ZaptecEntityDescription, SensorEntityDescription):
     """Provide a description of a Zaptec sensor."""
 
     cls: type[SensorEntity]
 
 
-INSTALLATION_ENTITIES: list[EntityDescription] = [
+INSTALLATION_ENTITIES: list[ZaptecEntityDescription] = [
     ZapSensorEntityDescription(
         key="available_current_phase1",
         translation_key="available_current_phase1",
@@ -207,7 +206,7 @@ INSTALLATION_ENTITIES: list[EntityDescription] = [
     ),
 ]
 
-CHARGER_ENTITIES: list[EntityDescription] = [
+CHARGER_ENTITIES: list[ZaptecEntityDescription] = [
     ZapSensorEntityDescription(
         key="charger_operation_mode",
         translation_key="charger_operation_mode",
