@@ -13,7 +13,10 @@ select = [
 # rule list. If they use excepmt for a rule, we should use it too.
 #   https://github.com/home-assistant/core/blob/dev/pyproject.toml#L652
 ignore = [
+    "ARG001", # unused-argument - generic callbacks and setup methods create a lot of warnings (from tool.pylint."MESSAGES CONTROL")
+    "ARG002", # Same as above
     "ANN401", # Dynamically typed expressions (typing.Any) are disallowed
+    "BLE001", # Do not catch blind exception: `Exception` (from broad-except in tool.pylint."MESSAGES CONTROL")
     "COM812", # incompatible with formatter
     "D202",   # No blank lines allowed after function docstring
     "D203",   # no-blank-line-before-class (incompatible with formatter)

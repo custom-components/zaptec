@@ -20,7 +20,7 @@ def skip_if_user_disabled_api_tests() -> None:
 
 
 @pytest.fixture(scope="session")
-def zaptec_username(skip_if_user_disabled_api_tests, skip_if_in_github_actions) -> str:  # noqa: ANN001, ARG001 (the inputs are purely to create dependencies to the env-flags above)
+def zaptec_username(skip_if_user_disabled_api_tests, skip_if_in_github_actions) -> str:  # noqa: ANN001 (the inputs are purely to create dependencies to the env-flags above)
     """
     Get the zaptec username stored in env.
 
@@ -36,7 +36,7 @@ def zaptec_username(skip_if_user_disabled_api_tests, skip_if_in_github_actions) 
 
 
 @pytest.fixture(scope="session")
-def zaptec_password(skip_if_user_disabled_api_tests, skip_if_in_github_actions) -> str:  # noqa: ANN001, ARG001
+def zaptec_password(skip_if_user_disabled_api_tests, skip_if_in_github_actions) -> str:  # noqa: ANN001
     """
     Get the zaptec password stored in env.
 
