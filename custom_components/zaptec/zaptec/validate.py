@@ -46,11 +46,12 @@ class ChargerState(BaseModel):
 
     model_config = ConfigDict(extra="allow")
     StateId: int
-    ValueAsString: str
+    # ValueAsString: str # StateId -1 (Pulse) does not include a ValueAsString-field  # noqa: E501, ERA001
 
 
-ChargerStates = TypeAdapter[list[ChargerState]]
-ChargerUpdate = TypeAdapter[dict[str, str]]
+ChargerStates = TypeAdapter(list[ChargerState])
+ChargerUpdate = TypeAdapter(dict[str, str])
+Constants = TypeAdapter(dict[str, Any])
 
 
 class Chargers(BaseModel):
@@ -106,7 +107,7 @@ class ChargerLocalSettings(BaseModel):
     DeviceId: str | None = None
 
 
-ChargerFirmwares = TypeAdapter[list[ChargerFirmware]]
+ChargerFirmwares = TypeAdapter(list[ChargerFirmware])
 
 
 class InstallationConnectionDetails(BaseModel):
@@ -127,7 +128,7 @@ class InstallationConnectionDetails(BaseModel):
 URLS = {
     "installation": Installations,
     "chargers": Chargers,
-    "constants": None,
+    "constants": Constants,
     r"installation/[0-9a-f\-]+": Installation,
     r"installation/[0-9a-f\-]+/hierarchy": Hierarchy,
     r"installation/[0-9a-f\-]+/update": None,
@@ -157,7 +158,7 @@ def validate(data: Any, url: str) -> None:
         # Mathes either the exact string or its regexp
         if url == pat or re_pat.fullmatch(url):
             try:
-                if isinstance(model, BaseModel):
+                if issubclass(model, BaseModel):
                     model.model_validate(data, strict=True)
 
                 elif isinstance(model, TypeAdapter):
