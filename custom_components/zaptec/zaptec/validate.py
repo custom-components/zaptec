@@ -158,7 +158,7 @@ def validate(data: Any, url: str) -> None:
         # Mathes either the exact string or its regexp
         if url == pat or re_pat.fullmatch(url):
             try:
-                if issubclass(model, BaseModel):
+                if isinstance(model, type) and issubclass(model, BaseModel):
                     model.model_validate(data, strict=True)
 
                 elif isinstance(model, TypeAdapter):
