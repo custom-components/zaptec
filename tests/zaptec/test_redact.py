@@ -2,13 +2,8 @@
 
 from __future__ import annotations
 
-from codecs import ascii_encode
-from pprint import pformat
-import re
-
 import pytest
 
-from custom_components.zaptec.zaptec import zconst
 from custom_components.zaptec.zaptec.redact import Redactor
 from custom_components.zaptec.zaptec.zconst import ZCONST
 
@@ -45,7 +40,6 @@ def test_add_and_dumps_creates_entries(redactor: Redactor) -> None:
 
     dump_output = redactor.dumps()
     assert "secret_value" in dump_output
-    assert isinstance(pformat({}), str)
 
 
 def test_add_uid_uses_uid_tail(redactor: Redactor) -> None:
