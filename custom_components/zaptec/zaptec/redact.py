@@ -165,5 +165,5 @@ class Redactor:
                 for value in self.VALUES:
                     if value not in obj:
                         continue
-                    obj[value] = self(obj[value], key=obj[key], ctx=ctx)
+                    obj[value] = self(obj[value], key=keyv, ctx=ctx)
         return objs

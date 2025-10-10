@@ -1,24 +1,8 @@
 """Tests for zaptec/zconst.py."""
 
-import asyncio
-
 import pytest
 
-from custom_components.zaptec.zaptec.api import Zaptec
 from custom_components.zaptec.zaptec.zconst import ZCONST
-
-
-@pytest.fixture(scope="module")  # Only runs once
-def zaptec_constants() -> dict:
-    """Get latest constants from Zaptec API."""
-
-    async def get_zaptec_constants() -> dict:
-        async with Zaptec("N/A", "N/A") as zaptec:
-            # the constants API endpoint does not require login
-            const: dict = await zaptec.request("constants")
-            return const
-
-    return asyncio.run(get_zaptec_constants())
 
 
 @pytest.fixture(autouse=True)  # runs for every test

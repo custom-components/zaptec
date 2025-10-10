@@ -1,8 +1,11 @@
 """Zaptec testing configuration file."""
 
+import asyncio
 import os
 
 import pytest
+
+from custom_components.zaptec.zaptec.api import Zaptec
 
 
 @pytest.fixture(scope="session")
@@ -49,3 +52,16 @@ def zaptec_password(skip_if_user_disabled_api_tests, skip_if_in_github_actions) 
         "or run test script with the --skip-api flag"
     )
     return password
+
+
+@pytest.fixture(scope="session")
+def zaptec_constants() -> dict:
+    """Get latest constants from Zaptec API."""
+
+    async def get_zaptec_constants() -> dict:
+        async with Zaptec("N/A", "N/A") as zaptec:
+            # the constants API endpoint does not require login
+            const: dict = await zaptec.request("constants")
+            return const
+
+    return asyncio.run(get_zaptec_constants())
