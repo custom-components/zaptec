@@ -9,6 +9,3 @@ Once the new version is released, this document should be reset and we start gat
 # v0.8.4
 
 ## 🎉 What's in this release
-
-## 🌻 What's Changed
--
