@@ -324,7 +324,10 @@ class Installation(ZaptecBase):
                 ):
                     # If the charger is already added to the Zaptec platform but not yet
                     # initialized, these fields are not available.
-                    _LOGGER.warning("Missing firmware info for charger %s", charger.qual_id)
+                    _LOGGER.warning(
+                        "Missing firmware info for charger %s because the charger hasn't been initialized yet. Safe to ignore.",  # noqa: E501
+                        charger.qual_id,
+                    )
                     continue
 
                 charger.set_attributes(
