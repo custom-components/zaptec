@@ -118,7 +118,7 @@ class Redactor:
         if isinstance(obj, (tuple, list, set)):
             # Redact each element in the list
             return cast(
-                "T",
+                T,
                 [self(k, key=key, second_pass=second_pass, ctx=ctx) for k in obj],
             )
 
@@ -126,7 +126,7 @@ class Redactor:
             # Redact each value in the dict. Unless secondpass is set, the keys
             # are checked if they are in the REDACT_KEYS list.
             return cast(
-                "T",
+                T,
                 {
                     k: self(
                         v,
@@ -154,7 +154,7 @@ class Redactor:
             for k, v in self.redacts.items():
                 # This extra isinstance check is needed to keep type checker happy
                 if isinstance(obj, str) and isinstance(k, str) and k in obj:
-                    obj = cast("T", obj.replace(k, v))
+                    obj = cast(T, obj.replace(k, v))
 
         return obj
 
