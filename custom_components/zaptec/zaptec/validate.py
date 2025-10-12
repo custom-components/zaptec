@@ -46,11 +46,7 @@ class ChargerState(BaseModel):
 
     model_config = ConfigDict(extra="allow")
     StateId: int
-    ValueAsString: str
-
-
-ChargerStates = TypeAdapter[list[ChargerState]]
-ChargerUpdate = TypeAdapter[dict[str, str]]
+    # ValueAsString: str # StateId -1 (Pulse) does not include a ValueAsString-field  # noqa: E501, ERA001
 
 
 class Chargers(BaseModel):
@@ -106,9 +102,6 @@ class ChargerLocalSettings(BaseModel):
     DeviceId: str | None = None
 
 
-ChargerFirmwares = TypeAdapter[list[ChargerFirmware]]
-
-
 class InstallationConnectionDetails(BaseModel):
     """Pydantic model for the servicebus connection details of a Zaptec installation."""
 
@@ -123,22 +116,30 @@ class InstallationConnectionDetails(BaseModel):
     Topic: str
 
 
+CHARGER_FIRMWARES = TypeAdapter(list[ChargerFirmware])
+CHARGER_STATES = TypeAdapter(list[ChargerState])
+CHARGER_UPDATES = TypeAdapter(dict[str, str])
+CONSTANTS = TypeAdapter(dict[str, Any])
+
 # Mapping of URL to pydantic model
+# - None for no validation check
+# - TypeAdapter-instances for validation of primitives (list, dict etc.)
+# - BaseModel-classes for validation of custom classes
 URLS = {
     "installation": Installations,
     "chargers": Chargers,
-    "constants": None,
+    "constants": CONSTANTS,
     r"installation/[0-9a-f\-]+": Installation,
     r"installation/[0-9a-f\-]+/hierarchy": Hierarchy,
     r"installation/[0-9a-f\-]+/update": None,
     r"installation/[0-9a-f\-]+/messagingConnectionDetails": InstallationConnectionDetails,
     r"chargers/[0-9a-f\-]+": Charger,
-    r"chargers/[0-9a-f\-]+/state": ChargerStates,
+    r"chargers/[0-9a-f\-]+/state": CHARGER_STATES,
     r"chargers/[0-9a-f\-]+/authorizecharge": None,
     r"chargers/[0-9a-f\-]+/SendCommand/[0-9]+": None,
     r"chargers/[0-9a-f\-]+/localSettings": ChargerLocalSettings,
-    r"chargers/[0-9a-f\-]+/update": ChargerUpdate,
-    r"chargerFirmware/installation/[0-9a-f\-]+": ChargerFirmwares,
+    r"chargers/[0-9a-f\-]+/update": CHARGER_UPDATES,
+    r"chargerFirmware/installation/[0-9a-f\-]+": CHARGER_FIRMWARES,
 }
 
 _URLS = [(k, re.compile(k), v) for k, v in URLS.items()]
@@ -157,7 +158,7 @@ def validate(data: Any, url: str) -> None:
         # Mathes either the exact string or its regexp
         if url == pat or re_pat.fullmatch(url):
             try:
-                if isinstance(model, BaseModel):
+                if isinstance(model, type) and issubclass(model, BaseModel):
                     model.model_validate(data, strict=True)
 
                 elif isinstance(model, TypeAdapter):
