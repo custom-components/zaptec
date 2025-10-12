@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Sequence
 from pprint import pformat
 from typing import Any, ClassVar, TypeVar, cast
 
@@ -159,18 +159,20 @@ class Redactor:
         return obj
 
     def redact_statelist(
-        self, objs: Iterable[dict[str, str]], ctx: str = ""
-    ) -> Iterable[dict[str, str]]:
+        self, objs: Sequence[dict[str, str]], ctx: str = ""
+    ) -> Sequence[dict[str, str]]:
         """Redact the special state list objects."""
         for obj in objs:
             for key in self.OBS_KEYS:
                 if key not in obj:
                     continue
-                keyv = ZCONST.observations.get(obj[key])
-                if keyv is not None:
+
+                # Get the string for the observation key
+                keyv: str = ZCONST.observations.get(obj[key], "")
+                if keyv:
                     obj[key] = f"{obj[key]} ({keyv})"
-                if keyv not in self.REDACT_KEYS:
-                    continue
+
+                # Redact the value if needed
                 for value in self.VALUES:
                     if value not in obj:
                         continue
