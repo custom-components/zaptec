@@ -123,14 +123,14 @@ def test_redact_statelist_redacts_when_keyv_in_redact_keys(redactor: Redactor) -
     assert out_2[0]["StateId"] == "702 (ChargeMode)"
     assert out_2[0]["Value"] == "should_stay"
 
-    objs_3 = [{"OtherKey": 5}]
+    objs_3 = [{"OtherKey": 5, "Value": "whatever"}]
     assert redactor.redact_statelist(objs_3) == objs_3
 
     unknown_stateid = 5
     obj_4 = [{"StateId": unknown_stateid, "Value": "unknown_stateid_should_stay"}]
-    obj_4 = redactor.redact_statelist(obj_4)
-    assert obj_4[0]["StateId"] == unknown_stateid
-    assert obj_4[0]["Value"] == "unknown_stateid_should_stay"
+    out_4 = redactor.redact_statelist(obj_4)
+    assert out_4[0]["StateId"] == unknown_stateid
+    assert out_4[0]["Value"] == "unknown_stateid_should_stay"
 
 
 def test_redact_statelist_handles_value_as_string(redactor: Redactor) -> None:
@@ -149,11 +149,33 @@ def test_redact_statelist_handles_value_as_string(redactor: Redactor) -> None:
     assert out_2[0]["StateId"] == "702 (ChargeMode)"
     assert out_2[0]["ValueAsString"] == "should_stay"
 
-    objs_3 = [{"OtherKey": 5}]
+    objs_3 = [{"OtherKey": 5, "ValueAsString": "whatever"}]
     assert redactor.redact_statelist(objs_3) == objs_3
 
     unknown_stateid = 5
     obj_4 = [{"StateId": unknown_stateid, "ValueAsString": "unknown_stateid_should_stay"}]
-    obj_4 = redactor.redact_statelist(obj_4)
-    assert obj_4[0]["StateId"] == unknown_stateid
-    assert obj_4[0]["ValueAsString"] == "unknown_stateid_should_stay"
+    out_4 = redactor.redact_statelist(obj_4)
+    assert out_4[0]["StateId"] == unknown_stateid
+    assert out_4[0]["ValueAsString"] == "unknown_stateid_should_stay"
+
+
+def test_redact_statelist_handles_unknown_key_with_value_in_need_of_redaction(
+    redactor: Redactor,
+) -> None:
+    """Test that redact_statelist() handles redactable content in a state with unknown stateid."""
+    # 950=MacMain is one of the states that needs redaction
+    objs = [{"StateId": 950, "ValueAsString": "this_should_be_redacted"}]
+    out = redactor.redact_statelist(objs, ctx="ctx")
+    assert out[0]["StateId"] == "950 (MacMain)"
+    assert "<--" in out[0]["ValueAsString"]
+    assert "this_should_be_redacted" not in out[0]["ValueAsString"]
+
+    unknown_stateid = 5
+    obj_2 = [
+        {"StateId": unknown_stateid, "ValueAsString": "String containing this_should_be_redacted"}
+    ]
+    out_2 = redactor.redact_statelist(obj_2)
+
+    assert out_2[0]["StateId"] == unknown_stateid
+    assert "String containing <--" in out_2[0]["ValueAsString"]
+    assert "this_should_be_redacted" not in out_2[0]["ValueAsString"]
