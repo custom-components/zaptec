@@ -111,14 +111,20 @@ class ZaptecEnengySensor(ZaptecSensor):
         # are OCMF (Open Charge Metering Format) data structures and must be
         # parsed to get the latest reading.
 
-        # Ge the two OCMF data structures from Zaptec. The first one must exists,
+        # Get the two OCMF data structures from Zaptec. The first one must exists,
         # the second one is optional.
         meter_value = self._get_zaptec_value(key="signed_meter_value")
         session = self._get_zaptec_value(key="completed_session", default={})
 
         # Get the latest energy reading from both and use the largest value
         reading = get_ocmf_max_reader_value(meter_value)
-        session_reading = get_ocmf_max_reader_value(session.get("SignedSession", {}))
+        if isinstance(session, dict):
+            session_reading = get_ocmf_max_reader_value(session.get("SignedSession", {}))
+        else:
+            _LOGGER.debug(
+                "Incorrect typing for completed_session: %s", type(session).__qualname__
+            )
+            session_reading = 0.0
 
         self._attr_native_value = max(reading, session_reading)
         self._attr_available = True
