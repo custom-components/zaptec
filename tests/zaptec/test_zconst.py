@@ -173,6 +173,52 @@ def test_completed_session() -> None:
     assert ZCONST.type_completed_session(completed_session) == expected_completed_session_dict
 
 
+def test_completed_session_corrupted_or_no_signed_session() -> None:
+    """Test type conversion for completed_session if there is a corrupted or no signed session."""
+
+    expected_energy = 27.432
+    completed_session_signed_is_null = (
+        r'{"SessionId":"01234567-89ab-cdef-0123-456789abcdef","Energy":27.432,"StartDateTime":'
+        r'"2025-08-28T15:02:55.188048Z","EndDateTime":"2025-09-01T10:32:50.517055Z",'
+        r'"ReliableClock":true,"StoppedByRFID":false,"AuthenticationCode":"",'
+        r'"FirstAuthenticatedDateTime":"","SignedSession":null}'
+    )
+    res_signed_is_null = ZCONST.type_completed_session(completed_session_signed_is_null)
+    assert res_signed_is_null.get("Energy") == expected_energy
+
+    completed_session_signed_is_empty = (
+        r'{"SessionId":"01234567-89ab-cdef-0123-456789abcdef","Energy":27.432,"StartDateTime":'
+        r'"2025-08-28T15:02:55.188048Z","EndDateTime":"2025-09-01T10:32:50.517055Z",'
+        r'"ReliableClock":true,"StoppedByRFID":false,"AuthenticationCode":"",'
+        r'"FirstAuthenticatedDateTime":"","SignedSession":""}'
+    )
+    res_signed_is_empty = ZCONST.type_completed_session(completed_session_signed_is_empty)
+    assert res_signed_is_empty.get("Energy") == expected_energy
+
+    completed_session_no_signed = (
+        r'{"SessionId":"01234567-89ab-cdef-0123-456789abcdef","Energy":27.432,"StartDateTime":'
+        r'"2025-08-28T15:02:55.188048Z","EndDateTime":"2025-09-01T10:32:50.517055Z",'
+        r'"ReliableClock":true,"StoppedByRFID":false,"AuthenticationCode":"",'
+        r'"FirstAuthenticatedDateTime":""}'
+    )
+    res_no_signed = ZCONST.type_completed_session(completed_session_no_signed)
+    assert res_no_signed.get("Energy") == expected_energy
+
+    completed_session_signed_invalid_ocmf = (  # OMCF instead of OCMF
+        r'{"SessionId":"01234567-89ab-cdef-0123-456789abcdef","Energy":27.432,"StartDateTime":'
+        r'"2025-08-28T15:02:55.188048Z","EndDateTime":"2025-09-01T10:32:50.517055Z",'
+        r'"ReliableClock":true,"StoppedByRFID":false,"AuthenticationCode":"",'
+        r'"FirstAuthenticatedDateTime":"","SignedSession":"OMCF|{\"FV\":\"1.0\",\"GI\":'
+        r"\"ZAPTEC GO\",\"GS\":\"ZAP000042\",\"GV\":\"2.4.2.4\",\"PG\":\"T1\",\"RD\":[{\"TM\":"
+        r"\"2025-08-28T15:02:55,000+00:00 R\",\"TX\":\"B\",\"RV\":1472.07,\"RI\":\"1-0:1.8.0\","
+        r"\"RU\":\"kWh\",\"RT\":\"AC\",\"ST\":\"G\"},{\"TM\":\"2025-08-29T12:00:00,000+00:00 R\","
+        r"\"TX\":\"T\",\"RV\":1472.29,\"RI\":\"1-0:1.8.0\",\"RU\":\"kWh\",\"RT\":\"AC\",\"ST\":"
+        r'\"G\"}]}"}'
+    )
+    with pytest.raises(ValueError, match=r"Invalid OCMF data:*"):
+        ZCONST.type_completed_session(completed_session_signed_invalid_ocmf)
+
+
 def test_update_ids_from_schema() -> None:
     """Test update_ids_from_schema."""
     ZCONST.update_ids_from_schema(set("Apollo"))
