@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from pprint import pformat
-from typing import ClassVar, TypeVar, cast
+from typing import Any, ClassVar, TypeVar, cast
 
 from .zconst import ZCONST
 
@@ -78,8 +79,8 @@ class Redactor:
     def __init__(self, do_redact: bool) -> None:
         """Initialize redactor."""
         self.do_redact = do_redact
-        self.redacts = {}
-        self.redact_info = {}
+        self.redacts: dict[str, Any] = {}
+        self.redact_info: dict[str, dict[str, str]] = {}
 
     def dumps(self) -> str:
         """Dump the redaction database in a readable format."""
@@ -87,22 +88,24 @@ class Redactor:
             {k: v["text"] for k, v in self.redact_info.items()},
         )
 
-    def add(self, obj, *, key=None, replace_by=None, ctx=None) -> str:
+    def add(self, redact: str, *, key: str = "", replace_by: str = "", ctx: str = "") -> str:
         """Add a new redaction to the list."""
         if not replace_by:
             replace_by = f"<--Redact #{len(self.redacts) + 1}-->"
-        self.redacts[obj] = replace_by
+        self.redacts[redact] = replace_by
         self.redact_info[replace_by] = {  # For statistics only
-            "text": obj,
+            "text": redact,
             "from": f"{key} in {ctx}" if key else ctx,
         }
         return replace_by
 
-    def add_uid(self, uid, name, *, ctx=None) -> str:
+    def add_uid(self, uid: str, name: str, *, ctx: str = "") -> str:
         """Add a new redaction for a UID."""
         return self.add(uid, replace_by=f"<--{name}[{uid[-6:]}]-->", ctx=ctx)
 
-    def __call__(self, obj: T, *, key=None, second_pass=False, ctx=None) -> T:
+    def __call__(
+        self, obj: T, *, key: str = "", second_pass: bool = False, ctx: str = ""
+    ) -> T | str:
         """Redact the object if it is present in the redacted dict.
 
         A new redaction is created if make_new is not None. ctx is
@@ -135,35 +138,43 @@ class Redactor:
                 },
             )
 
+        # Convert non-string objects to string for redaction check
+        str_obj = str(obj)
+
         # Check if the object is already redacted
-        if obj in self.redacts:
-            return self.redacts[obj]
+        if str_obj in self.redacts:
+            return self.redacts[str_obj]
 
         # Check if new redaction is needed
         if key and key in self.REDACT_KEYS and obj and obj not in self.NEVER_REDACT:
-            return cast(T, self.add(obj, key=key, ctx=ctx))
+            return self.add(str_obj, key=key, ctx=ctx)
 
         # Check if the string contains a redacted string
         if isinstance(obj, str):
             for k, v in self.redacts.items():
-                if isinstance(k, str) and k in obj:
-                    obj = obj.replace(k, v)
+                # This extra isinstance check is needed to keep type checker happy
+                if isinstance(obj, str) and isinstance(k, str) and k in obj:
+                    obj = cast(T, obj.replace(k, v))
 
         return obj
 
-    def redact_statelist(self, objs, ctx=None):
+    def redact_statelist(
+        self, objs: Sequence[dict[str, str]], ctx: str = ""
+    ) -> Sequence[dict[str, str]]:
         """Redact the special state list objects."""
         for obj in objs:
             for key in self.OBS_KEYS:
                 if key not in obj:
                     continue
-                keyv = ZCONST.observations.get(obj[key])
-                if keyv is not None:
+
+                # Get the string for the observation key
+                keyv: str = ZCONST.observations.get(obj[key], "")
+                if keyv:
                     obj[key] = f"{obj[key]} ({keyv})"
-                if keyv not in self.REDACT_KEYS:
-                    continue
+
+                # Redact the value if needed
                 for value in self.VALUES:
                     if value not in obj:
                         continue
-                    obj[value] = self(obj[value], key=obj[key], ctx=ctx)
+                    obj[value] = self(obj[value], key=keyv, ctx=ctx)
         return objs
