@@ -182,6 +182,8 @@ class ZConst(UserDict):
     def type_ocmf(self, data: str) -> dict[str, Any]:
         """Open Charge Metering Format (OCMF) type."""
         # https://github.com/SAFE-eV/OCMF-Open-Charge-Metering-Format/blob/master/OCMF-en.md
+        if not data:
+            return {}
         sects = data.split("|")
         if len(sects) not in (2, 3) or sects[0] != "OCMF":
             raise ValueError(f"Invalid OCMF data: {data}")
