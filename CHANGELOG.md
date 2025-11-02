@@ -1,11 +1,10 @@
 # Changelog
 
-## 0.8.4 (draft)
+## 0.8.4
 
-Keeping the draft as bullet points for now, revise before release
-- Update pydantic to 2.12 for compatibility with HA Core 2025.11+
-- Bugfix: functional pydantic-validation
-- Increased test coverage
+This is a minor release that is required to be able to run on HA Core 2025.11+.
+
+It contains minor fixes for pydantic validation (checks of the data from Zaptec portal) and increases the test coverage.
 
 ## 0.8.3
 
