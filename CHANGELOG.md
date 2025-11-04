@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.8.5
+
+This is a minor release that fixes a bug in the setting of the Min/Max current of a charger.
+
+This update is required to be able to run on HA Core 2025.11+.
+
 ## 0.8.4
 
 This is a minor release that is required to be able to run on HA Core 2025.11+.

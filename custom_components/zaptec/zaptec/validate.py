@@ -118,7 +118,6 @@ class InstallationConnectionDetails(BaseModel):
 
 CHARGER_FIRMWARES = TypeAdapter(list[ChargerFirmware])
 CHARGER_STATES = TypeAdapter(list[ChargerState])
-CHARGER_UPDATES = TypeAdapter(dict[str, str])
 CONSTANTS = TypeAdapter(dict[str, Any])
 
 # Mapping of URL to pydantic model
@@ -138,7 +137,7 @@ URLS = {
     r"chargers/[0-9a-f\-]+/authorizecharge": None,
     r"chargers/[0-9a-f\-]+/SendCommand/[0-9]+": None,
     r"chargers/[0-9a-f\-]+/localSettings": ChargerLocalSettings,
-    r"chargers/[0-9a-f\-]+/update": CHARGER_UPDATES,
+    r"chargers/[0-9a-f\-]+/update": None,
     r"chargerFirmware/installation/[0-9a-f\-]+": CHARGER_FIRMWARES,
 }
 
