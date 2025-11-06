@@ -88,20 +88,6 @@ class ChargerFirmware(BaseModel):
     IsUpToDate: bool
 
 
-class ChargerLocalSettings(BaseModel):
-    """
-    Pydantic model for the local settings of a Zaptec charger.
-
-    Note: This model is used in an undocumented API-call, and should be removed as soon as we have
-    official API-calls that can cover the necessary functionality
-    """
-
-    model_config = ConfigDict(extra="allow")
-    Id: str
-    Name: str | None = None
-    DeviceId: str | None = None
-
-
 class InstallationConnectionDetails(BaseModel):
     """Pydantic model for the servicebus connection details of a Zaptec installation."""
 
@@ -136,7 +122,7 @@ URLS = {
     r"chargers/[0-9a-f\-]+/state": CHARGER_STATES,
     r"chargers/[0-9a-f\-]+/authorizecharge": None,
     r"chargers/[0-9a-f\-]+/SendCommand/[0-9]+": None,
-    r"chargers/[0-9a-f\-]+/localSettings": ChargerLocalSettings,
+    r"chargers/[0-9a-f\-]+/localSettings": None,
     r"chargers/[0-9a-f\-]+/update": None,
     r"chargerFirmware/installation/[0-9a-f\-]+": CHARGER_FIRMWARES,
 }
