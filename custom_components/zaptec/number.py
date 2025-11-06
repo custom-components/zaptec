@@ -107,6 +107,8 @@ class ZaptecSettingNumber(ZaptecNumber):
     async def async_set_native_value(self, value: float) -> None:
         """Update to Zaptec."""
         self._log_number(value)
+        if not self.entity_description.setting:
+            raise HomeAssistantError(f"No setting for {self.__class__.__qualname__}.{self.key}")
         try:
             await self.zaptec_obj.set_settings({self.entity_description.setting: value})
         except Exception as exc:

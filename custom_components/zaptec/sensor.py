@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, replace
 import logging
-from typing import ClassVar
+from typing import Final
 
 from homeassistant import const
 from homeassistant.components.sensor import (
@@ -75,7 +75,7 @@ class ZaptecChargeSensor(ZaptecSensorTranslate):
     _log_attribute = "_attr_native_value"
 
     # See ZCONST.charger_operation_modes for possible values
-    CHARGE_MODE_ICON_MAP: ClassVar[dict[str, str]] = {
+    CHARGE_MODE_ICON_MAP: Final[dict[str, str]] = {
         "unknown": "mdi:help-rhombus-outline",
         "disconnected": "mdi:power-plug-off",
         "connected_requesting": "mdi:timer-sand",
@@ -99,7 +99,7 @@ class ZaptecEnengySensor(ZaptecSensor):
 
     _log_attribute = "_attr_native_value"
     # This entity use several attributes from Zaptec
-    _log_zaptec_key = ["signed_meter_value", "completed_session"]
+    _log_zaptec_key: Final = ["signed_meter_value", "completed_session"]
 
     @callback
     def _update_from_zaptec(self) -> None:

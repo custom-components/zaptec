@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import logging
-from typing import Any
+from typing import Any, Final
 
 from homeassistant import const
 from homeassistant.components.update import (
@@ -29,7 +29,7 @@ class ZaptecUpdate(ZaptecBaseEntity, UpdateEntity):
     # What to log on entity update
     _log_attribute = "_attr_installed_version"
     # This entity use several attributes from Zaptec
-    _log_zaptec_key = ["firmware_current_version", "firmware_available_version"]
+    _log_zaptec_key: Final = ["firmware_current_version", "firmware_available_version"]
     zaptec_obj: Charger
 
     @callback

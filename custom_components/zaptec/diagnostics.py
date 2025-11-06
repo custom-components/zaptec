@@ -30,6 +30,7 @@ async def async_get_config_entry_diagnostics(
         return await _get_diagnostics(hass, config_entry)
     except Exception:
         _LOGGER.exception("Error getting diagnostics")
+        return {}
 
 
 async def async_get_device_diagnostics(
@@ -40,6 +41,7 @@ async def async_get_device_diagnostics(
         return await _get_diagnostics(hass, config_entry)
     except Exception:
         _LOGGER.exception("Error getting diagnostics for device %s", device.id)
+        return {}
 
 
 async def _get_diagnostics(
@@ -80,23 +82,24 @@ async def _get_diagnostics(
     try:
         api = out.setdefault("api", {})
 
-        async def request(url: str) -> Any:
+        async def request(url: str) -> dict | list:
             """Make an API request and return the result."""
             try:
                 result = await zaptec.request(url)
                 if not isinstance(result, (dict, list)):
                     return {
-                        "type error": f"Expected dict, got type {type(result).__name__}, value {result}",
+                        "type error": f"Expected dict or list, got type {type(result).__name__}, value {result}",  # noqa: E501
                     }
-                return result
             except Exception as err:
                 return {
                     "exception": type(err).__name__,
                     "err": str(err),
                     "tb": list(traceback.format_exc().splitlines()),
                 }
+            else:
+                return result
 
-        def add(url, obj, ctx=None) -> None:
+        def add(url: str, obj: dict | list, ctx: str = "") -> None:
             api[redact(url, ctx=ctx)] = redact(obj, ctx=ctx)
 
         data = await request(url := "installation")
@@ -109,8 +112,9 @@ async def _get_diagnostics(
 
             for circuit in data.get("Circuits", []):
                 add(f"circuits/{circuit['Id']}", circuit, ctx="circuit")
-                for charger in circuit.get("Chargers", []):
-                    charger_in_circuits_ids.append(charger["Id"])
+                charger_in_circuits_ids.extend(
+                    charger["Id"] for charger in circuit.get("Chargers", [])
+                )
 
             add(url, data, ctx="hierarchy")
 
@@ -126,7 +130,7 @@ async def _get_diagnostics(
             add(url, data, ctx="charger")
 
             data = await request(url := f"chargers/{charger_id}/state")
-            redact.redact_statelist(data, ctx="state")
+            data = redact.redact_statelist(data, ctx="state")
             add(url, data, ctx="state")
 
     except Exception as err:
