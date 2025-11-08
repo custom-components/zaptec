@@ -30,6 +30,7 @@ from .const import (
     API_TIMEOUT,
     API_URL,
     CHARGER_EXCLUDES,
+    DEFAULT_MAX_CURRENT,
     MAX_DEBUG_TEXT_LEN_ON_500,
     MISSING,
     TOKEN_URL,
@@ -389,7 +390,8 @@ class Installation(ZaptecBase):
                 if err.error_code != HTTPStatus.FORBIDDEN:
                     raise
                 _LOGGER.warning(
-                    "Failed to get live stream info. Check if user have access in the zaptec portal"
+                    "Failed to get live stream info. "
+                    "Check if user have access in the zaptec portal"
                 )
                 return
 
@@ -542,11 +544,10 @@ class Installation(ZaptecBase):
                 "availableCurrentPhase3 are set, then all of them must be set"
             )
 
-        # Use 32 as default if missing or invalid value.
         try:
-            max_current = float(self.get("max_current", 32.0))
+            max_current = float(self.get("max_current", DEFAULT_MAX_CURRENT))
         except (TypeError, ValueError):
-            max_current = 32.0
+            max_current = DEFAULT_MAX_CURRENT
         # Make sure the arguments and values are valid
         for k, v in kwargs.items():
             if k not in (
@@ -560,21 +561,19 @@ class Installation(ZaptecBase):
                 raise ValueError(f"{k} cannot be None")
             if not (0 <= v <= max_current):
                 raise ValueError(f"{k} must be between 0 and {max_current:.0f} amps")
-        data = await self.zaptec.request(
+        return await self.zaptec.request(
             f"installation/{self.id}/update", method="post", data=kwargs
         )
-        return data
 
     async def set_three_to_one_phase_switch_current(self, current: float):
         """Set the 3 to 1-phase switch current."""
-        if not (0 <= current <= 32):
-            raise ValueError("Current must be between 0 and 32 amps")
-        data = await self.zaptec.request(
+        if not (0 <= current <= DEFAULT_MAX_CURRENT):
+            raise ValueError(f"Current must be between 0 and {DEFAULT_MAX_CURRENT:.0f} amps")
+        return await self.zaptec.request(
             f"installation/{self.id}/update",
             method="post",
             data={"threeToOnePhaseSwitchCurrent": current},
         )
-        return data
 
 
 class Charger(ZaptecBase):
@@ -735,21 +734,19 @@ class Charger(ZaptecBase):
     async def set_settings(self, settings: dict[str, Any]):
         """Set settings on the charger."""
 
-        if any(key not in ZCONST.update_params for key in settings.keys()):
+        if any(key not in ZCONST.update_params for key in settings):
             raise ValueError(f"Unknown setting '{settings}'")
 
         _LOGGER.debug("Settings %s", settings)
-        data = await self.zaptec.request(
+        return await self.zaptec.request(
             f"chargers/{self.id}/update", method="post", data=settings
         )
-        return data
 
     async def authorize_charge(self):
         """Authorize the charger to charge."""
         _LOGGER.debug("Authorize charge")
         # NOTE: Undocumented API call
-        data = await self.zaptec.request(f"chargers/{self.id}/authorizecharge", method="post")
-        return data
+        return await self.zaptec.request(f"chargers/{self.id}/authorizecharge", method="post")
 
     async def set_permanent_cable_lock(self, lock: bool):
         """Set the permanent cable lock on the charger."""
@@ -760,10 +757,9 @@ class Charger(ZaptecBase):
             },
         }
         # NOTE: Undocumented API call
-        result = await self.zaptec.request(
+        return await self.zaptec.request(
             f"chargers/{self.id}/localSettings", method="post", data=data
         )
-        return result
 
     async def set_hmi_brightness(self, brightness: float):
         """Set the HMI brightness."""
@@ -774,10 +770,9 @@ class Charger(ZaptecBase):
             },
         }
         # NOTE: Undocumented API call
-        result = await self.zaptec.request(
+        return await self.zaptec.request(
             f"chargers/{self.id}/localSettings", method="post", data=data
         )
-        return result
 
     def is_charging(self) -> bool:
         """Check if the charger is charging."""
@@ -848,9 +843,9 @@ class Zaptec(Mapping[str, ZaptecBase]):
     # =======================================================================
     #   MAPPING METHODS
 
-    def __getitem__(self, id: str) -> ZaptecBase:
+    def __getitem__(self, obj_id: str) -> ZaptecBase:
         """Get an object data by id."""
-        return self._map[id]
+        return self._map[obj_id]
 
     def __iter__(self) -> Iterator[str]:
         """Return an iterator over the object ids."""
@@ -871,7 +866,8 @@ class Zaptec(Mapping[str, ZaptecBase]):
         """Register an object data with id."""
         if obj_id in self._map:
             raise ValueError(
-                f"Object with id {obj_id} already registered. Use unregister() to remove it first."
+                f"Object with id {obj_id} already registered. "
+                "Use unregister() to remove it first."
             )
         self._map[obj_id] = data
 
