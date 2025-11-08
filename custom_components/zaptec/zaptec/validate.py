@@ -17,7 +17,6 @@ class Installation(BaseModel):
     model_config = ConfigDict(extra="allow")
     Id: str
     Active: bool
-    AuthenticationType: int
     CurrentUserRoles: int
     InstallationType: int
     NetworkType: int
