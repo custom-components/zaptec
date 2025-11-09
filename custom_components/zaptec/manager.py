@@ -146,8 +146,8 @@ class ZaptecManager:
 
     def create_entities_from_zaptec(
         self,
-        installation_descriptions: Iterable[EntityDescription],
-        charger_descriptions: Iterable[EntityDescription],
+        installation_descriptions: Iterable[ZaptecEntityDescription],
+        charger_descriptions: Iterable[ZaptecEntityDescription],
     ) -> list[ZaptecBaseEntity]:
         """Create entities from the present Zaptec objects.
 

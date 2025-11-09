@@ -14,11 +14,10 @@ from homeassistant.components.number import (
 from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
-from homeassistant.helpers.entity import EntityDescription
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .entity import ZaptecBaseEntity
-from .manager import ZaptecConfigEntry
+from .manager import ZaptecConfigEntry, ZaptecEntityDescription
 from .zaptec import Charger, Installation
 
 _LOGGER = logging.getLogger(__name__)
@@ -108,6 +107,8 @@ class ZaptecSettingNumber(ZaptecNumber):
     async def async_set_native_value(self, value: float) -> None:
         """Update to Zaptec."""
         self._log_number(value)
+        if not self.entity_description.setting:
+            raise HomeAssistantError(f"No setting for {self.__class__.__qualname__}.{self.key}")
         try:
             await self.zaptec_obj.set_settings({self.entity_description.setting: value})
         except Exception as exc:
@@ -144,14 +145,14 @@ class ZaptecHmiBrightness(ZaptecNumber):
 
 
 @dataclass(frozen=True, kw_only=True)
-class ZapNumberEntityDescription(NumberEntityDescription):
+class ZapNumberEntityDescription(ZaptecEntityDescription, NumberEntityDescription):
     """Class describing Zaptec number entities."""
 
     cls: type[NumberEntity]
     setting: str | None = None
 
 
-INSTALLATION_ENTITIES: list[EntityDescription] = [
+INSTALLATION_ENTITIES: list[ZaptecEntityDescription] = [
     ZapNumberEntityDescription(
         key="available_current",
         translation_key="available_current",
@@ -174,7 +175,7 @@ INSTALLATION_ENTITIES: list[EntityDescription] = [
     ),
 ]
 
-CHARGER_ENTITIES: list[EntityDescription] = [
+CHARGER_ENTITIES: list[ZaptecEntityDescription] = [
     ZapNumberEntityDescription(
         key="charger_min_current",
         translation_key="charger_min_current",
