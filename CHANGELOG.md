@@ -1,10 +1,12 @@
 # Changelog
 
-## 0.8.6 (draft)
+## 0.8.6
 
 This is a minor release that fixes a validation issue that caused the integration to stop working for users with at least one charger they only have the User role for.
+See issue #357
 
 In addition, it also fixes an issue where calls to the localSettings-API triggered an error on validating the response.
+See issue #354
 
 ## 0.8.5
 
