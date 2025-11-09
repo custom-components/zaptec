@@ -16,5 +16,5 @@
     "pydantic>=2.11.7,<2.13",
     "aiolimiter==1.2.1"
   ],
-  "version": "0.8.5"
+  "version": "0.8.6"
 }

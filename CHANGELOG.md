@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.8.6 (draft)
+## 0.8.6
 
 This is a minor release that fixes a validation issue that caused the integration to stop working for users with at least one charger they only have the User role for.
 
