@@ -64,7 +64,7 @@ TDict = dict[str, TValue]
 class TLogExc(Protocol):
     """Protocol for logging exceptions."""
 
-    def __call__(self, exc: Exception) -> Exception: ...
+    def __call__(self, exc: Exception) -> Exception: ...  # noqa: D102 HA core ignores this, not sure how
 
 
 class ZaptecBase(Mapping[str, TValue]):
@@ -919,7 +919,7 @@ class Zaptec(Mapping[str, ZaptecBase]):
                 # Remove the Authorization header from the log
                 if "Authorization" in headers:
                     headers["Authorization"] = "<Removed for security>"
-                yield f"     headers {dict(headers.items())}"
+                yield f"     headers '{headers}'"
             if "data" in kwargs:
                 yield f"     data '{kwargs['data']}'"
             if "json" in kwargs:
@@ -935,7 +935,7 @@ class Zaptec(Mapping[str, ZaptecBase]):
             yield f"@@@  RESPONSE {resp.status} length {len(contents)}"
             if not DEBUG_API_DATA:
                 return
-            yield f"     headers {dict(resp.headers.items())}"
+            yield f"     headers '{resp.headers}'"
             if not contents:
                 return
             if resp.status != HTTPStatus.OK:
