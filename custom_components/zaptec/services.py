@@ -116,7 +116,7 @@ SEND_COMMAND_SCHEMA = vol.Schema(
 )
 
 
-async def async_setup_services(hass: HomeAssistant, manager: ZaptecManager) -> None:
+async def async_setup_services(hass: HomeAssistant, manager: ZaptecManager) -> None:  # noqa: C901 Too complex, will be fixed in https://github.com/custom-components/zaptec/issues/253
     """Set up services for zaptec."""
 
     def get_as_set(service_call: ServiceCall, key: str) -> set[str]:
@@ -127,7 +127,7 @@ async def async_setup_services(hass: HomeAssistant, manager: ZaptecManager) -> N
 
     def iter_objects(
         service_call: ServiceCall, mustbe: type[T]
-    ) -> Generator[tuple[ZaptecUpdateCoordinator, T], None, None]:
+    ) -> Generator[tuple[ZaptecUpdateCoordinator, T]]:
         ent_reg = er.async_get(hass)
         dev_reg = dr.async_get(hass)
 
@@ -306,6 +306,8 @@ async def async_setup_services(hass: HomeAssistant, manager: ZaptecManager) -> N
         for coordinator, obj in iter_objects(service_call, mustbe=Charger):
             _LOGGER.debug("  >> to %s", obj.id)
             command = service_call.data.get("command")
+            if command is None:
+                raise HomeAssistantError("No Command received")
             try:
                 await obj.command(command)
             except Exception as exc:

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, replace
 import logging
-from typing import ClassVar
+from typing import Final
 
 from homeassistant import const
 from homeassistant.components.sensor import (
@@ -14,11 +14,10 @@ from homeassistant.components.sensor import (
     SensorStateClass,
 )
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.helpers.entity import EntityDescription
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .entity import ZaptecBaseEntity
-from .manager import ZaptecConfigEntry
+from .manager import ZaptecConfigEntry, ZaptecEntityDescription
 from .zaptec import ZCONST, get_ocmf_max_reader_value
 
 _LOGGER = logging.getLogger(__name__)
@@ -76,7 +75,7 @@ class ZaptecChargeSensor(ZaptecSensorTranslate):
     _log_attribute = "_attr_native_value"
 
     # See ZCONST.charger_operation_modes for possible values
-    CHARGE_MODE_ICON_MAP: ClassVar[dict[str, str]] = {
+    CHARGE_MODE_ICON_MAP: Final[dict[str, str]] = {
         "unknown": "mdi:help-rhombus-outline",
         "disconnected": "mdi:power-plug-off",
         "connected_requesting": "mdi:timer-sand",
@@ -100,7 +99,7 @@ class ZaptecEnengySensor(ZaptecSensor):
 
     _log_attribute = "_attr_native_value"
     # This entity use several attributes from Zaptec
-    _log_zaptec_key = ["signed_meter_value", "completed_session"]
+    _log_zaptec_key: Final = ["signed_meter_value", "completed_session"]
 
     @callback
     def _update_from_zaptec(self) -> None:
@@ -131,13 +130,13 @@ class ZaptecEnengySensor(ZaptecSensor):
 
 
 @dataclass(frozen=True, kw_only=True)
-class ZapSensorEntityDescription(SensorEntityDescription):
+class ZapSensorEntityDescription(ZaptecEntityDescription, SensorEntityDescription):
     """Provide a description of a Zaptec sensor."""
 
     cls: type[SensorEntity]
 
 
-INSTALLATION_ENTITIES: list[EntityDescription] = [
+INSTALLATION_ENTITIES: list[ZaptecEntityDescription] = [
     ZapSensorEntityDescription(
         key="available_current_phase1",
         translation_key="available_current_phase1",
@@ -207,7 +206,7 @@ INSTALLATION_ENTITIES: list[EntityDescription] = [
     ),
 ]
 
-CHARGER_ENTITIES: list[EntityDescription] = [
+CHARGER_ENTITIES: list[ZaptecEntityDescription] = [
     ZapSensorEntityDescription(
         key="charger_operation_mode",
         translation_key="charger_operation_mode",

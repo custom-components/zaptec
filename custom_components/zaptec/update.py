@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import logging
-from typing import Any
+from typing import Any, Final
 
 from homeassistant import const
 from homeassistant.components.update import (
@@ -14,11 +14,10 @@ from homeassistant.components.update import (
 )
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
-from homeassistant.helpers.entity import EntityDescription
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .entity import ZaptecBaseEntity
-from .manager import ZaptecConfigEntry
+from .manager import ZaptecConfigEntry, ZaptecEntityDescription
 from .zaptec import Charger
 
 _LOGGER = logging.getLogger(__name__)
@@ -30,7 +29,7 @@ class ZaptecUpdate(ZaptecBaseEntity, UpdateEntity):
     # What to log on entity update
     _log_attribute = "_attr_installed_version"
     # This entity use several attributes from Zaptec
-    _log_zaptec_key = ["firmware_current_version", "firmware_available_version"]
+    _log_zaptec_key: Final = ["firmware_current_version", "firmware_available_version"]
     zaptec_obj: Charger
 
     @callback
@@ -58,15 +57,15 @@ class ZaptecUpdate(ZaptecBaseEntity, UpdateEntity):
 
 
 @dataclass(frozen=True, kw_only=True)
-class ZapUpdateEntityDescription(UpdateEntityDescription):
+class ZapUpdateEntityDescription(ZaptecEntityDescription, UpdateEntityDescription):
     """Class describing Zaptec update entities."""
 
     cls: type[UpdateEntity]
 
 
-INSTALLATION_ENTITIES: list[EntityDescription] = []
+INSTALLATION_ENTITIES: list[ZaptecEntityDescription] = []
 
-CHARGER_ENTITIES: list[EntityDescription] = [
+CHARGER_ENTITIES: list[ZaptecEntityDescription] = [
     ZapUpdateEntityDescription(
         key="firmware_update",
         translation_key="firmware_update",
