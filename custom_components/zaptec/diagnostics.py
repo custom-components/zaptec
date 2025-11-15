@@ -88,7 +88,7 @@ async def _get_diagnostics(
                 result = await zaptec.request(url)
                 if not isinstance(result, (dict, list)):
                     return {
-                        "type error": f"Expected dict or list, got type {type(result).__name__}, value {result}",  # noqa: E501
+                        "type error": f"Expected dict or list, got type {type(result).__name__}, value {result}",
                     }
             except Exception as err:
                 return {

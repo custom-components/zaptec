@@ -46,7 +46,7 @@ class ChargerState(BaseModel):
 
     model_config = ConfigDict(extra="allow")
     StateId: int
-    # ValueAsString: str # StateId -1 (Pulse) does not include a ValueAsString-field  # noqa: E501, ERA001
+    # ValueAsString: str # StateId -1 (Pulse) does not include a ValueAsString-field  # noqa: ERA001
 
 
 class Chargers(BaseModel):

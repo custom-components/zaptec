@@ -326,7 +326,7 @@ class Installation(ZaptecBase):
                     # If the charger is already added to the Zaptec platform but not yet
                     # initialized, these fields are not available.
                     _LOGGER.warning(
-                        "Missing firmware info for charger %s because the charger hasn't been initialized yet. Safe to ignore.",  # noqa: E501
+                        "Missing firmware info for charger %s because the charger hasn't been initialized yet. Safe to ignore.",
                         charger.qual_id,
                     )
                     continue
@@ -712,7 +712,7 @@ class Charger(ZaptecBase):
             final_stop_active = self.get("FinalStopActive")
             paused = operation_mode == "Connected_Finished" and int(final_stop_active) == 1
             if command == "stop_charging_final" and (paused or operation_mode == "Disconnected"):
-                msg = "Pause/stop charging is not allowed if charging is already paused or disconnected"  # noqa: E501
+                msg = "Pause/stop charging is not allowed if charging is already paused or disconnected"
                 valid_command = False
             elif command == "resume_charging" and not paused:
                 # should also check for NextScheduleEvent, but API doc is difficult to interpret
@@ -1088,7 +1088,7 @@ class Zaptec(Mapping[str, ZaptecBase]):
 
                 raise log_exc(
                     RequestError(
-                        f"POST request to {TOKEN_URL} failed with status {response.status}: {response}",  # noqa: E501
+                        f"POST request to {TOKEN_URL} failed with status {response.status}: {response}",
                         response.status,
                     )
                 )
@@ -1150,7 +1150,7 @@ class Zaptec(Mapping[str, ZaptecBase]):
                     return json_result
 
                 error = RequestError(
-                    f"{method.upper()} request to {full_url} failed with status {response.status}: {response}",  # noqa: E501
+                    f"{method.upper()} request to {full_url} failed with status {response.status}: {response}",
                     response.status,
                 )
 
