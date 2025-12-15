@@ -3,6 +3,7 @@
 [![hacs][hacsbadge]][hacs]
 [![GitHub Release][releases-shield]][releases]
 [![License][license-shield]][license]
+![hacsanalyticsbadge]
 ![Downloads][downloads-shield]
 
 [![Project Maintenance][hellowlol-maintenance-shield]][hellowlol-profile]
@@ -461,6 +462,7 @@ for the new treatment of the Circuit level)
 [buymecoffeebadge]: https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png
 [hacs]: https://hacs.xyz
 [hacsbadge]: https://img.shields.io/badge/HACS-Default-blue.svg
+[hacsanalyticsbadge]: https://img.shields.io/badge/dynamic/json?color=41BDF5&logo=home-assistant&label=integration%20usage&suffix=%20installs&cacheSeconds=15600&url=https://analytics.home-assistant.io/custom_integrations.json&query=$.zaptec.total
 [license]: https://github.com/custom-components/zaptec/blob/master/LICENSE
 [license-shield]: https://img.shields.io/github/license/custom-components/zaptec.svg
 [hellowlol-maintenance-shield]: https://img.shields.io/badge/maintainer-Hellowlol-blue.svg
