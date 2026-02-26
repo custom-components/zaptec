@@ -199,6 +199,12 @@ of the following will prevent auto start:
 > Using _"Available current"_ will affect __all__ chargers if there are more
 > than one charger.
 
+> [!IMPORTANT]
+> Setting the available charge has no effect if the charger is in _stand-alone_
+> mode and will in that case not prevent the charging to start immediately.
+> If you have issues preventing auto start then check if your charger is in
+> stand-alone mode.
+
 
 ## Setting charging current
 
