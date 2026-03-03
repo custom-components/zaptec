@@ -42,7 +42,8 @@ Confirmed to work with Zaptec products
 * A user with access to [Zaptec Portal](https://portal.zaptec.com/).
 * If you want to use the controls at the [Installation](#zaptec-device-concept) level:
   * A Zaptec Portal user with _Owner_ or _Service_ privileges.
-  * Disable [Zaptec Sense](https://help.zaptec.com/hc/en-001/articles/11155142597137-How-to-manage-Zaptec-Sense-in-the-Zaptec-Portal) (aka APM/Automatic Power Management).
+  * Disable [Zaptec Sense](https://help.zaptec.com/hc/en-GB/article/how-to-manage-zaptec-sense-in-the-zaptec-portal) (aka APM/Automatic Power Management).
+  * Disable [stand-alone mode](https://help.zaptec.com/hc/en-GB/article/use-stand-alone-mode-for-troubleshooting-and-unstable-internet).
 
 # Known issues
 
@@ -198,6 +199,12 @@ of the following will prevent auto start:
 > [!TIP]
 > Using _"Available current"_ will affect __all__ chargers if there are more
 > than one charger.
+
+> [!IMPORTANT]
+> Setting the available charge has no effect if the charger is in _stand-alone_
+> mode and will in that case not prevent the charging to start immediately.
+> If you have issues preventing auto start then check if your charger is in
+> stand-alone mode.
 
 
 ## Setting charging current
