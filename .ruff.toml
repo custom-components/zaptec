@@ -22,6 +22,7 @@ ignore = [
     "D203",   # no-blank-line-before-class (incompatible with formatter)
     "D212",   # multi-line-summary-first-line (incompatible with formatter)
     "D213",   # Multi-line docstring summary should start at the second line
+    "E501",   # line too long
     "ISC001", # incompatible with formatter
 
     "PLR0911", # Too many return statements ({returns} > {max_returns})
