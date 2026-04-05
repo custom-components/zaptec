@@ -1,7 +1,7 @@
 colorlog==6.10.1
-homeassistant==2026.2.3
+homeassistant==2026.4.1
 pip>=25.0
-ruff==0.15.4
+ruff==0.15.9
 
 # Copy from manifest.json to get this into the dev container
 # without needing to start HA

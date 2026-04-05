@@ -79,14 +79,17 @@ jobs:
   tests:
     name: Unit testing
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.13", "3.14"] # If 3.13-tests start failing, we need to consider setting HA2026.3 as the minimum version.
     steps:
       - name: Checkout the repository
         uses: actions/checkout@v4
 
-      - name: Setup Python
+      - name: Setup Python ${{ matrix.python-version }}
         uses: "actions/setup-python@v5"
         with:
-          python-version: '3.13'
+          python-version: ${{ matrix.python-version }}
 
       - name: Install requirements
         run: |
