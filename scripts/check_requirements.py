@@ -117,7 +117,7 @@ def get_ha_tags() -> list[str]:
 
 
 def get_constraints_url(version: str = "") -> str:
-    return CONSTRAINTS_URL.format(v=version if version else "dev")
+    return CONSTRAINTS_URL.format(v=version or "dev")
 
 
 if __name__ == "__main__":
