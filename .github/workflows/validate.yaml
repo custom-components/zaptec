@@ -91,6 +91,11 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
+      - name: Revert HA requirement to last version supporting Python ${{ matrix.python-version }}
+        if: matrix.python-version == '3.13'
+        run: |
+          sed -i 's/^homeassistant==.*/homeassistant==2026.2.3/' requirements.txt
+
       - name: Install requirements
         run: |
           pip install \
