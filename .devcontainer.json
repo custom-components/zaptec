@@ -1,6 +1,6 @@
 {
     "name": "Zaptec integration development",
-    "image": "mcr.microsoft.com/devcontainers/python:3.13",
+    "image": "mcr.microsoft.com/devcontainers/python:3.14",
     "postCreateCommand": "scripts/setup",
     "forwardPorts": [
         8123
@@ -37,7 +37,7 @@
                 "files.trimTrailingWhitespace": true,
                 "python.analysis.autoImportCompletions": true,
                 "python.analysis.extraPaths": [
-                    "/home/vscode/.local/lib/python3.13/site-packages"
+                    "/home/vscode/.local/lib/python3.14/site-packages"
                 ],
                 "python.analysis.typeCheckingMode": "basic",
                 "python.defaultInterpreterPath": "/usr/local/bin/python"
