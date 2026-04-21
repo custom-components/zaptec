@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.8.7
+
+This is a minor release that is required to be able to run on HA Core 2026.5+.
+
+It contains minor dependency updates for pydantic and azure-servicebus.
+
 ## 0.8.6
 
 This is a minor release that fixes a validation issue that caused the integration to stop working for users with at least one charger they only have the User role for.
