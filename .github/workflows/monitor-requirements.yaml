@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout zaptec repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Check manifest requirements against latest HA dev branch
         run: |
