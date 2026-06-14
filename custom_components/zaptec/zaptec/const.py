@@ -49,6 +49,7 @@ FALSY = ["false", "0", "off", "no", 0, False]
 # attributes. Use strings.
 CHARGER_EXCLUDES = {
     "854",  # PilotTestResults
+    "877",  # LockMotorCurrents
     "900",  # ProductionTestResults
     "980",  # MIDCalibration
 }
