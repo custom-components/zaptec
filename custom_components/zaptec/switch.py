@@ -14,11 +14,10 @@ from homeassistant.components.switch import (
 from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
-from homeassistant.helpers.entity import EntityDescription
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .entity import ZaptecBaseEntity
-from .manager import ZaptecConfigEntry
+from .manager import ZaptecConfigEntry, ZaptecEntityDescription
 from .zaptec import Charger
 
 _LOGGER = logging.getLogger(__name__)
@@ -55,7 +54,7 @@ class ZaptecChargeSwitch(ZaptecSwitch):
         """Update the entity from Zaptec data."""
         # Called from ZaptecBaseEntity._handle_coordinator_update()
         state = self._get_zaptec_value()
-        self._attr_is_on = state in ["Connected_Charging"]
+        self._attr_is_on = state == "Connected_Charging"
         self._attr_available = True
 
     async def async_turn_on(self, **kwargs: Any) -> None:  # pylint: disable=unused-argument
@@ -126,15 +125,15 @@ class ZaptecCableLockSwitch(ZaptecSwitch):
 
 
 @dataclass(frozen=True, kw_only=True)
-class ZapSwitchEntityDescription(SwitchEntityDescription):
+class ZapSwitchEntityDescription(ZaptecEntityDescription, SwitchEntityDescription):
     """Class describing Zaptec switch entities."""
 
     cls: type[SwitchEntity]
 
 
-INSTALLATION_ENTITIES: list[EntityDescription] = []
+INSTALLATION_ENTITIES: list[ZaptecEntityDescription] = []
 
-CHARGER_ENTITIES: list[EntityDescription] = [
+CHARGER_ENTITIES: list[ZaptecEntityDescription] = [
     ZapSwitchEntityDescription(
         key="charger_operation_mode",
         translation_key="charger_operation_mode",

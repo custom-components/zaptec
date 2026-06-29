@@ -50,6 +50,12 @@ jobs:
           args: check --exit-zero # succeed despite errors until https://github.com/custom-components/zaptec/issues/258 is done
           src: "."
 
+      - name: Run strict ruff check (except api.py)
+        uses: astral-sh/ruff-action@v3
+        with:
+          args: check --exclude custom_components/zaptec/zaptec/api.py
+          src: "."
+
   manifest-requirements:
     name: Manifest requirements validation
     runs-on: ubuntu-latest

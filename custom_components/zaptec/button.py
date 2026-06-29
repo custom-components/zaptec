@@ -9,11 +9,10 @@ from homeassistant import const
 from homeassistant.components.button import ButtonEntity, ButtonEntityDescription
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
-from homeassistant.helpers.entity import EntityDescription
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .entity import ZaptecBaseEntity
-from .manager import ZaptecConfigEntry
+from .manager import ZaptecConfigEntry, ZaptecEntityDescription
 from .zaptec import Charger
 
 _LOGGER = logging.getLogger(__name__)
@@ -46,15 +45,15 @@ class ZaptecButton(ZaptecBaseEntity, ButtonEntity):
 
 
 @dataclass(frozen=True, kw_only=True)
-class ZapButtonEntityDescription(ButtonEntityDescription):
+class ZapButtonEntityDescription(ZaptecEntityDescription, ButtonEntityDescription):
     """Class describing Zaptec button entities."""
 
     cls: type[ButtonEntity]
 
 
-INSTALLATION_ENTITIES: list[EntityDescription] = []
+INSTALLATION_ENTITIES: list[ZaptecEntityDescription] = []
 
-CHARGER_ENTITIES: list[EntityDescription] = [
+CHARGER_ENTITIES: list[ZaptecEntityDescription] = [
     ZapButtonEntityDescription(
         key="resume_charging",
         translation_key="resume_charging",

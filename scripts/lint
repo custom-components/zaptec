@@ -8,7 +8,7 @@ if [ "$1" = "ci" ]; then
     # Don't try to fix errors, just fail
     ruff format . --diff
     ruff check . --exit-zero # succeed despite errors until https://github.com/custom-components/zaptec/issues/258 is done
-    # ruff check .
+    ruff check . --exclude custom_components/zaptec/zaptec/api.py
 else
     # Auto-fix as much as possible
     ruff format .

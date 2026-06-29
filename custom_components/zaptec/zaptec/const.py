@@ -42,6 +42,12 @@ API_RATELIMIT_MAX_REQUEST_RATE = 10
 MAX_DEBUG_TEXT_LEN_ON_500 = 150
 """Maximum text length to add to debug log without truncating."""
 
+DEFAULT_MIN_CURRENT = 6.0
+"""The lowest supported current for EV charging according to IEC standards."""
+
+DEFAULT_MAX_CURRENT = 32.0
+"""The default max_current to use if max_current is missing or invalid."""
+
 TRUTHY = ["true", "1", "on", "yes", 1, True]
 FALSY = ["false", "0", "off", "no", 0, False]
 
