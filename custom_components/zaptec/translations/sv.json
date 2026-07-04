@@ -167,13 +167,13 @@
                 "name": "Laddeffekt"
             },
             "voltage_phase1": {
-                "name": "Volt fas 1"
+                "name": "Spänning fas 1"
             },
             "voltage_phase2": {
-                "name": "Volt fas 2"
+                "name": "Spänning fas 2"
             },
             "voltage_phase3": {
-                "name": "Volt fas 3"
+                "name": "Spänning fas 3"
             }
         },
         "switch": {
