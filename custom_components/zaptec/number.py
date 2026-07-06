@@ -18,12 +18,12 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .entity import ZaptecBaseEntity
 from .manager import ZaptecConfigEntry, ZaptecEntityDescription
-from .zaptec import Charger, Installation
+from .zaptec import Charger, Installation, ZaptecBase
 
 _LOGGER = logging.getLogger(__name__)
 
 
-class ZaptecNumber(ZaptecBaseEntity, NumberEntity):
+class ZaptecNumber[ZaptecObjectT: ZaptecBase](ZaptecBaseEntity[ZaptecObjectT], NumberEntity):
     """Base class for Zaptec number entities."""
 
     # What to log on entity update
@@ -48,10 +48,9 @@ class ZaptecNumber(ZaptecBaseEntity, NumberEntity):
         )
 
 
-class ZaptecAvailableCurrentNumber(ZaptecNumber):
+class ZaptecAvailableCurrentNumber(ZaptecNumber[Installation]):
     """Zaptec available current number entity."""
 
-    zaptec_obj: Installation
     entity_description: ZapNumberEntityDescription
 
     def _post_init(self) -> None:
@@ -72,10 +71,9 @@ class ZaptecAvailableCurrentNumber(ZaptecNumber):
         await self.trigger_poll()
 
 
-class ZaptecThreeToOnePhaseSwitchCurrent(ZaptecNumber):
+class ZaptecThreeToOnePhaseSwitchCurrent(ZaptecNumber[Installation]):
     """Zaptec three to one phase switch current number entity."""
 
-    zaptec_obj: Installation
     entity_description: ZapNumberEntityDescription
 
     async def async_set_native_value(self, value: float) -> None:
@@ -91,10 +89,9 @@ class ZaptecThreeToOnePhaseSwitchCurrent(ZaptecNumber):
         await self.trigger_poll()
 
 
-class ZaptecSettingNumber(ZaptecNumber):
+class ZaptecSettingNumber(ZaptecNumber[Charger]):
     """Zaptec setting number entity."""
 
-    zaptec_obj: Charger
     entity_description: ZapNumberEntityDescription
 
     def _post_init(self) -> None:
@@ -119,10 +116,9 @@ class ZaptecSettingNumber(ZaptecNumber):
         await self.trigger_poll()
 
 
-class ZaptecHmiBrightness(ZaptecNumber):
+class ZaptecHmiBrightness(ZaptecNumber[Charger]):
     """Zaptec HMI brightness number entity."""
 
-    zaptec_obj: Charger
     entity_description: ZapNumberEntityDescription
     _log_attribute = "_attr_native_value"
 
@@ -148,7 +144,6 @@ class ZaptecHmiBrightness(ZaptecNumber):
 class ZapNumberEntityDescription(ZaptecEntityDescription, NumberEntityDescription):
     """Class describing Zaptec number entities."""
 
-    cls: type[NumberEntity]
     setting: str | None = None
 
 

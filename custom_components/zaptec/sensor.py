@@ -133,8 +133,6 @@ class ZaptecEnengySensor(ZaptecSensor):
 class ZapSensorEntityDescription(ZaptecEntityDescription, SensorEntityDescription):
     """Provide a description of a Zaptec sensor."""
 
-    cls: type[SensorEntity]
-
 
 INSTALLATION_ENTITIES: list[ZaptecEntityDescription] = [
     ZapSensorEntityDescription(

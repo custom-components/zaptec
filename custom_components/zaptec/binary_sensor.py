@@ -46,8 +46,6 @@ class ZaptecBinarySensorWithAttrs(ZaptecBinarySensor):
 class ZapBinarySensorEntityDescription(ZaptecEntityDescription, BinarySensorEntityDescription):
     """Class describing Zaptec binary sensor entities."""
 
-    cls: type[BinarySensorEntity]
-
 
 INSTALLATION_ENTITIES: list[ZaptecEntityDescription] = [
     ZapBinarySensorEntityDescription(

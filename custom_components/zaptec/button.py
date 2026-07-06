@@ -18,10 +18,8 @@ from .zaptec import Charger
 _LOGGER = logging.getLogger(__name__)
 
 
-class ZaptecButton(ZaptecBaseEntity, ButtonEntity):
+class ZaptecButton(ZaptecBaseEntity[Charger], ButtonEntity):
     """Base class for Zaptec buttons."""
-
-    zaptec_obj: Charger
 
     @property
     def available(self) -> bool:
@@ -47,8 +45,6 @@ class ZaptecButton(ZaptecBaseEntity, ButtonEntity):
 @dataclass(frozen=True, kw_only=True)
 class ZapButtonEntityDescription(ZaptecEntityDescription, ButtonEntityDescription):
     """Class describing Zaptec button entities."""
-
-    cls: type[ButtonEntity]
 
 
 INSTALLATION_ENTITIES: list[ZaptecEntityDescription] = []

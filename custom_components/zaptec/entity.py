@@ -26,12 +26,13 @@ class KeyUnavailableError(Exception):
         self.key = key
 
 
-class ZaptecBaseEntity(CoordinatorEntity[ZaptecUpdateCoordinator]):
+class ZaptecBaseEntity[ZaptecObjectT: ZaptecBase = ZaptecBase](
+    CoordinatorEntity[ZaptecUpdateCoordinator]
+):
     """Base class for Zaptec entities."""
 
     coordinator: ZaptecUpdateCoordinator
-    zaptec_obj: ZaptecBase
-    entity_description: EntityDescription
+    zaptec_obj: ZaptecObjectT
     _attr_has_entity_name = True
     _prev_value: Any = MISSING
     _prev_available: bool = True  # Assume the entity is available at start for logging
@@ -41,7 +42,7 @@ class ZaptecBaseEntity(CoordinatorEntity[ZaptecUpdateCoordinator]):
     def __init__(
         self,
         coordinator: ZaptecUpdateCoordinator,
-        zaptec_object: ZaptecBase,
+        zaptec_object: ZaptecObjectT,
         description: EntityDescription,
         device_info: DeviceInfo,
     ) -> None:

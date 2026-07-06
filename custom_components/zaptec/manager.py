@@ -8,6 +8,7 @@ import contextlib
 from copy import copy
 from dataclasses import dataclass
 import logging
+from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -28,7 +29,7 @@ type ZaptecConfigEntry = ConfigEntry[ZaptecManager]
 class ZaptecEntityDescription(EntityDescription):
     """Class describing Zaptec entities."""
 
-    cls: type[ZaptecBaseEntity]
+    cls: type[ZaptecBaseEntity[Any]]
 
 
 class ZaptecManager:
@@ -107,7 +108,7 @@ class ZaptecManager:
 
             # Use provided class if it exists, otherwise use the class this
             # function was called from
-            cls: type[ZaptecBaseEntity] = description.cls
+            cls: type[ZaptecBaseEntity[Any]] = description.cls
             entity = cls(
                 coordinator=self.device_coordinators[zaptec_obj.id],
                 zaptec_object=zaptec_obj,

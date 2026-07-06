@@ -23,14 +23,13 @@ from .zaptec import Charger
 _LOGGER = logging.getLogger(__name__)
 
 
-class ZaptecUpdate(ZaptecBaseEntity, UpdateEntity):
+class ZaptecUpdate(ZaptecBaseEntity[Charger], UpdateEntity):
     """Base class for Zaptec update entities."""
 
     # What to log on entity update
     _log_attribute = "_attr_installed_version"
     # This entity use several attributes from Zaptec
     _log_zaptec_key: Final = ["firmware_current_version", "firmware_available_version"]
-    zaptec_obj: Charger
 
     @callback
     def _update_from_zaptec(self) -> None:
@@ -59,8 +58,6 @@ class ZaptecUpdate(ZaptecBaseEntity, UpdateEntity):
 @dataclass(frozen=True, kw_only=True)
 class ZapUpdateEntityDescription(ZaptecEntityDescription, UpdateEntityDescription):
     """Class describing Zaptec update entities."""
-
-    cls: type[UpdateEntity]
 
 
 INSTALLATION_ENTITIES: list[ZaptecEntityDescription] = []
