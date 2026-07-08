@@ -3,14 +3,16 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import AsyncGenerator, Callable, Iterable, Iterator, Mapping
+from collections.abc import AsyncGenerator, Awaitable, Callable, Iterable, Iterator, Mapping
 from contextlib import aclosing
 from http import HTTPStatus
 import itertools
 import json
 import logging
 import random
+import ssl
 import time
+from types import TracebackType
 from typing import Any, ClassVar, Protocol, Self
 
 import aiohttp
@@ -59,6 +61,7 @@ DEBUG_API_EXCEPTIONS = False
 # Type definitions
 TValue = str | int | float | bool
 TDict = dict[str, TValue]
+StreamCallback = Callable[[dict], Awaitable[None]]
 
 
 class TLogExc(Protocol):
@@ -186,13 +189,15 @@ class ZaptecBase(Mapping[str, TValue]):
         data: Iterable[dict[str, str]],
         key: str,
         keydict: dict[str, str],
-        excludes: set[str] = set(),
+        excludes: set[str] | None = None,
     ) -> dict[str, str]:
         """Convert a list of state data into a dict of attributes.
 
         `key` is the key that specifies the attribute name. `keydict` is a
         dict that maps the key value to an attribute name.
         """
+        if excludes is None:
+            excludes = set()
         out: dict[str, str] = {}
         for item in data:
             skey = item.get(key)
@@ -299,7 +304,7 @@ class Installation(ZaptecBase):
 
         # Remove data fields with excessive data, making it bigger than the
         # HA database appreciates for the size of attributes.
-        # FIXME: SupportGroup is sub dict. This is not within the declared type
+        # NOTE: SupportGroup is a sub dict. This is not within the declared type
         supportgroup = data.get("SupportGroup")
         if supportgroup is not None and "LogoBase64" in supportgroup:
             logo = supportgroup["LogoBase64"]
@@ -346,14 +351,16 @@ class Installation(ZaptecBase):
     #   STREAM METHODS
     # =======================================================================
 
-    async def live_stream_connection_details(self):
+    async def live_stream_connection_details(self) -> Any:
         """Get the live stream connection details for the installation."""
         # NOTE: API call deprecated
         data = await self.zaptec.request(f"installation/{self.id}/messagingConnectionDetails")
         self.connection_details = data
         return data
 
-    async def stream(self, cb=None, ssl_context=None) -> asyncio.Task | None:
+    async def stream(
+        self, cb: StreamCallback | None = None, ssl_context: ssl.SSLContext | None = None
+    ) -> asyncio.Task | None:
         """Kickoff the steam in the background."""
         await self.cancel_stream()
         self._stream_task = asyncio.create_task(self.stream_main(cb=cb, ssl_context=ssl_context))
@@ -373,14 +380,16 @@ class Installation(ZaptecBase):
             data.pop("DeviceType", None)
         _LOGGER.debug("@@@  EVENT %s", self.zaptec.redact(data))
 
-    async def stream_main(self, cb=None, ssl_context=None) -> None:
+    async def stream_main(
+        self, cb: StreamCallback | None = None, ssl_context: ssl.SSLContext | None = None
+    ) -> None:
         """Main stream handler."""
+        # Already running?
+        if self._stream_running:
+            raise RuntimeError(
+                "Stream already running. Call cancel_stream() before starting a new stream."
+            )
         try:
-            # Already running?
-            if self._stream_running:
-                raise RuntimeError(
-                    "Stream already running. Call cancel_stream() before starting a new stream."
-                )
             self._stream_running = True
 
             # Get connection details
@@ -432,11 +441,9 @@ class Installation(ZaptecBase):
                             # for that, so a small scaled down version is added
                             # here.
                             binmsg = b"".join(msg.body)
-                            # _LOGGER.debug("Received message %s", binmsg)
 
                             # Decode MC-NBFX message
                             obj = mc_nbfx_decoder(binmsg)
-                            #  _LOGGER.debug("Unecoded message: %s", obj)
 
                             # Convert the json payload
                             json_result = json.loads(obj[0]["text"])
@@ -451,17 +458,17 @@ class Installation(ZaptecBase):
                             if cb:
                                 await cb(json_result)
 
-                        except Exception as err:
-                            _LOGGER.exception("Couldn't process stream message: %s", err)
+                        except Exception:
+                            _LOGGER.exception("Couldn't process stream message")
                             _LOGGER.debug("Message: %s", binmsg)
                             # Pass the message as the stream must continue.
 
                         # remove the msg from the "queue"
                         await receiver.complete_message(msg)
 
-        except Exception as err:
+        except Exception:
             # Do this in order to show the error in the log.
-            _LOGGER.exception("Stream failed: %s", err)
+            _LOGGER.exception("Stream failed")
 
         finally:
             # Cleanup
@@ -517,7 +524,7 @@ class Installation(ZaptecBase):
     #   API METHODS
     # =======================================================================
 
-    async def set_limit_current(self, **kwargs):
+    async def set_limit_current(self, **kwargs: Any) -> Any:
         """Set current limit for the installation.
 
         Set a limit now how many amps the installation can use
@@ -565,7 +572,7 @@ class Installation(ZaptecBase):
             f"installation/{self.id}/update", method="post", data=kwargs
         )
 
-    async def set_three_to_one_phase_switch_current(self, current: float):
+    async def set_three_to_one_phase_switch_current(self, current: float) -> Any:
         """Set the 3 to 1-phase switch current."""
         if not (0 <= current <= DEFAULT_MAX_CURRENT):
             raise ValueError(f"Current must be between 0 and {DEFAULT_MAX_CURRENT:.0f} amps")
@@ -661,7 +668,7 @@ class Charger(ZaptecBase):
     #   API METHODS
     # =======================================================================
 
-    async def command(self, command: str | int | CommandType):
+    async def command(self, command: str | int | CommandType) -> Any:
         """Send a command to the charger.
 
         Any command or command id can be used. Zaptec supports a number of
@@ -705,6 +712,7 @@ class Charger(ZaptecBase):
 
         valid_command = True
         msg = ""
+        operation_mode = final_stop_active = None
         if command in ["resume_charging", "stop_charging_final"]:
             # Pause/stop or resume charging are only allowed in certain states, see comments on
             # commands 506+507 in https://api.zaptec.com/help/index.html#/Charger/Charger_SendCommand_POST
@@ -731,7 +739,7 @@ class Charger(ZaptecBase):
             raise ValueError(msg)
         return False
 
-    async def set_settings(self, settings: dict[str, Any]):
+    async def set_settings(self, settings: dict[str, Any]) -> Any:
         """Set settings on the charger."""
 
         if any(key not in ZCONST.update_params for key in settings):
@@ -742,13 +750,13 @@ class Charger(ZaptecBase):
             f"chargers/{self.id}/update", method="post", data=settings
         )
 
-    async def authorize_charge(self):
+    async def authorize_charge(self) -> Any:
         """Authorize the charger to charge."""
         _LOGGER.debug("Authorize charge")
         # NOTE: Undocumented API call
         return await self.zaptec.request(f"chargers/{self.id}/authorizecharge", method="post")
 
-    async def set_permanent_cable_lock(self, lock: bool):
+    async def set_permanent_cable_lock(self, lock: bool) -> Any:
         """Set the permanent cable lock on the charger."""
         _LOGGER.debug("Set permanent cable lock %s", lock)
         data = {
@@ -761,7 +769,7 @@ class Charger(ZaptecBase):
             f"chargers/{self.id}/localSettings", method="post", data=data
         )
 
-    async def set_hmi_brightness(self, brightness: float):
+    async def set_hmi_brightness(self, brightness: float) -> Any:
         """Set the HMI brightness."""
         _LOGGER.debug("Set HMI brightness %s", brightness)
         data = {
@@ -833,7 +841,12 @@ class Zaptec(Mapping[str, ZaptecBase]):
         """Enter the context manager."""
         return self
 
-    async def __aexit__(self, exc_type, exc_value, traceback):
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        traceback: TracebackType | None,
+    ) -> bool:
         """Exit the context manager."""
         if self._client_internal:
             # If the client was created internally, close it
@@ -855,7 +868,7 @@ class Zaptec(Mapping[str, ZaptecBase]):
         """Return the number of registered objects."""
         return len(self._map)
 
-    def __contains__(self, key: str | ZaptecBase) -> bool:
+    def __contains__(self, key: object) -> bool:
         """Check if an object with the given id is registered."""
         # Overload the default implementation to support checking of objects using "in" operator.
         if isinstance(key, ZaptecBase):
@@ -903,7 +916,7 @@ class Zaptec(Mapping[str, ZaptecBase]):
     #   REQUEST METHODS
 
     @staticmethod
-    def _request_log(url: str, method: str, iteration: int, **kwargs):
+    def _request_log(url: str, method: str, iteration: int, **kwargs: Any) -> Iterator[str]:
         """Helper that yields request log entries."""
         try:
             data = kwargs.get("data", "")
@@ -928,7 +941,7 @@ class Zaptec(Mapping[str, ZaptecBase]):
             _LOGGER.exception("Failed to log request (ignored exception)")
 
     @staticmethod
-    async def _response_log(resp: aiohttp.ClientResponse):
+    async def _response_log(resp: aiohttp.ClientResponse) -> AsyncGenerator[str]:
         """Helper that yield response log entries."""
         try:
             contents = await resp.read()
@@ -946,8 +959,8 @@ class Zaptec(Mapping[str, ZaptecBase]):
             _LOGGER.exception("Failed to log response (ignored exception)")
 
     async def _request_worker(
-        self, url: str, method: str = "get", retries: int = API_RETRIES, **kwargs
-    ) -> AsyncGenerator[tuple[aiohttp.ClientResponse, TLogExc], None]:
+        self, url: str, method: str = "get", retries: int = API_RETRIES, **kwargs: Any
+    ) -> AsyncGenerator[tuple[aiohttp.ClientResponse, TLogExc]]:
         """API request generator that handles retries.
 
         This function handles logging and error handling. The generator will
@@ -988,12 +1001,17 @@ class Zaptec(Mapping[str, ZaptecBase]):
                         for msg in log_resp:
                             _LOGGER.debug(msg)
 
-                    # Prepare the exception handler
-                    def log_exc(exc: Exception) -> Exception:
+                    # Prepare the exception handler. The log messages are bound
+                    # as a default argument so the closure captures this
+                    # iteration's values rather than the loop variables.
+                    def log_exc(
+                        exc: Exception,
+                        _log_msgs: tuple[str, ...] = tuple(log_req + log_resp),
+                    ) -> Exception:
                         """Log the exception and return it."""
                         if DEBUG_API_EXCEPTIONS:
                             if not DEBUG_API_CALLS:
-                                for msg in log_req + log_resp:
+                                for msg in _log_msgs:
                                     _LOGGER.debug(msg)
                             _LOGGER.error(str(exc), exc_info=exc)
                         return exc
@@ -1093,7 +1111,9 @@ class Zaptec(Mapping[str, ZaptecBase]):
                     )
                 )
 
-    async def request(self, url: str, *, method: str = "get", data=None, base_url: str = API_URL):
+    async def request(
+        self, url: str, *, method: str = "get", data: Any = None, base_url: str = API_URL
+    ) -> Any:
         """Make a request to the API."""
 
         full_url = base_url + url
