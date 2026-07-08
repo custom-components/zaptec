@@ -12,6 +12,7 @@ import pytest
 from custom_components.zaptec.zaptec.api import Charger, Installation, Zaptec, ZaptecBase
 from custom_components.zaptec.zaptec.const import API_RETRIES
 from custom_components.zaptec.zaptec.exceptions import (
+    AuthenticationError,
     RequestConnectionError,
     RequestDataError,
     RequestError,
@@ -503,3 +504,375 @@ async def test_poll_unknown_object_raises() -> None:
     zap, _ = _make_zaptec([])
     with pytest.raises(ValueError, match="not found"):
         await zap.poll(["missing"])
+
+
+# ---------------------------------------------------------------------------
+#   Charger command / settings wrappers
+# ---------------------------------------------------------------------------
+
+
+def _charger_with_session(
+    outcomes: list[FakeResponse | BaseException],
+) -> tuple[Charger, FakeSession]:
+    """Build a charger whose owner performs requests against a FakeSession."""
+    zap, session = _make_zaptec(outcomes)
+    return Charger({"Id": "c1"}, zap), session
+
+
+def _installation_with_session(
+    outcomes: list[FakeResponse | BaseException],
+) -> tuple[Installation, FakeSession]:
+    """Build an installation whose owner performs requests against a FakeSession."""
+    zap, session = _make_zaptec(outcomes)
+    return Installation({"Id": "i1"}, zap), session
+
+
+@pytest.mark.asyncio
+async def test_command_posts_to_send_command_url(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A named command resolves to its id and POSTs to SendCommand."""
+    monkeypatch.setattr(ZCONST, "commands", {"restart_charger": 102}, raising=False)
+    charger, session = _charger_with_session([FakeResponse(HTTPStatus.OK, json_data={})])
+
+    await charger.command("restart_charger")
+
+    method, url, _ = session.calls[-1]
+    assert method == "post"
+    assert url.endswith("chargers/c1/SendCommand/102")
+
+
+@pytest.mark.asyncio
+async def test_command_authorize_charge_alias() -> None:
+    """The authorize_charge alias POSTs to the authorizecharge endpoint."""
+    charger, session = _charger_with_session([FakeResponse(HTTPStatus.OK, json_data={})])
+
+    await charger.command("authorize_charge")
+
+    method, url, _ = session.calls[-1]
+    assert method == "post"
+    assert url.endswith("chargers/c1/authorizecharge")
+
+
+@pytest.mark.asyncio
+async def test_command_unknown_raises(monkeypatch: pytest.MonkeyPatch) -> None:
+    """An unknown command raises without issuing a request."""
+    monkeypatch.setattr(ZCONST, "commands", {}, raising=False)
+    charger, session = _charger_with_session([])
+
+    with pytest.raises(ValueError, match="Unknown command"):
+        await charger.command("does_not_exist")
+    assert session.calls == []
+
+
+@pytest.mark.asyncio
+async def test_set_settings_valid() -> None:
+    """Valid settings are POSTed to the charger update endpoint."""
+    settings = {"maxChargeCurrent": 16}
+    charger, session = _charger_with_session([FakeResponse(HTTPStatus.OK, json_data={})])
+
+    await charger.set_settings(settings)
+
+    method, url, kwargs = session.calls[-1]
+    assert method == "post"
+    assert url.endswith("chargers/c1/update")
+    assert kwargs["json"] == settings
+
+
+@pytest.mark.asyncio
+async def test_set_settings_unknown_key_raises() -> None:
+    """An unknown setting key raises without issuing a request."""
+    charger, session = _charger_with_session([])
+    with pytest.raises(ValueError, match="Unknown setting"):
+        await charger.set_settings({"bogusKey": 1})
+    assert session.calls == []
+
+
+@pytest.mark.asyncio
+async def test_authorize_charge_posts() -> None:
+    """authorize_charge POSTs to the authorizecharge endpoint."""
+    charger, session = _charger_with_session([FakeResponse(HTTPStatus.OK, json_data={})])
+
+    await charger.authorize_charge()
+
+    method, url, _ = session.calls[-1]
+    assert method == "post"
+    assert url.endswith("chargers/c1/authorizecharge")
+
+
+@pytest.mark.asyncio
+async def test_set_permanent_cable_lock_payload() -> None:
+    """The permanent cable lock is sent under Cable.PermanentLock."""
+    expected = {"Cable": {"PermanentLock": True}}
+    charger, session = _charger_with_session([FakeResponse(HTTPStatus.OK, json_data={})])
+
+    await charger.set_permanent_cable_lock(lock=True)
+
+    method, url, kwargs = session.calls[-1]
+    assert method == "post"
+    assert url.endswith("chargers/c1/localSettings")
+    assert kwargs["json"] == expected
+
+
+@pytest.mark.asyncio
+async def test_set_hmi_brightness_payload() -> None:
+    """The HMI brightness is sent under Device.HmiBrightness."""
+    brightness = 0.5
+    expected = {"Device": {"HmiBrightness": brightness}}
+    charger, session = _charger_with_session([FakeResponse(HTTPStatus.OK, json_data={})])
+
+    await charger.set_hmi_brightness(brightness)
+
+    method, url, kwargs = session.calls[-1]
+    assert method == "post"
+    assert url.endswith("chargers/c1/localSettings")
+    assert kwargs["json"] == expected
+
+
+# ---------------------------------------------------------------------------
+#   Installation current-limit setters
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_set_limit_current_available_current() -> None:
+    """A single availableCurrent limit is POSTed to the installation update."""
+    expected = {"availableCurrent": 16}
+    inst, session = _installation_with_session([FakeResponse(HTTPStatus.OK, json_data={})])
+
+    await inst.set_limit_current(**expected)
+
+    method, url, kwargs = session.calls[-1]
+    assert method == "post"
+    assert url.endswith("installation/i1/update")
+    assert kwargs["json"] == expected
+
+
+@pytest.mark.asyncio
+async def test_set_limit_current_requires_current_argument() -> None:
+    """Calling without any current argument raises."""
+    inst, session = _installation_with_session([])
+    with pytest.raises(ValueError, match="availableCurrent"):
+        await inst.set_limit_current()
+    assert session.calls == []
+
+
+@pytest.mark.asyncio
+async def test_set_limit_current_partial_phases_raise() -> None:
+    """Providing availableCurrent with only some per-phase currents raises."""
+    inst, session = _installation_with_session([])
+    with pytest.raises(ValueError, match="all of them must be set"):
+        await inst.set_limit_current(availableCurrent=10, availableCurrentPhase1=10)
+    assert session.calls == []
+
+
+@pytest.mark.asyncio
+async def test_set_limit_current_out_of_range_raises() -> None:
+    """A current above the installation maximum raises."""
+    inst, session = _installation_with_session([])
+    with pytest.raises(ValueError, match="between 0 and"):
+        await inst.set_limit_current(availableCurrent=1000)
+    assert session.calls == []
+
+
+@pytest.mark.asyncio
+async def test_set_three_to_one_phase_switch_current() -> None:
+    """The 3-to-1 phase switch current is POSTed to the installation update."""
+    current = 16
+    expected = {"threeToOnePhaseSwitchCurrent": current}
+    inst, session = _installation_with_session([FakeResponse(HTTPStatus.OK, json_data={})])
+
+    await inst.set_three_to_one_phase_switch_current(current)
+
+    method, url, kwargs = session.calls[-1]
+    assert method == "post"
+    assert url.endswith("installation/i1/update")
+    assert kwargs["json"] == expected
+
+
+@pytest.mark.asyncio
+async def test_set_three_to_one_phase_switch_current_out_of_range_raises() -> None:
+    """An out-of-range 3-to-1 phase switch current raises."""
+    inst, session = _installation_with_session([])
+    with pytest.raises(ValueError, match="between 0 and"):
+        await inst.set_three_to_one_phase_switch_current(1000)
+    assert session.calls == []
+
+
+# ---------------------------------------------------------------------------
+#   Charger.poll_info / poll_state
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_poll_info_happy_path(monkeypatch: pytest.MonkeyPatch) -> None:
+    """poll_info fetches the charger and applies the attributes."""
+    # Payload validation has its own tests; bypass it here.
+    monkeypatch.setattr("custom_components.zaptec.zaptec.api.validate", Mock())
+    charger, _ = _charger_with_session([FakeResponse(HTTPStatus.OK, json_data={"Id": "c1"})])
+    charger.set_attributes = Mock()
+
+    await charger.poll_info()
+
+    charger.set_attributes.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_poll_info_falls_back_to_charger_list_on_forbidden(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A 403 on the charger endpoint falls back to the chargers list."""
+    monkeypatch.setattr("custom_components.zaptec.zaptec.api.validate", Mock())
+    charger, _ = _charger_with_session(
+        [
+            FakeResponse(HTTPStatus.FORBIDDEN),
+            FakeResponse(HTTPStatus.OK, json_data={"Data": [{"Id": "c1", "Name": "x"}]}),
+        ]
+    )
+    charger.set_attributes = Mock()
+
+    await charger.poll_info()
+
+    # Reached only via the fallback branch, since the first request raised.
+    charger.set_attributes.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_poll_info_non_forbidden_error_propagates() -> None:
+    """A non-403 error is re-raised rather than falling back."""
+    charger, _ = _charger_with_session([FakeResponse(HTTPStatus.NOT_FOUND)])
+    with pytest.raises(RequestError):
+        await charger.poll_info()
+
+
+@pytest.mark.asyncio
+async def test_poll_state_happy_path(monkeypatch: pytest.MonkeyPatch) -> None:
+    """poll_state fetches the state list and applies the mapped attributes."""
+    monkeypatch.setattr(ZCONST, "observations", {"1": "current"}, raising=False)
+    monkeypatch.setattr("custom_components.zaptec.zaptec.api.validate", Mock())
+    charger, session = _charger_with_session(
+        [FakeResponse(HTTPStatus.OK, json_data=[{"StateId": "1", "ValueAsString": "5"}])]
+    )
+    charger.set_attributes = Mock()
+
+    await charger.poll_state()
+
+    _, url, _ = session.calls[-1]
+    assert url.endswith("chargers/c1/state")
+    charger.set_attributes.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_poll_state_forbidden_is_ignored() -> None:
+    """A 403 on the state endpoint is swallowed (no attribute update)."""
+    charger, _ = _charger_with_session([FakeResponse(HTTPStatus.FORBIDDEN)])
+    charger.set_attributes = Mock()
+
+    await charger.poll_state()
+
+    charger.set_attributes.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+#   Zaptec._refresh_token / login
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_login_stores_and_uses_access_token() -> None:
+    """A successful login obtains a token and sends it on later requests."""
+    zap, session = _make_zaptec(
+        [
+            FakeResponse(HTTPStatus.OK, json_data={"access_token": "abc"}),
+            FakeResponse(HTTPStatus.OK, json_data={}),
+        ]
+    )
+
+    await zap.login()
+    await zap.request("some/url")
+
+    _, _, kwargs = session.calls[-1]
+    assert kwargs["headers"]["Authorization"] == "Bearer abc"
+
+
+@pytest.mark.asyncio
+async def test_login_bad_credentials_raises_authentication_error() -> None:
+    """A 400 from the token endpoint raises AuthenticationError."""
+    zap, _ = _make_zaptec(
+        [FakeResponse(HTTPStatus.BAD_REQUEST, json_data={"error_description": "nope"})]
+    )
+    with pytest.raises(AuthenticationError):
+        await zap.login()
+
+
+# ---------------------------------------------------------------------------
+#   Assorted small accessors / lifecycle
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_command_by_numeric_id(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A numeric command id is sent directly to SendCommand."""
+    monkeypatch.setattr(ZCONST, "commands", {102: "restart_charger"}, raising=False)
+    charger, session = _charger_with_session([FakeResponse(HTTPStatus.OK, json_data={})])
+
+    await charger.command(102)
+
+    _, url, _ = session.calls[-1]
+    assert url.endswith("chargers/c1/SendCommand/102")
+
+
+@pytest.mark.asyncio
+async def test_installation_poll_info_strips_logo(monkeypatch: pytest.MonkeyPatch) -> None:
+    """poll_info removes the bulky SupportGroup logo before storing attributes."""
+    monkeypatch.setattr("custom_components.zaptec.zaptec.api.validate", Mock())
+    inst, _ = _installation_with_session(
+        [FakeResponse(HTTPStatus.OK, json_data={"SupportGroup": {"LogoBase64": "AAAA"}})]
+    )
+    inst.set_attributes = Mock()
+
+    await inst.poll_info()
+
+    inst.set_attributes.assert_called_once()
+    stored = inst.set_attributes.call_args[0][0]
+    assert stored["SupportGroup"]["LogoBase64"].startswith("<Removed")
+
+
+def test_charger_is_charging() -> None:
+    """is_charging reflects the operation mode."""
+    assert Charger({"ChargerOperationMode": "Connected_Charging"}, _fake_owner()).is_charging()
+    assert not Charger({"ChargerOperationMode": "Disconnected"}, _fake_owner()).is_charging()
+
+
+def test_charger_model_from_device_id() -> None:
+    """The model is derived from the DeviceId prefix."""
+    chg = Charger({"DeviceId": "ZAP123456"}, _fake_owner())
+    assert chg.model_prefix == "ZAP"
+    assert chg.model == "Zaptec Go"
+
+
+def test_zaptec_collections_and_accessors() -> None:
+    """objects/installations/chargers and iteration reflect the registry."""
+    zap, _ = _make_zaptec([])
+    inst = Installation({"Id": "i1"}, zap)
+    chg = Charger({"Id": "c1"}, zap)
+    zap.register("i1", inst)
+    zap.register("c1", chg)
+
+    ids = {"i1", "c1"}
+    assert set(zap) == ids  # __iter__
+    assert len(zap) == len(ids)  # __len__
+    # ZaptecBase subclasses Mapping (unhashable), so compare as lists.
+    objs = list(zap.objects())
+    assert inst in objs
+    assert chg in objs
+    assert list(zap.installations) == [inst]
+    assert list(zap.chargers) == [chg]
+
+    zap.unregister("c1")
+    assert set(zap) == {"i1"}
+
+
+@pytest.mark.asyncio
+async def test_zaptec_async_context_manager_closes_internal_client() -> None:
+    """Entering/exiting the context manager works with an internally-created client."""
+    async with Zaptec("user", "pass") as zap:
+        assert isinstance(zap, Zaptec)
