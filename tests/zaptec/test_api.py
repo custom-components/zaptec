@@ -253,6 +253,98 @@ async def test_request_timeout_retried_then_raises() -> None:
 
 
 # ---------------------------------------------------------------------------
+#   Transient HTTP status retry (429/502/503/504) — issue #392
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "status",
+    [
+        HTTPStatus.TOO_MANY_REQUESTS,
+        HTTPStatus.BAD_GATEWAY,
+        HTTPStatus.SERVICE_UNAVAILABLE,
+        HTTPStatus.GATEWAY_TIMEOUT,
+    ],
+)
+async def test_request_transient_status_retries_then_succeeds(status: HTTPStatus) -> None:
+    """A transient server status is retried, and a later 200 is returned."""
+    payload = {"value": "ok"}
+    zap, session = _make_zaptec(
+        [FakeResponse(status), FakeResponse(HTTPStatus.OK, json_data=payload)],
+        max_time=0.001,
+    )
+    result = await zap.request("unregistered/url")
+    assert result == payload
+    assert len(session.calls) == 2
+
+
+@pytest.mark.asyncio
+async def test_request_transient_status_on_post_retries() -> None:
+    """Unlike 500, a transient 503 is retried even for POST (infra-level error)."""
+    zap, session = _make_zaptec(
+        [FakeResponse(HTTPStatus.SERVICE_UNAVAILABLE), FakeResponse(HTTPStatus.NO_CONTENT)],
+        max_time=0.001,
+    )
+    result = await zap.request("unregistered/url", method="post")
+    assert result == b""
+    assert len(session.calls) == 2
+
+
+@pytest.mark.asyncio
+async def test_request_persistent_503_raises_request_error_with_code() -> None:
+    """A persistent 503 is retried to exhaustion, then raises RequestError(503)."""
+    zap, session = _make_zaptec([FakeResponse(HTTPStatus.SERVICE_UNAVAILABLE)], max_time=0.001)
+    with pytest.raises(RequestError) as excinfo:
+        await zap.request("unregistered/url")
+    assert excinfo.value.error_code == HTTPStatus.SERVICE_UNAVAILABLE
+    assert len(session.calls) == API_RETRIES
+
+
+@pytest.mark.asyncio
+async def test_refresh_token_retries_transient_then_succeeds() -> None:
+    """A transient 503 on the token endpoint is retried instead of failing setup."""
+    zap, session = _make_zaptec(
+        [
+            FakeResponse(HTTPStatus.SERVICE_UNAVAILABLE),
+            FakeResponse(HTTPStatus.OK, json_data={"access_token": "abc"}),
+        ],
+        max_time=0.001,
+    )
+    await zap.login()
+    assert len(session.calls) == 2
+    await zap.request("some/url")
+    _, _, kwargs = session.calls[-1]
+    assert kwargs["headers"]["Authorization"] == "Bearer abc"
+
+
+@pytest.mark.asyncio
+async def test_refresh_token_persistent_503_raises_request_error() -> None:
+    """A persistent 503 on the token endpoint eventually raises RequestError(503)."""
+    zap, session = _make_zaptec([FakeResponse(HTTPStatus.SERVICE_UNAVAILABLE)], max_time=0.001)
+    with pytest.raises(RequestError) as excinfo:
+        await zap.login()
+    assert excinfo.value.error_code == HTTPStatus.SERVICE_UNAVAILABLE
+    assert len(session.calls) == API_RETRIES
+
+
+@pytest.mark.asyncio
+async def test_retry_after_header_is_honored(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A Retry-After header sets the next backoff delay for a transient status."""
+    sleep = AsyncMock()
+    monkeypatch.setattr("custom_components.zaptec.zaptec.api.asyncio.sleep", sleep)
+    zap, _ = _make_zaptec(
+        [
+            FakeResponse(HTTPStatus.SERVICE_UNAVAILABLE, headers={"Retry-After": "2"}),
+            FakeResponse(HTTPStatus.OK, json_data={"ok": True}),
+        ],
+    )
+    await zap.request("unregistered/url")
+    slept = [call.args[0] for call in sleep.await_args_list]
+    assert 2.0 in slept
+
+
+# ---------------------------------------------------------------------------
 #   ZaptecBase.state_to_attrs
 # ---------------------------------------------------------------------------
 

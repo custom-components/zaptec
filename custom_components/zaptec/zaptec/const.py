@@ -18,6 +18,15 @@ CONST_URL = "https://api.zaptec.com/api/constants"
 API_RETRIES = 8  # Corresponds to median ~100 seconds of retries before giving up
 """Number of retries for API requests."""
 
+RETRYABLE_HTTP_STATUSES = frozenset({429, 502, 503, 504})
+"""Transient HTTP statuses that are retried with backoff regardless of method.
+
+Too Many Requests, Bad Gateway, Service Unavailable and Gateway Timeout are
+infrastructure-level "try again shortly" errors where the request typically
+never reached the application, so retrying is safe even for POST/PUT. This is
+distinct from 500 (Internal Server Error), which Zaptec returns in various
+application-level cases and is only retried for GET (see ``Zaptec.request``)."""
+
 API_RETRY_INIT_DELAY = 0.3
 """Initial delay for the first API retry."""
 
