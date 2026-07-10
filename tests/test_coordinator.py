@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import timedelta
 from typing import Any
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -77,3 +77,50 @@ async def test_init_accepts_charging_interval_with_charger(
     )
 
     assert coordinator._charging_update_interval == timedelta(seconds=60)  # noqa: SLF001
+
+
+async def test_set_update_interval_switches_between_charging_and_default(
+    hass: MagicMock, config_entry: Any, manager: MagicMock
+) -> None:
+    """Test that set_update_interval switches between charging and default intervals."""
+    charger = MagicMock(spec=Charger)
+    charger.is_charging.return_value = False
+    charger.qual_id = "Charger[abc123]"
+    options = make_options(
+        update_interval=600,
+        charging_update_interval=60,
+        zaptec_object=charger,
+    )
+    coordinator = ZaptecUpdateCoordinator(
+        hass, entry=config_entry, manager=manager, options=options
+    )
+    assert coordinator.update_interval == timedelta(seconds=600)
+
+    charger.is_charging.return_value = True
+    coordinator.set_update_interval()
+    assert coordinator.update_interval == timedelta(seconds=60)
+
+    charger.is_charging.return_value = False
+    coordinator.set_update_interval()
+    assert coordinator.update_interval == timedelta(seconds=600)
+
+
+async def test_set_update_interval_is_noop_when_unchanged(
+    hass: MagicMock, config_entry: Any, manager: MagicMock
+) -> None:
+    """Test that set_update_interval doesn't reschedule when interval is unchanged."""
+    charger = MagicMock(spec=Charger)
+    charger.is_charging.return_value = False
+    charger.qual_id = "Charger[abc123]"
+    options = make_options(
+        update_interval=600,
+        charging_update_interval=60,
+        zaptec_object=charger,
+    )
+    coordinator = ZaptecUpdateCoordinator(
+        hass, entry=config_entry, manager=manager, options=options
+    )
+
+    with patch.object(coordinator, "_schedule_refresh") as mock_schedule:
+        coordinator.set_update_interval()
+        mock_schedule.assert_not_called()
