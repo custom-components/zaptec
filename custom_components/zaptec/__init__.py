@@ -48,7 +48,8 @@ def _config_entry_error(
     and timeout errors, and transient server statuses (429/502/503/504), are
     recoverable, so we raise ConfigEntryNotReady to let Home Assistant retry
     setup automatically instead of failing permanently (issue #392). All other
-    API errors remain permanent ConfigEntryError failures."""
+    API errors remain permanent ConfigEntryError failures.
+    """
     if isinstance(err, AuthenticationError):
         return ConfigEntryAuthFailed(str(err))
     if isinstance(err, (RequestTimeoutError, RequestConnectionError)):

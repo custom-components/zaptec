@@ -24,6 +24,11 @@ from custom_components.zaptec.zaptec.zconst import ZCONST
 
 _LOGGER = logging.getLogger(__name__)
 
+# One retry means the request was attempted twice (one failure, one success).
+CALLS_AFTER_ONE_RETRY = 2
+# The Retry-After header value (seconds) used in the transient-status tests.
+RETRY_AFTER_SECONDS = 2.0
+
 
 @pytest.mark.asyncio
 async def test_api(zaptec_username: str, zaptec_password: str) -> None:
@@ -276,7 +281,7 @@ async def test_request_transient_status_retries_then_succeeds(status: HTTPStatus
     )
     result = await zap.request("unregistered/url")
     assert result == payload
-    assert len(session.calls) == 2
+    assert len(session.calls) == CALLS_AFTER_ONE_RETRY
 
 
 @pytest.mark.asyncio
@@ -288,7 +293,7 @@ async def test_request_transient_status_on_post_retries() -> None:
     )
     result = await zap.request("unregistered/url", method="post")
     assert result == b""
-    assert len(session.calls) == 2
+    assert len(session.calls) == CALLS_AFTER_ONE_RETRY
 
 
 @pytest.mark.asyncio
@@ -312,7 +317,7 @@ async def test_refresh_token_retries_transient_then_succeeds() -> None:
         max_time=0.001,
     )
     await zap.login()
-    assert len(session.calls) == 2
+    assert len(session.calls) == CALLS_AFTER_ONE_RETRY
     await zap.request("some/url")
     _, _, kwargs = session.calls[-1]
     assert kwargs["headers"]["Authorization"] == "Bearer abc"
@@ -341,7 +346,7 @@ async def test_retry_after_header_is_honored(monkeypatch: pytest.MonkeyPatch) ->
     )
     await zap.request("unregistered/url")
     slept = [call.args[0] for call in sleep.await_args_list]
-    assert 2.0 in slept
+    assert RETRY_AFTER_SECONDS in slept
 
 
 # ---------------------------------------------------------------------------
