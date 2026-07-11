@@ -116,6 +116,7 @@ class ArchivedSession(BaseModel):
     Id: str
     ChargerId: str
     StartDateTime: str
+    EnergyDetails: list[ArchivedSessionEnergyPoint] | None = None
 
 
 class GetArchivedSessionsResponse(BaseModel):
