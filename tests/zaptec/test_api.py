@@ -1,5 +1,6 @@
 """Tests for zaptec/api.py."""
 
+from datetime import UTC, datetime, timedelta
 from http import HTTPStatus
 import json
 import logging
@@ -7,6 +8,7 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock
 
 import aiohttp
+from homeassistant.util import dt as dt_util
 import pytest
 
 from custom_components.zaptec.zaptec.api import Charger, Installation, Zaptec, ZaptecBase
@@ -54,6 +56,40 @@ async def test_api(zaptec_username: str, zaptec_password: str) -> None:
         # Print all the attributes.
         for obj in zaptec.objects():
             _LOGGER.info(obj.asdict())
+
+
+@pytest.mark.asyncio
+async def test_get_archived_sessions_live(zaptec_username: str, zaptec_password: str) -> None:
+    """Smoke-test the real field casing of /api/sessions/archived.
+
+    Skipped in CI and when SKIP_ZAPTEC_API_TEST=true, same as test_api above.
+    Run this manually against a real account at least once: swagger.json
+    *declares* this endpoint's fields in camelCase, but every other Zaptec
+    endpoint actually returns PascalCase despite the same swagger mismatch
+    (see validate.py's Charger/Installation models vs swagger's
+    ChargerListModel). If this test fails after fixing obvious typos, the
+    casing assumption in validate.py/statistics.py needs correcting. It will
+    also surface a 403 here if the test account lacks the Owner role this
+    endpoint requires - that's expected for non-Owner accounts, not a bug.
+    """
+    async with Zaptec(zaptec_username, zaptec_password) as zaptec:
+        await zaptec.login()
+        await zaptec.build()
+        chargers = list(zaptec.chargers)
+        if not chargers:
+            pytest.skip("Account has no chargers to test against")
+
+        now = dt_util.utcnow()
+        page = await chargers[0].get_archived_sessions(
+            from_time=now - timedelta(days=730), to_time=now, page_size=5
+        )
+        assert "Sessions" in page
+        assert "HasMore" in page
+        if page["Sessions"]:
+            session = page["Sessions"][0]
+            assert "Id" in session
+            assert "StartDateTime" in session
+            _LOGGER.info("Sample archived session: %s", session)
 
 
 # ===========================================================================
@@ -711,6 +747,52 @@ async def test_authorize_charge_posts() -> None:
     method, url, _ = session.calls[-1]
     assert method == "post"
     assert url.endswith("chargers/c1/authorizecharge")
+
+
+@pytest.mark.asyncio
+async def test_get_archived_sessions_builds_params() -> None:
+    """get_archived_sessions() sends ChargerId, PageSize, From, To and Cursor as query params."""
+    payload = {"Sessions": [], "Cursor": None, "HasMore": False}
+    zap, session = _make_zaptec([FakeResponse(HTTPStatus.OK, json_data=payload)])
+    charger = Charger({"Id": "charger-1"}, zap, installation=None)
+
+    result = await charger.get_archived_sessions(
+        from_time=datetime(2026, 1, 1, tzinfo=UTC),
+        to_time=datetime(2026, 1, 2, tzinfo=UTC),
+        cursor="abc",
+    )
+
+    assert result == payload
+    method, url, kwargs = session.calls[0]
+    assert method == "get"
+    assert url == "https://api.zaptec.com/api/sessions/archived"
+    assert kwargs["params"] == {
+        "ChargerId": "charger-1",
+        "PageSize": 200,
+        "From": "2026-01-01T00:00:00+00:00",
+        "To": "2026-01-02T00:00:00+00:00",
+        "Cursor": "abc",
+    }
+
+
+@pytest.mark.asyncio
+async def test_get_archived_sessions_omits_cursor_when_not_given() -> None:
+    """Cursor is omitted from params when not given; From/To are always sent."""
+    payload = {"Sessions": [], "Cursor": None, "HasMore": False}
+    zap, session = _make_zaptec([FakeResponse(HTTPStatus.OK, json_data=payload)])
+    charger = Charger({"Id": "charger-1"}, zap, installation=None)
+
+    await charger.get_archived_sessions(
+        from_time=datetime(2026, 1, 1, tzinfo=UTC),
+        to_time=datetime(2026, 1, 2, tzinfo=UTC),
+    )
+
+    assert session.calls[0][2]["params"] == {
+        "ChargerId": "charger-1",
+        "PageSize": 200,
+        "From": "2026-01-01T00:00:00+00:00",
+        "To": "2026-01-02T00:00:00+00:00",
+    }
 
 
 @pytest.mark.asyncio
