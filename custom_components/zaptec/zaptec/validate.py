@@ -101,6 +101,31 @@ class InstallationConnectionDetails(BaseModel):
     Topic: str
 
 
+class ArchivedSessionEnergyPoint(BaseModel):
+    """Pydantic model for a single cumulative-energy reading within an archived session."""
+
+    model_config = ConfigDict(extra="allow")
+    Timestamp: str
+    Energy: float
+
+
+class ArchivedSession(BaseModel):
+    """Pydantic model for a single archived (completed) charge session."""
+
+    model_config = ConfigDict(extra="allow")
+    Id: str
+    ChargerId: str
+    StartDateTime: str
+
+
+class GetArchivedSessionsResponse(BaseModel):
+    """Pydantic model for a page of archived charge sessions."""
+
+    model_config = ConfigDict(extra="allow")
+    Sessions: list[ArchivedSession]
+    HasMore: bool
+
+
 CHARGER_FIRMWARES = TypeAdapter(list[ChargerFirmware])
 CHARGER_STATES = TypeAdapter(list[ChargerState])
 CONSTANTS = TypeAdapter(dict[str, Any])
@@ -124,6 +149,7 @@ URLS = {
     r"chargers/[0-9a-f\-]+/localSettings": None,
     r"chargers/[0-9a-f\-]+/update": None,
     r"chargerFirmware/installation/[0-9a-f\-]+": CHARGER_FIRMWARES,
+    "sessions/archived": GetArchivedSessionsResponse,
 }
 
 _URLS = [(k, re.compile(k), v) for k, v in URLS.items()]
