@@ -25,9 +25,11 @@ from .const import (
 from .coordinator import ZaptecUpdateCoordinator, ZaptecUpdateOptions
 from .manager import ZaptecConfigEntry, ZaptecManager
 from .services import async_setup_services, async_unload_services
+from .statistics import ZaptecStatisticsCoordinator
 from .zaptec import (
     RETRYABLE_HTTP_STATUSES,
     AuthenticationError,
+    Charger,
     Installation,
     RequestConnectionError,
     RequestError,
@@ -184,8 +186,20 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             ),
         )
 
+    # Setup the statistics coordinators, one per tracked charger, to backdate
+    # hourly energy consumption into HA's Energy Dashboard statistics (fixes
+    # the live sensor's misattributed-hour delay, see issue #300).
+    for deviceid in tracked_devices:
+        zaptec_obj = zaptec[deviceid]
+        if isinstance(zaptec_obj, Charger):
+            manager.statistics_coordinators[deviceid] = ZaptecStatisticsCoordinator(
+                hass, entry=entry, charger=zaptec_obj
+            )
+
     # Initialize the coordinators
     for co in manager.all_coordinators:
+        await co.async_config_entry_first_refresh()
+    for co in manager.statistics_coordinators.values():
         await co.async_config_entry_first_refresh()
 
     # Done setting up, change back to not log all updates. Having this enabled
