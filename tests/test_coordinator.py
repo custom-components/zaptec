@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from datetime import timedelta
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -9,7 +10,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from homeassistant.helpers.update_coordinator import UpdateFailed
 import pytest
 
-from custom_components.zaptec.const import DOMAIN
+from custom_components.zaptec.const import (
+    DOMAIN,
+    ZAPTEC_POLL_CHARGER_TRIGGER_DELAYS,
+    ZAPTEC_POLL_INSTALLATION_TRIGGER_DELAYS,
+)
 from custom_components.zaptec.coordinator import ZaptecUpdateCoordinator, ZaptecUpdateOptions
 from custom_components.zaptec.zaptec import Charger, Installation, Zaptec, ZaptecApiError
 
@@ -157,3 +162,136 @@ async def test_async_update_data_raises_update_failed_on_api_error(
 
     with pytest.raises(UpdateFailed):
         await coordinator._async_update_data()  # noqa: SLF001
+
+
+async def test_trigger_poll_charger_uses_charger_delays(
+    hass: MagicMock, config_entry: Any, manager: MagicMock
+) -> None:
+    """Test that _trigger_poll sleeps/refreshes once per charger delay."""
+    charger = MagicMock(spec=Charger)
+    charger.qual_id = "Charger[abc123]"
+    options = make_options(zaptec_object=charger)
+    coordinator = ZaptecUpdateCoordinator(
+        hass, entry=config_entry, manager=manager, options=options
+    )
+
+    with (
+        patch("custom_components.zaptec.coordinator.asyncio.sleep", AsyncMock()) as mock_sleep,
+        patch.object(coordinator, "async_refresh", AsyncMock()) as mock_refresh,
+    ):
+        await coordinator._trigger_poll(charger)  # noqa: SLF001
+
+    assert mock_sleep.await_count == len(ZAPTEC_POLL_CHARGER_TRIGGER_DELAYS)
+    assert mock_refresh.await_count == len(ZAPTEC_POLL_CHARGER_TRIGGER_DELAYS)
+
+
+async def test_trigger_poll_installation_also_triggers_tracked_children(
+    hass: MagicMock, config_entry: Any, manager: MagicMock
+) -> None:
+    """Test that _trigger_poll on an Installation also polls tracked child chargers."""
+    charger = MagicMock(spec=Charger)
+    charger.id = "charger1"
+    installation = MagicMock(spec=Installation)
+    installation.qual_id = "Installation[abc123]"
+    installation.chargers = [charger]
+    manager.tracked_devices = {"charger1"}
+
+    child_coordinator = MagicMock()
+    child_coordinator.trigger_poll = AsyncMock()
+    manager.device_coordinators = {"charger1": child_coordinator}
+
+    options = make_options(zaptec_object=installation)
+    coordinator = ZaptecUpdateCoordinator(
+        hass, entry=config_entry, manager=manager, options=options
+    )
+
+    with (
+        patch("custom_components.zaptec.coordinator.asyncio.sleep", AsyncMock()) as mock_sleep,
+        patch.object(coordinator, "async_refresh", AsyncMock()) as mock_refresh,
+    ):
+        await coordinator._trigger_poll(installation)  # noqa: SLF001
+
+    assert mock_sleep.await_count == len(ZAPTEC_POLL_INSTALLATION_TRIGGER_DELAYS)
+    assert mock_refresh.await_count == len(ZAPTEC_POLL_INSTALLATION_TRIGGER_DELAYS)
+    child_coordinator.trigger_poll.assert_awaited_once()
+
+
+async def test_trigger_poll_installation_skips_untracked_children(
+    hass: MagicMock, config_entry: Any, manager: MagicMock
+) -> None:
+    """Test that _trigger_poll skips children that aren't in tracked_devices."""
+    charger = MagicMock(spec=Charger)
+    charger.id = "charger1"
+    installation = MagicMock(spec=Installation)
+    installation.qual_id = "Installation[abc123]"
+    installation.chargers = [charger]
+    manager.tracked_devices = set()  # charger1 is not tracked
+
+    options = make_options(zaptec_object=installation)
+    coordinator = ZaptecUpdateCoordinator(
+        hass, entry=config_entry, manager=manager, options=options
+    )
+
+    with (
+        patch("custom_components.zaptec.coordinator.asyncio.sleep", AsyncMock()),
+        patch.object(coordinator, "async_refresh", AsyncMock()),
+    ):
+        # Would raise KeyError from manager.device_coordinators[charger.id] if
+        # the untracked charger were not filtered out first.
+        await coordinator._trigger_poll(installation)  # noqa: SLF001
+
+
+async def test_trigger_poll_noop_without_zaptec_object(
+    hass: MagicMock, config_entry: Any, manager: MagicMock
+) -> None:
+    """Test that trigger_poll is a no-op when there is no zaptec_object."""
+    options = make_options(zaptec_object=None)
+    coordinator = ZaptecUpdateCoordinator(
+        hass, entry=config_entry, manager=manager, options=options
+    )
+
+    await coordinator.trigger_poll()
+
+    assert coordinator._trigger_task is None  # noqa: SLF001
+
+
+async def test_trigger_poll_cancels_inflight_task_before_starting_new_one(
+    hass: MagicMock, config_entry: Any, manager: MagicMock
+) -> None:
+    """Test that a second trigger_poll cancels the in-flight task and starts a new one."""
+    charger = MagicMock(spec=Charger)
+    charger.qual_id = "Charger[abc123]"
+    options = make_options(zaptec_object=charger)
+    coordinator = ZaptecUpdateCoordinator(
+        hass, entry=config_entry, manager=manager, options=options
+    )
+
+    call_count = 0
+    first_started = asyncio.Event()
+
+    async def fake_trigger_poll(_zaptec_obj: Any) -> None:
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            first_started.set()
+            await asyncio.Event().wait()  # blocks forever, until cancelled
+
+    with patch.object(coordinator, "_trigger_poll", fake_trigger_poll):
+        await coordinator.trigger_poll()
+        await first_started.wait()
+        first_task = coordinator._trigger_task  # noqa: SLF001
+        assert first_task is not None
+        assert not first_task.done()
+
+        await coordinator.trigger_poll()
+
+        assert first_task.cancelled()
+        # Two loop iterations are required here: the first lets the second
+        # task run to completion; the second lets its done-callback (which
+        # clears coordinator._trigger_task) actually fire, since
+        # Task.add_done_callback schedules callbacks via call_soon rather
+        # than invoking them synchronously on completion.
+        await asyncio.sleep(0)
+        await asyncio.sleep(0)  # let the second task's done-callback run
+        assert coordinator._trigger_task is None  # noqa: SLF001
+        assert call_count == 2  # noqa: PLR2004
