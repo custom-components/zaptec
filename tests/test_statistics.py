@@ -289,3 +289,57 @@ async def test_other_request_errors_raise_update_failed(
         )
         with pytest.raises(UpdateFailed):
             await coordinator._async_update_data()  # noqa: SLF001
+
+
+@pytest.mark.asyncio
+async def test_pages_through_multiple_results(hass: MagicMock, config_entry: Any) -> None:
+    """Cursor from page 1 is threaded into page 2's request; both pages' sessions are imported."""
+    charger = _make_charger()
+    charger.get_archived_sessions = AsyncMock(
+        side_effect=[
+            {
+                "Sessions": [
+                    {
+                        "Id": "s1",
+                        "EnergyDetails": [
+                            {"Timestamp": "2026-01-01T10:10:00+00:00", "Energy": 1.0}
+                        ],
+                    }
+                ],
+                "Cursor": "page2-cursor",
+                "HasMore": True,
+            },
+            {
+                "Sessions": [
+                    {
+                        "Id": "s2",
+                        "EnergyDetails": [
+                            {"Timestamp": "2026-01-01T12:10:00+00:00", "Energy": 2.0}
+                        ],
+                    }
+                ],
+                "Cursor": None,
+                "HasMore": False,
+            },
+        ]
+    )
+    coordinator = ZaptecStatisticsCoordinator(hass, entry=config_entry, charger=charger)
+
+    with (
+        patch("custom_components.zaptec.statistics.get_instance") as mock_get_instance,
+        patch("custom_components.zaptec.statistics.get_last_statistics", return_value={}),
+        patch("custom_components.zaptec.statistics.async_add_external_statistics") as mock_add,
+    ):
+        mock_get_instance.return_value.async_add_executor_job = AsyncMock(
+            side_effect=lambda func, *args: func(*args)
+        )
+        await coordinator._async_update_data()  # noqa: SLF001
+
+    assert charger.get_archived_sessions.await_count == 2  # noqa: PLR2004
+    first_call, second_call = charger.get_archived_sessions.await_args_list
+    assert "cursor" not in first_call.kwargs or first_call.kwargs["cursor"] is None
+    assert second_call.kwargs["cursor"] == "page2-cursor"
+
+    _hass_arg, _metadata, statistics = mock_add.call_args[0]
+    assert len(statistics) == 2  # noqa: PLR2004
+    assert [s["sum"] for s in statistics] == [1.0, 3.0]
