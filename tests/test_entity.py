@@ -110,6 +110,7 @@ def test_get_zaptec_value_raises_when_object_is_not_a_mapping(entity: ZaptecBase
     class NotMapping:
         @property
         def qual_id(self) -> str:
+            """Return a fake qualified id."""
             return "NotMapping[test]"
 
     entity.zaptec_obj = NotMapping()

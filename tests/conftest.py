@@ -24,7 +24,7 @@ class FakeConfigEntry:
     title = "Mock Title"
 
     def async_on_unload(self, func: Any) -> None:
-        """Record an unload callback. Never invoked by these tests."""
+        """No-op stand-in for HA's unload-callback registration. Never invoked by these tests."""
 
     def async_create_background_task(
         self, hass: Any, target: Any, name: str, eager_start: bool = True
@@ -50,9 +50,12 @@ async def hass() -> MagicMock:
     DataUpdateCoordinator only reads `hass.loop` (to schedule refreshes via
     `loop.call_at()`/`loop.time()`); coordinator.py and entity.py never touch
     any other HomeAssistant functionality (config, states, services, etc.).
+    `is_stopping` is pinned False to match a real (non-shutting-down)
+    HomeAssistant instance, since a bare MagicMock would otherwise be truthy.
     """
     fake_hass = MagicMock()
     fake_hass.loop = asyncio.get_running_loop()
+    fake_hass.is_stopping = False
     return fake_hass
 
 

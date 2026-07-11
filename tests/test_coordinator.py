@@ -117,7 +117,6 @@ async def test_set_update_interval_is_noop_when_unchanged(
     """Test that set_update_interval doesn't reschedule when interval is unchanged."""
     charger = MagicMock(spec=Charger)
     charger.is_charging.return_value = False
-    charger.qual_id = "Charger[abc123]"
     options = make_options(
         update_interval=600,
         charging_update_interval=60,
@@ -154,14 +153,16 @@ async def test_async_update_data_raises_update_failed_on_api_error(
     hass: MagicMock, config_entry: Any, manager: MagicMock
 ) -> None:
     """Test that _async_update_data raises UpdateFailed on ZaptecApiError."""
-    manager.zaptec.poll = AsyncMock(side_effect=ZaptecApiError("boom"))
+    api_error = ZaptecApiError("boom")
+    manager.zaptec.poll = AsyncMock(side_effect=api_error)
     options = make_options()
     coordinator = ZaptecUpdateCoordinator(
         hass, entry=config_entry, manager=manager, options=options
     )
 
-    with pytest.raises(UpdateFailed):
+    with pytest.raises(UpdateFailed) as exc_info:
         await coordinator._async_update_data()  # noqa: SLF001
+    assert exc_info.value.__cause__ is api_error
 
 
 async def test_trigger_poll_charger_uses_charger_delays(
