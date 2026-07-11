@@ -101,14 +101,6 @@ class InstallationConnectionDetails(BaseModel):
     Topic: str
 
 
-class ArchivedSessionEnergyPoint(BaseModel):
-    """Pydantic model for a single cumulative-energy reading within an archived session."""
-
-    model_config = ConfigDict(extra="allow")
-    Timestamp: str
-    Energy: float
-
-
 class ArchivedSession(BaseModel):
     """Pydantic model for a single archived (completed) charge session."""
 
@@ -116,7 +108,6 @@ class ArchivedSession(BaseModel):
     Id: str
     ChargerId: str
     StartDateTime: str
-    EnergyDetails: list[ArchivedSessionEnergyPoint] | None = None
 
 
 class GetArchivedSessionsResponse(BaseModel):
