@@ -3,21 +3,11 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
 from homeassistant.components.recorder.models import StatisticData
 from homeassistant.util import dt as dt_util
-
-
-@dataclass
-class _StatisticDataWrapper:
-    """Wrapper for StatisticData that supports attribute access while maintaining type compatibility."""
-
-    start: datetime
-    state: float
-    sum: float
 
 
 def _floor_hour(value: datetime) -> datetime:
@@ -83,7 +73,5 @@ def bucket_sessions_hourly(
     statistics: list[StatisticData] = []
     for hour in sorted(hourly_deltas):
         running_sum += hourly_deltas[hour]
-        statistics.append(
-            _StatisticDataWrapper(start=hour, state=hourly_deltas[hour], sum=running_sum)
-        )  # type: ignore[assignment]
+        statistics.append(StatisticData(start=hour, state=hourly_deltas[hour], sum=running_sum))
     return statistics

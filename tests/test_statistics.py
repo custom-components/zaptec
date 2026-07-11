@@ -32,9 +32,9 @@ def test_single_session_within_one_hour() -> None:
     result = bucket_sessions_hourly([session], after=None, running_sum=0.0)
 
     assert len(result) == 1
-    assert result[0].start == datetime(2026, 1, 1, 10, tzinfo=timezone.utc)  # noqa: UP017
-    assert result[0].state == 2.5  # noqa: PLR2004
-    assert result[0].sum == 2.5  # noqa: PLR2004
+    assert result[0]["start"] == datetime(2026, 1, 1, 10, tzinfo=timezone.utc)  # noqa: UP017
+    assert result[0]["state"] == 2.5  # noqa: PLR2004
+    assert result[0]["sum"] == 2.5  # noqa: PLR2004
 
 
 def test_session_spanning_two_hours_creates_two_buckets() -> None:
@@ -49,14 +49,14 @@ def test_session_spanning_two_hours_creates_two_buckets() -> None:
 
     result = bucket_sessions_hourly([session], after=None, running_sum=0.0)
 
-    assert [r.start for r in result] == [
+    assert [r["start"] for r in result] == [
         datetime(2026, 1, 1, 10, tzinfo=timezone.utc),  # noqa: UP017
         datetime(2026, 1, 1, 11, tzinfo=timezone.utc),  # noqa: UP017
     ]
-    assert result[0].state == 1.0
-    assert result[0].sum == 1.0
-    assert result[1].state == 0.6000000000000001  # noqa: PLR2004
-    assert result[1].sum == 1.6  # noqa: PLR2004
+    assert result[0]["state"] == 1.0
+    assert result[0]["sum"] == 1.0
+    assert result[1]["state"] == 0.6000000000000001  # noqa: PLR2004
+    assert result[1]["sum"] == 1.6  # noqa: PLR2004
 
 
 def test_after_cutoff_excludes_already_imported_points() -> None:
@@ -73,9 +73,9 @@ def test_after_cutoff_excludes_already_imported_points() -> None:
     result = bucket_sessions_hourly([session], after=cutoff, running_sum=5.0)
 
     assert len(result) == 1
-    assert result[0].start == datetime(2026, 1, 1, 11, tzinfo=timezone.utc)  # noqa: UP017
-    assert result[0].state == 1.0
-    assert result[0].sum == 6.0  # noqa: PLR2004
+    assert result[0]["start"] == datetime(2026, 1, 1, 11, tzinfo=timezone.utc)  # noqa: UP017
+    assert result[0]["state"] == 1.0
+    assert result[0]["sum"] == 6.0  # noqa: PLR2004
 
 
 def test_session_without_energy_details_falls_back_to_total() -> None:
@@ -90,8 +90,8 @@ def test_session_without_energy_details_falls_back_to_total() -> None:
     result = bucket_sessions_hourly([session], after=None, running_sum=0.0)
 
     assert len(result) == 1
-    assert result[0].start == datetime(2026, 1, 1, 10, tzinfo=timezone.utc)  # noqa: UP017
-    assert result[0].state == 3.0  # noqa: PLR2004
+    assert result[0]["start"] == datetime(2026, 1, 1, 10, tzinfo=timezone.utc)  # noqa: UP017
+    assert result[0]["state"] == 3.0  # noqa: PLR2004
 
 
 def test_running_sum_carries_across_sessions() -> None:
@@ -101,7 +101,7 @@ def test_running_sum_carries_across_sessions() -> None:
 
     result = bucket_sessions_hourly([session1, session2], after=None, running_sum=10.0)
 
-    assert [r.sum for r in result] == [11.0, 13.0]
+    assert [r["sum"] for r in result] == [11.0, 13.0]
 
 
 def test_voided_and_aborted_sessions_are_skipped() -> None:
@@ -115,5 +115,5 @@ def test_voided_and_aborted_sessions_are_skipped() -> None:
     result = bucket_sessions_hourly([voided, aborted, real], after=None, running_sum=0.0)
 
     assert len(result) == 1
-    assert result[0].start == datetime(2026, 1, 1, 12, tzinfo=timezone.utc)  # noqa: UP017
-    assert result[0].state == 3.0  # noqa: PLR2004
+    assert result[0]["start"] == datetime(2026, 1, 1, 12, tzinfo=timezone.utc)  # noqa: UP017
+    assert result[0]["state"] == 3.0  # noqa: PLR2004
