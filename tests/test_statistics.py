@@ -26,12 +26,12 @@ def _session(
     end: str | None = None,
     energy: float = 0.0,
 ) -> dict:
-    """Build a raw archived-session dict with the given EnergyDetails points."""
+    """Build a raw archived-session dict with the given energyDetails points."""
     return {
-        "Id": session_id,
-        "EndDateTime": end,
-        "Energy": energy,
-        "EnergyDetails": [{"Timestamp": ts, "Energy": e} for ts, e in points],
+        "id": session_id,
+        "endDateTime": end,
+        "energy": energy,
+        "energyDetails": [{"timestamp": ts, "energy": e} for ts, e in points],
     }
 
 
@@ -110,12 +110,12 @@ def test_after_cutoff_excludes_entire_last_imported_hour() -> None:
 
 
 def test_session_without_energy_details_falls_back_to_total() -> None:
-    """A legacy session with no EnergyDetails uses its total Energy at EndDateTime."""
+    """A legacy session with no energyDetails uses its total energy at endDateTime."""
     session = {
-        "Id": "s1",
-        "EndDateTime": "2026-01-01T10:45:00+00:00",
-        "Energy": 3.0,
-        "EnergyDetails": [],
+        "id": "s1",
+        "endDateTime": "2026-01-01T10:45:00+00:00",
+        "energy": 3.0,
+        "energyDetails": [],
     }
 
     result = bucket_sessions_hourly([session], after=None, running_sum=0.0)
@@ -138,9 +138,9 @@ def test_running_sum_carries_across_sessions() -> None:
 def test_voided_and_aborted_sessions_are_skipped() -> None:
     """Voided/aborted sessions have no meaningful energy and must not be counted."""
     voided = _session("s1", [("2026-01-01T10:10:00+00:00", 1.0)])
-    voided["Voided"] = True
+    voided["voided"] = True
     aborted = _session("s2", [("2026-01-01T11:10:00+00:00", 2.0)])
-    aborted["Aborted"] = True
+    aborted["aborted"] = True
     real = _session("s3", [("2026-01-01T12:10:00+00:00", 3.0)])
 
     result = bucket_sessions_hourly([voided, aborted, real], after=None, running_sum=0.0)
@@ -148,6 +148,25 @@ def test_voided_and_aborted_sessions_are_skipped() -> None:
     assert len(result) == 1
     assert result[0]["start"] == datetime(2026, 1, 1, 12, tzinfo=timezone.utc)  # noqa: UP017
     assert result[0]["state"] == 3.0  # noqa: PLR2004
+
+
+def test_bucket_sessions_hourly_uses_camelcase_keys() -> None:
+    """Regression test: /api/sessions/archived genuinely returns camelCase (confirmed live 2026-07-12), unlike every other Zaptec endpoint's PascalCase - this must keep working."""
+    session = {
+        "id": "b9b00000-0000-0000-0000-000000000000",
+        "chargerId": "c1",
+        "startDateTime": "2026-01-01T09:00:00+00:00",
+        "endDateTime": "2026-01-01T10:00:00+00:00",
+        "energy": 1.5,
+        "energyDetails": [{"timestamp": "2026-01-01T09:30:00+00:00", "energy": 1.5}],
+        "voided": False,
+        "aborted": False,
+    }
+
+    result = bucket_sessions_hourly([session], after=None, running_sum=0.0)
+
+    assert len(result) == 1
+    assert result[0]["state"] == 1.5  # noqa: PLR2004
 
 
 def _make_charger(charger_id: str = "charger-1") -> MagicMock:
@@ -173,14 +192,14 @@ async def test_first_run_backfills_from_zero_sum(hass: MagicMock, config_entry: 
     charger = _make_charger()
     charger.get_archived_sessions = AsyncMock(
         return_value={
-            "Sessions": [
+            "sessions": [
                 {
-                    "Id": "s1",
-                    "EnergyDetails": [{"Timestamp": "2026-01-01T10:10:00+00:00", "Energy": 2.0}],
+                    "id": "s1",
+                    "energyDetails": [{"timestamp": "2026-01-01T10:10:00+00:00", "energy": 2.0}],
                 }
             ],
-            "Cursor": None,
-            "HasMore": False,
+            "cursor": None,
+            "hasMore": False,
         }
     )
     coordinator = ZaptecStatisticsCoordinator(hass, entry=config_entry, charger=charger)
@@ -213,7 +232,7 @@ async def test_no_new_sessions_does_not_call_add_statistics(
     """If there's nothing new to import, async_add_external_statistics is not called."""
     charger = _make_charger()
     charger.get_archived_sessions = AsyncMock(
-        return_value={"Sessions": [], "Cursor": None, "HasMore": False}
+        return_value={"sessions": [], "cursor": None, "hasMore": False}
     )
     coordinator = ZaptecStatisticsCoordinator(hass, entry=config_entry, charger=charger)
 
@@ -235,7 +254,7 @@ async def test_resumes_from_last_statistics(hass: MagicMock, config_entry: Any) 
     """A prior statistics entry sets the resume point and running sum."""
     charger = _make_charger()
     charger.get_archived_sessions = AsyncMock(
-        return_value={"Sessions": [], "Cursor": None, "HasMore": False}
+        return_value={"sessions": [], "cursor": None, "hasMore": False}
     )
     coordinator = ZaptecStatisticsCoordinator(hass, entry=config_entry, charger=charger)
     last_start = dt_util.utcnow().replace(minute=0, second=0, microsecond=0)
@@ -317,28 +336,28 @@ async def test_pages_through_multiple_results(hass: MagicMock, config_entry: Any
     charger.get_archived_sessions = AsyncMock(
         side_effect=[
             {
-                "Sessions": [
+                "sessions": [
                     {
-                        "Id": "s1",
-                        "EnergyDetails": [
-                            {"Timestamp": "2026-01-01T10:10:00+00:00", "Energy": 1.0}
+                        "id": "s1",
+                        "energyDetails": [
+                            {"timestamp": "2026-01-01T10:10:00+00:00", "energy": 1.0}
                         ],
                     }
                 ],
-                "Cursor": "page2-cursor",
-                "HasMore": True,
+                "cursor": "page2-cursor",
+                "hasMore": True,
             },
             {
-                "Sessions": [
+                "sessions": [
                     {
-                        "Id": "s2",
-                        "EnergyDetails": [
-                            {"Timestamp": "2026-01-01T12:10:00+00:00", "Energy": 2.0}
+                        "id": "s2",
+                        "energyDetails": [
+                            {"timestamp": "2026-01-01T12:10:00+00:00", "energy": 2.0}
                         ],
                     }
                 ],
-                "Cursor": None,
-                "HasMore": False,
+                "cursor": None,
+                "hasMore": False,
             },
         ]
     )

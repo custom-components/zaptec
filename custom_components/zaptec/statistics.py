@@ -55,8 +55,8 @@ def bucket_sessions_hourly(
 ) -> list[StatisticData]:
     """Convert archived charge sessions into hourly external-statistics points.
 
-    Each session's `EnergyDetails` is a list of `{Timestamp, Energy}` points
-    where `Energy` is cumulative *within that session* (starts near 0). This
+    Each session's `energyDetails` is a list of `{timestamp, energy}` points
+    where `energy` is cumulative *within that session* (starts near 0). This
     turns those into per-hour consumption deltas, bucketed by the hour
     containing each point's timestamp. That's an approximation: a delta
     between two points less than an hour apart can span an hour boundary
@@ -65,9 +65,9 @@ def bucket_sessions_hourly(
     split proportionally. This is still a large accuracy improvement over the
     live sensor, which can lag by 1+ hour (upstream issue #300).
 
-    Sessions without `EnergyDetails` (e.g. pre-3.2 firmware) fall back to a
-    single point at `EndDateTime` using the session's total `Energy`. Sessions
-    marked `Voided` or `Aborted` are skipped entirely - per the API docs,
+    Sessions without `energyDetails` (e.g. pre-3.2 firmware) fall back to a
+    single point at `endDateTime` using the session's total `energy`. Sessions
+    marked `voided` or `aborted` are skipped entirely - per the API docs,
     "voided sessions have no meaningful duration or energy" (they exist when
     replaced by a corrected session, or when charging never actually started).
 
@@ -88,22 +88,22 @@ def bucket_sessions_hourly(
     hourly_deltas: dict[datetime, float] = defaultdict(float)
 
     for session in sessions:
-        if session.get("Voided") or session.get("Aborted"):
+        if session.get("voided") or session.get("aborted"):
             continue
 
-        details = session.get("EnergyDetails") or []
+        details = session.get("energyDetails") or []
         if not details:
-            end = session.get("EndDateTime")
-            energy = session.get("Energy") or 0.0
+            end = session.get("endDateTime")
+            energy = session.get("energy") or 0.0
             if end and energy:
-                details = [{"Timestamp": end, "Energy": energy}]
+                details = [{"timestamp": end, "energy": energy}]
 
         prev_energy = 0.0
         for point in details:
-            timestamp = dt_util.parse_datetime(point["Timestamp"])
+            timestamp = dt_util.parse_datetime(point["timestamp"])
             if timestamp is None:
                 continue
-            energy = point["Energy"]
+            energy = point["energy"]
             delta = energy - prev_energy
             prev_energy = energy
             hour = _floor_hour(timestamp)
@@ -171,10 +171,10 @@ class ZaptecStatisticsCoordinator(DataUpdateCoordinator[None]):
                     to_time=dt_util.utcnow(),
                     cursor=cursor,
                 )
-                sessions.extend(page.get("Sessions") or [])
-                if not page.get("HasMore"):
+                sessions.extend(page.get("sessions") or [])
+                if not page.get("hasMore"):
                     break
-                cursor = page.get("Cursor")
+                cursor = page.get("cursor")
         except RequestError as err:
             if err.error_code == HTTPStatus.FORBIDDEN:
                 # /api/sessions/archived requires the Owner role. Many Zaptec

@@ -83,12 +83,12 @@ async def test_get_archived_sessions_live(zaptec_username: str, zaptec_password:
         page = await chargers[0].get_archived_sessions(
             from_time=now - timedelta(days=730), to_time=now, page_size=5
         )
-        assert "Sessions" in page
-        assert "HasMore" in page
-        if page["Sessions"]:
-            session = page["Sessions"][0]
-            assert "Id" in session
-            assert "StartDateTime" in session
+        assert "sessions" in page
+        assert "hasMore" in page
+        if page["sessions"]:
+            session = page["sessions"][0]
+            assert "id" in session
+            assert "startDateTime" in session
             _LOGGER.info("Sample archived session: %s", session)
 
 
@@ -752,7 +752,7 @@ async def test_authorize_charge_posts() -> None:
 @pytest.mark.asyncio
 async def test_get_archived_sessions_builds_params() -> None:
     """get_archived_sessions() sends ChargerId, PageSize, From, To and Cursor as query params."""
-    payload = {"Sessions": [], "Cursor": None, "HasMore": False}
+    payload = {"sessions": [], "cursor": None, "hasMore": False}
     zap, session = _make_zaptec([FakeResponse(HTTPStatus.OK, json_data=payload)])
     charger = Charger({"Id": "charger-1"}, zap, installation=None)
 
@@ -778,7 +778,7 @@ async def test_get_archived_sessions_builds_params() -> None:
 @pytest.mark.asyncio
 async def test_get_archived_sessions_omits_cursor_when_not_given() -> None:
     """Cursor is omitted from params when not given; From/To are always sent."""
-    payload = {"Sessions": [], "Cursor": None, "HasMore": False}
+    payload = {"sessions": [], "cursor": None, "hasMore": False}
     zap, session = _make_zaptec([FakeResponse(HTTPStatus.OK, json_data=payload)])
     charger = Charger({"Id": "charger-1"}, zap, installation=None)
 

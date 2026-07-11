@@ -105,17 +105,17 @@ class ArchivedSession(BaseModel):
     """Pydantic model for a single archived (completed) charge session."""
 
     model_config = ConfigDict(extra="allow")
-    Id: str
-    ChargerId: str
-    StartDateTime: str
+    id: str
+    chargerId: str  # noqa: N815 (matches the API's actual camelCase field name)
+    startDateTime: str  # noqa: N815 (matches the API's actual camelCase field name)
 
 
 class GetArchivedSessionsResponse(BaseModel):
     """Pydantic model for a page of archived charge sessions."""
 
     model_config = ConfigDict(extra="allow")
-    Sessions: list[ArchivedSession]
-    HasMore: bool
+    sessions: list[ArchivedSession]
+    hasMore: bool  # noqa: N815 (matches the API's actual camelCase field name)
 
 
 CHARGER_FIRMWARES = TypeAdapter(list[ChargerFirmware])
