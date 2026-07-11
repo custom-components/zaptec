@@ -1149,7 +1149,13 @@ class Zaptec(Mapping[str, ZaptecBase]):
                 )
 
     async def request(
-        self, url: str, *, method: str = "get", data: Any = None, base_url: str = API_URL
+        self,
+        url: str,
+        *,
+        method: str = "get",
+        data: Any = None,
+        params: dict[str, Any] | None = None,
+        base_url: str = API_URL,
     ) -> Any:
         """Make a request to the API."""
 
@@ -1163,6 +1169,8 @@ class Zaptec(Mapping[str, ZaptecBase]):
         }
         if data is not None:
             kwargs["json"] = data
+        if params is not None:
+            kwargs["params"] = params
 
         # Run the _request_worker() in a context manager that will close the
         # generator when the context is exited, ensuring the request and

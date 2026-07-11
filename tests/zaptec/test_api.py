@@ -175,6 +175,24 @@ async def test_request_ok_returns_json() -> None:
 
 
 @pytest.mark.asyncio
+async def test_request_passes_params_to_session() -> None:
+    """Query params are forwarded to the underlying session.request() call."""
+    payload = {"value": "answer"}
+    zap, session = _make_zaptec([FakeResponse(HTTPStatus.OK, json_data=payload)])
+    await zap.request("unregistered/url", params={"Foo": "bar", "PageSize": 200})
+    assert session.calls[0][2]["params"] == {"Foo": "bar", "PageSize": 200}
+
+
+@pytest.mark.asyncio
+async def test_request_omits_params_when_not_given() -> None:
+    """No params kwarg is passed to session.request() when none are given."""
+    payload = {"value": "answer"}
+    zap, session = _make_zaptec([FakeResponse(HTTPStatus.OK, json_data=payload)])
+    await zap.request("unregistered/url")
+    assert "params" not in session.calls[0][2]
+
+
+@pytest.mark.asyncio
 async def test_request_no_content_returns_bytes() -> None:
     """A 204/201 response returns the raw body bytes."""
     zap, _ = _make_zaptec([FakeResponse(HTTPStatus.NO_CONTENT, read_data=b"done")])
