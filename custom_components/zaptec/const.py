@@ -51,3 +51,9 @@ KEYS_TO_SKIP_ENTITY_AVAILABILITY_CHECK = {
     "three_to_one_phase_switch_current",
     "total_charge_power_session",
 }
+
+ZAPTEC_STATISTICS_POLL_INTERVAL = 60 * 60
+"""Interval in seconds between imports of archived charge sessions into HA statistics."""
+
+ZAPTEC_STATISTICS_BACKFILL_DAYS = 730
+"""How far back (in days) to backfill energy statistics on first import."""

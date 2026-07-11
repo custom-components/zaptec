@@ -2,9 +2,21 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
+from http import HTTPStatus
+from typing import Any
+from unittest.mock import AsyncMock, MagicMock, patch
 
-from custom_components.zaptec.statistics import bucket_sessions_hourly
+from homeassistant.helpers.update_coordinator import UpdateFailed
+from homeassistant.util import dt as dt_util
+import pytest
+
+from custom_components.zaptec.statistics import (
+    ZaptecStatisticsCoordinator,
+    bucket_sessions_hourly,
+)
+from custom_components.zaptec.zaptec import Charger
+from custom_components.zaptec.zaptec.exceptions import RequestError
 
 
 def _session(
@@ -117,3 +129,163 @@ def test_voided_and_aborted_sessions_are_skipped() -> None:
     assert len(result) == 1
     assert result[0]["start"] == datetime(2026, 1, 1, 12, tzinfo=timezone.utc)  # noqa: UP017
     assert result[0]["state"] == 3.0  # noqa: PLR2004
+
+
+def _make_charger(charger_id: str = "charger-1") -> MagicMock:
+    """A fake Charger exposing only what the coordinator touches."""
+    charger = MagicMock(spec=Charger)
+    charger.id = charger_id
+    charger.name = "My Charger"
+    charger.qual_id = f"Charger[{charger_id}]"
+    return charger
+
+
+@pytest.mark.asyncio
+async def test_statistic_id_derived_from_charger_id(hass: MagicMock, config_entry: Any) -> None:
+    """The statistic_id is stable and derived from the charger's id."""
+    charger = _make_charger("abc-123")
+    coordinator = ZaptecStatisticsCoordinator(hass, entry=config_entry, charger=charger)
+    assert coordinator.statistic_id == "zaptec:energy_abc123"
+
+
+@pytest.mark.asyncio
+async def test_first_run_backfills_from_zero_sum(hass: MagicMock, config_entry: Any) -> None:
+    """With no prior statistics, the coordinator starts from sum=0 and pages through results."""
+    charger = _make_charger()
+    charger.get_archived_sessions = AsyncMock(
+        return_value={
+            "Sessions": [
+                {
+                    "Id": "s1",
+                    "EnergyDetails": [{"Timestamp": "2026-01-01T10:10:00+00:00", "Energy": 2.0}],
+                }
+            ],
+            "Cursor": None,
+            "HasMore": False,
+        }
+    )
+    coordinator = ZaptecStatisticsCoordinator(hass, entry=config_entry, charger=charger)
+
+    with (
+        patch("custom_components.zaptec.statistics.get_instance") as mock_get_instance,
+        patch("custom_components.zaptec.statistics.get_last_statistics", return_value={}),
+        patch("custom_components.zaptec.statistics.async_add_external_statistics") as mock_add,
+    ):
+        mock_get_instance.return_value.async_add_executor_job = AsyncMock(
+            side_effect=lambda func, *args: func(*args)
+        )
+        await coordinator._async_update_data()  # noqa: SLF001
+
+    assert mock_add.call_count == 1
+    _hass_arg, metadata, statistics = mock_add.call_args[0]
+    # StatisticMetaData and StatisticData are both TypedDicts (plain dicts at
+    # runtime) - use dict-key access, not attribute access.
+    assert metadata["statistic_id"] == "zaptec:energy_charger1"
+    assert metadata["name"] == "My Charger Energy"
+    assert len(statistics) == 1
+    assert statistics[0]["sum"] == 2.0  # noqa: PLR2004
+    charger.get_archived_sessions.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_no_new_sessions_does_not_call_add_statistics(
+    hass: MagicMock, config_entry: Any
+) -> None:
+    """If there's nothing new to import, async_add_external_statistics is not called."""
+    charger = _make_charger()
+    charger.get_archived_sessions = AsyncMock(
+        return_value={"Sessions": [], "Cursor": None, "HasMore": False}
+    )
+    coordinator = ZaptecStatisticsCoordinator(hass, entry=config_entry, charger=charger)
+
+    with (
+        patch("custom_components.zaptec.statistics.get_instance") as mock_get_instance,
+        patch("custom_components.zaptec.statistics.get_last_statistics", return_value={}),
+        patch("custom_components.zaptec.statistics.async_add_external_statistics") as mock_add,
+    ):
+        mock_get_instance.return_value.async_add_executor_job = AsyncMock(
+            side_effect=lambda func, *args: func(*args)
+        )
+        await coordinator._async_update_data()  # noqa: SLF001
+
+    mock_add.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_resumes_from_last_statistics(hass: MagicMock, config_entry: Any) -> None:
+    """A prior statistics entry sets the resume point and running sum."""
+    charger = _make_charger()
+    charger.get_archived_sessions = AsyncMock(
+        return_value={"Sessions": [], "Cursor": None, "HasMore": False}
+    )
+    coordinator = ZaptecStatisticsCoordinator(hass, entry=config_entry, charger=charger)
+    last_start = dt_util.utcnow().replace(minute=0, second=0, microsecond=0)
+
+    with (
+        patch("custom_components.zaptec.statistics.get_instance") as mock_get_instance,
+        patch(
+            "custom_components.zaptec.statistics.get_last_statistics",
+            return_value={
+                coordinator.statistic_id: [{"start": last_start.timestamp(), "sum": 42.0}]
+            },
+        ),
+        patch("custom_components.zaptec.statistics.async_add_external_statistics"),
+    ):
+        mock_get_instance.return_value.async_add_executor_job = AsyncMock(
+            side_effect=lambda func, *args: func(*args)
+        )
+        await coordinator._async_update_data()  # noqa: SLF001
+
+    call_kwargs = charger.get_archived_sessions.call_args.kwargs
+    assert call_kwargs["from_time"] == last_start - timedelta(hours=26)
+    # to_time is "now" at call time - assert it's recent rather than exact.
+    assert (dt_util.utcnow() - call_kwargs["to_time"]) < timedelta(seconds=5)
+
+
+@pytest.mark.asyncio
+async def test_forbidden_error_is_logged_not_raised(hass: MagicMock, config_entry: Any) -> None:
+    """A 403 (non-Owner account) is logged and skipped, not raised as UpdateFailed.
+
+    /api/sessions/archived requires the Owner role - many Zaptec accounts
+    won't have it on every charger, and that shouldn't repeatedly fail the
+    coordinator/spam the log with UpdateFailed errors on every poll.
+    """
+    charger = _make_charger()
+    charger.get_archived_sessions = AsyncMock(
+        side_effect=RequestError("forbidden", HTTPStatus.FORBIDDEN)
+    )
+    coordinator = ZaptecStatisticsCoordinator(hass, entry=config_entry, charger=charger)
+
+    with (
+        patch("custom_components.zaptec.statistics.get_instance") as mock_get_instance,
+        patch("custom_components.zaptec.statistics.get_last_statistics", return_value={}),
+        patch("custom_components.zaptec.statistics.async_add_external_statistics") as mock_add,
+    ):
+        mock_get_instance.return_value.async_add_executor_job = AsyncMock(
+            side_effect=lambda func, *args: func(*args)
+        )
+        await coordinator._async_update_data()  # noqa: SLF001
+
+    mock_add.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_other_request_errors_raise_update_failed(
+    hass: MagicMock, config_entry: Any
+) -> None:
+    """A non-403 RequestError still raises UpdateFailed, so HA surfaces it normally."""
+    charger = _make_charger()
+    charger.get_archived_sessions = AsyncMock(
+        side_effect=RequestError("server error", HTTPStatus.INTERNAL_SERVER_ERROR)
+    )
+    coordinator = ZaptecStatisticsCoordinator(hass, entry=config_entry, charger=charger)
+
+    with (
+        patch("custom_components.zaptec.statistics.get_instance") as mock_get_instance,
+        patch("custom_components.zaptec.statistics.get_last_statistics", return_value={}),
+    ):
+        mock_get_instance.return_value.async_add_executor_job = AsyncMock(
+            side_effect=lambda func, *args: func(*args)
+        )
+        with pytest.raises(UpdateFailed):
+            await coordinator._async_update_data()  # noqa: SLF001
