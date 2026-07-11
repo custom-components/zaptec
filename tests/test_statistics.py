@@ -90,6 +90,25 @@ def test_after_cutoff_excludes_already_imported_points() -> None:
     assert result[0]["sum"] == 6.0  # noqa: PLR2004
 
 
+def test_after_cutoff_excludes_entire_last_imported_hour() -> None:
+    """A point later in the same hour as `after` must not be re-counted (regression: was double-counting)."""
+    session = _session(
+        "s1",
+        [
+            ("2026-01-01T11:10:00+00:00", 1.0),
+            ("2026-01-01T12:05:00+00:00", 1.5),
+        ],
+    )
+    after = datetime(2026, 1, 1, 11, tzinfo=timezone.utc)  # noqa: UP017
+
+    result = bucket_sessions_hourly([session], after=after, running_sum=3.0)
+
+    assert len(result) == 1
+    assert result[0]["start"] == datetime(2026, 1, 1, 12, tzinfo=timezone.utc)  # noqa: UP017
+    assert result[0]["state"] == 0.5  # noqa: PLR2004
+    assert result[0]["sum"] == 3.5  # noqa: PLR2004
+
+
 def test_session_without_energy_details_falls_back_to_total() -> None:
     """A legacy session with no EnergyDetails uses its total Energy at EndDateTime."""
     session = {

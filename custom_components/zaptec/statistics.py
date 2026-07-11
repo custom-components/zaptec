@@ -72,10 +72,18 @@ def bucket_sessions_hourly(
     replaced by a corrected session, or when charging never actually started).
 
     `sessions` must be sorted oldest-first (the archived-sessions API
-    guarantees this). Points at or before `after` are skipped, to avoid
-    double-counting data already imported by a previous run. `running_sum` is
-    the total energy (kWh) imported so far; the returned points chain onto it
-    so the statistic's `sum` keeps increasing monotonically.
+    guarantees this). `after` is the start of the last hour already imported
+    by a previous run (its `sum` already reflects that whole hour) - so any
+    point whose *floored hour* is at or before `after` is skipped, not just
+    points with a raw timestamp at or before `after`. Skipping by raw
+    timestamp would under-skip: a point at, say, 11:10 has a later raw
+    timestamp than `after=11:00` and would slip through, getting re-added to
+    an hour whose total was already stored - corrupting the external
+    statistic with compounding phantom energy on every subsequent poll,
+    since `/sessions/archived`'s `From` filter keeps returning the same
+    session until a newer one supersedes it as the resume point. `running_sum`
+    is the total energy (kWh) imported so far; the returned points chain onto
+    it so the statistic's `sum` keeps increasing monotonically.
     """
     hourly_deltas: dict[datetime, float] = defaultdict(float)
 
@@ -98,9 +106,10 @@ def bucket_sessions_hourly(
             energy = point["Energy"]
             delta = energy - prev_energy
             prev_energy = energy
-            if after is not None and timestamp <= after:
+            hour = _floor_hour(timestamp)
+            if after is not None and hour <= after:
                 continue
-            hourly_deltas[_floor_hour(timestamp)] += delta
+            hourly_deltas[hour] += delta
 
     statistics: list[StatisticData] = []
     for hour in sorted(hourly_deltas):
@@ -162,10 +171,10 @@ class ZaptecStatisticsCoordinator(DataUpdateCoordinator[None]):
                     to_time=dt_util.utcnow(),
                     cursor=cursor,
                 )
-                sessions.extend(page["Sessions"])
+                sessions.extend(page.get("Sessions") or [])
                 if not page.get("HasMore"):
                     break
-                cursor = page["Cursor"]
+                cursor = page.get("Cursor")
         except RequestError as err:
             if err.error_code == HTTPStatus.FORBIDDEN:
                 # /api/sessions/archived requires the Owner role. Many Zaptec

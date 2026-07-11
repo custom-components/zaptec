@@ -199,8 +199,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Initialize the coordinators
     for co in manager.all_coordinators:
         await co.async_config_entry_first_refresh()
+    # First-refresh the statistics coordinators with async_refresh() (not
+    # async_config_entry_first_refresh()) - the latter turns any failure into
+    # ConfigEntryNotReady, aborting setup of the *entire* integration (every
+    # sensor/switch/button) over a hiccup on this secondary, Owner-only
+    # endpoint. async_refresh() logs and marks the coordinator unavailable
+    # instead, so a charge-history outage only degrades the Energy Dashboard
+    # feed, not the whole config entry.
     for co in manager.statistics_coordinators.values():
-        await co.async_config_entry_first_refresh()
+        await co.async_refresh()
 
     # Done setting up, change back to not log all updates. Having this enabled
     # will create a lot of debug log output.
