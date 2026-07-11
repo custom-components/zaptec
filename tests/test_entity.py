@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 from typing import Any
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 from homeassistant.helpers.entity import DeviceInfo, EntityDescription
 import pytest
@@ -296,3 +296,14 @@ def test_log_unavailable_logs_on_recovery(
         entity._log_unavailable()  # noqa: SLF001
 
     assert "Entity sensor.test is available" in caplog.text
+
+
+async def test_trigger_poll_delegates_to_coordinator(
+    entity: ZaptecBaseEntity, coordinator: ZaptecUpdateCoordinator
+) -> None:
+    """Test that trigger_poll delegates to coordinator.trigger_poll."""
+    coordinator.trigger_poll = AsyncMock()
+
+    await entity.trigger_poll()
+
+    coordinator.trigger_poll.assert_awaited_once()
