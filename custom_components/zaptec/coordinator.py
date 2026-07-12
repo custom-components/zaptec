@@ -9,6 +9,7 @@ import logging
 from typing import TYPE_CHECKING
 
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.debounce import Debouncer
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
@@ -120,6 +121,50 @@ class ZaptecUpdateCoordinator(DataUpdateCoordinator[None]):
         except ZaptecApiError as err:
             _LOGGER.exception("Fetching data failed")
             raise UpdateFailed(err) from err
+
+        if isinstance(self.options.zaptec_object, Installation):
+            self._check_installation_role(self.options.zaptec_object)
+
+    def _check_installation_role(self, installation: Installation) -> None:
+        """Create or clear a Repair issue for insufficient write access.
+
+        `installation/update` requires the Owner or Service role
+        (https://docs.zaptec.com/reference/api_installation_id_update_post).
+        If CurrentUserRoles hasn't been observed yet, leave any existing issue
+        alone rather than guessing.
+
+        Deliberately calling async_create_issue() again every poll (rather
+        than only on the first observation) is safe and intentional: HA's
+        issue registry replaces the existing IssueEntry in place and does not
+        touch dismissed_version, so a user who has clicked "Ignore" on this
+        issue in Settings > Repairs stays ignored across every subsequent
+        poll as long as the role doesn't change. Only deleting the issue
+        (role becomes sufficient) and later recreating it (role becomes
+        insufficient again) resets that dismissal -- which is intentional,
+        since a real role change deserves fresh attention.
+        """
+        roles = installation.get("current_user_roles")
+        if roles is None:
+            return
+
+        issue_id = f"insufficient_role_{installation.id}"
+        if "Owner" in roles or "Maintainer" in roles:
+            ir.async_delete_issue(self.hass, DOMAIN, issue_id)
+            return
+
+        ir.async_create_issue(
+            self.hass,
+            DOMAIN,
+            issue_id,
+            is_fixable=False,
+            severity=ir.IssueSeverity.WARNING,
+            translation_key="insufficient_role",
+            translation_placeholders={
+                "installation_name": str(installation.get("name", installation.qual_id)),
+                "role": roles or "None",
+            },
+            learn_more_url="https://portal.zaptec.com/",
+        )
 
     async def _trigger_poll(self, zaptec_obj: ZaptecBase) -> None:
         """Trigger a poll update sequence for the given object.

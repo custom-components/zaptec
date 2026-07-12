@@ -296,3 +296,132 @@ async def test_trigger_poll_cancels_inflight_task_before_starting_new_one(
         await asyncio.sleep(0)  # let the second task's done-callback run
         assert coordinator._trigger_task is None  # noqa: SLF001
         assert call_count == 2  # noqa: PLR2004
+
+
+# ---------------------------------------------------------------------------
+#   Insufficient-role Repair issue (#311)
+# ---------------------------------------------------------------------------
+
+
+async def test_async_update_data_creates_repair_issue_for_insufficient_role(
+    hass: MagicMock, config_entry: Any, manager: MagicMock
+) -> None:
+    """A User-only installation gets a Repair issue created after a poll."""
+    manager.zaptec.poll = AsyncMock()
+    installation = MagicMock(spec=Installation)
+    installation.id = "inst1"
+    installation.qual_id = "Installation[inst1]"
+    installation.get.side_effect = lambda key, default=None: {
+        "current_user_roles": "User",
+        "name": "Home",
+    }.get(key, default)
+    options = make_options(zaptec_object=installation)
+    coordinator = ZaptecUpdateCoordinator(
+        hass, entry=config_entry, manager=manager, options=options
+    )
+
+    with patch("custom_components.zaptec.coordinator.ir") as mock_ir:
+        await coordinator._async_update_data()  # noqa: SLF001
+
+    mock_ir.async_create_issue.assert_called_once_with(
+        hass,
+        DOMAIN,
+        "insufficient_role_inst1",
+        is_fixable=False,
+        severity=mock_ir.IssueSeverity.WARNING,
+        translation_key="insufficient_role",
+        translation_placeholders={"installation_name": "Home", "role": "User"},
+        learn_more_url="https://portal.zaptec.com/",
+    )
+    mock_ir.async_delete_issue.assert_not_called()
+
+
+async def test_async_update_data_never_deletes_issue_while_role_stays_insufficient(
+    hass: MagicMock, config_entry: Any, manager: MagicMock
+) -> None:
+    """Repeated polls with an unchanged User-only role never call async_delete_issue.
+
+    This is a regression guard for the "don't nag aware users" requirement:
+    HA's issue registry preserves a user's "Ignore" dismissal across repeat
+    async_create_issue() calls for the same issue_id, but a delete+recreate
+    cycle would reset it. As long as the role doesn't change, this code must
+    never delete the issue between polls.
+    """
+    manager.zaptec.poll = AsyncMock()
+    installation = MagicMock(spec=Installation)
+    installation.id = "inst1"
+    installation.get.side_effect = lambda key, default=None: {
+        "current_user_roles": "User",
+        "name": "Home",
+    }.get(key, default)
+    options = make_options(zaptec_object=installation)
+    coordinator = ZaptecUpdateCoordinator(
+        hass, entry=config_entry, manager=manager, options=options
+    )
+
+    with patch("custom_components.zaptec.coordinator.ir") as mock_ir:
+        await coordinator._async_update_data()  # noqa: SLF001
+        await coordinator._async_update_data()  # noqa: SLF001
+        await coordinator._async_update_data()  # noqa: SLF001
+
+    assert mock_ir.async_create_issue.call_count == 3  # noqa: PLR2004
+    mock_ir.async_delete_issue.assert_not_called()
+
+
+async def test_async_update_data_clears_repair_issue_for_owner_role(
+    hass: MagicMock, config_entry: Any, manager: MagicMock
+) -> None:
+    """An Owner-role installation deletes any existing Repair issue."""
+    manager.zaptec.poll = AsyncMock()
+    installation = MagicMock(spec=Installation)
+    installation.id = "inst1"
+    installation.get.side_effect = lambda key, default=None: {
+        "current_user_roles": "Owner",
+    }.get(key, default)
+    options = make_options(zaptec_object=installation)
+    coordinator = ZaptecUpdateCoordinator(
+        hass, entry=config_entry, manager=manager, options=options
+    )
+
+    with patch("custom_components.zaptec.coordinator.ir") as mock_ir:
+        await coordinator._async_update_data()  # noqa: SLF001
+
+    mock_ir.async_delete_issue.assert_called_once_with(hass, DOMAIN, "insufficient_role_inst1")
+    mock_ir.async_create_issue.assert_not_called()
+
+
+async def test_async_update_data_skips_role_check_when_role_unknown(
+    hass: MagicMock, config_entry: Any, manager: MagicMock
+) -> None:
+    """No CurrentUserRoles observed yet -> neither create nor delete an issue."""
+    manager.zaptec.poll = AsyncMock()
+    installation = MagicMock(spec=Installation)
+    installation.id = "inst1"
+    installation.get.return_value = None
+    options = make_options(zaptec_object=installation)
+    coordinator = ZaptecUpdateCoordinator(
+        hass, entry=config_entry, manager=manager, options=options
+    )
+
+    with patch("custom_components.zaptec.coordinator.ir") as mock_ir:
+        await coordinator._async_update_data()  # noqa: SLF001
+
+    mock_ir.async_create_issue.assert_not_called()
+    mock_ir.async_delete_issue.assert_not_called()
+
+
+async def test_async_update_data_skips_role_check_for_non_installation(
+    hass: MagicMock, config_entry: Any, manager: MagicMock
+) -> None:
+    """Charger/account-wide coordinators never run the installation role check."""
+    manager.zaptec.poll = AsyncMock()
+    charger = MagicMock(spec=Charger)
+    options = make_options(zaptec_object=charger)
+    coordinator = ZaptecUpdateCoordinator(
+        hass, entry=config_entry, manager=manager, options=options
+    )
+
+    with patch.object(coordinator, "_check_installation_role") as mock_check:
+        await coordinator._async_update_data()  # noqa: SLF001
+
+    mock_check.assert_not_called()
