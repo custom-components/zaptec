@@ -44,12 +44,16 @@ class HierarchyCharger(BaseModel):
     """Pydantic model for the minimal charger stub embedded in a hierarchy Circuit.
 
     This is a distinct, smaller shape than Charger: at parse time in
-    Installation.build() only Id is read from it -- the rest of a charger's
-    data is filled in later from the /chargers list response.
+    Installation.build() only Id is read from it. But Zaptec.build()'s
+    standalone-charger merge loop skips re-merging any charger already found
+    via the installation hierarchy, so a hierarchy-sourced charger's
+    attributes come only from this stub -- including DeviceType, which is
+    later hard-subscripted for every registered charger.
     """
 
     model_config = ConfigDict(extra="allow")
     Id: str
+    DeviceType: int
 
 
 class ChargerState(BaseModel):
@@ -74,7 +78,7 @@ class Circuit(BaseModel):
     model_config = ConfigDict(extra="allow")
     Id: str
     Name: str | None = (
-        None  # Relaxed to optional here; api.py still hard-subscripts it (hardened in Task 3)
+        None  # Nullable per the Zaptec API docs; api.py reads it defensively via .get().
     )
     MaxCurrent: float
     Chargers: list[HierarchyCharger] | None = None
