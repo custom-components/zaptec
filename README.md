@@ -50,8 +50,9 @@ Confirmed to work with Zaptec products
 > If the configured account only has the _User_ role on an installation, the
 > integration still sets up and works normally for everything that doesn't
 > need Owner/Service access (see [Known issues](#known-issues)). Trying to
-> change the available current or the 3-to-1 phase switch current will fail
-> with a clear error instead of a raw HTTP 403, and Home Assistant will show
+> change the available current, the 3-to-1 phase switch current, a charger's
+> settings, or send a charger command (e.g. restart) will fail with a clear
+> error instead of a raw HTTP 403, and Home Assistant will show
 > a persistent notice under *Settings → Repairs* naming the affected
 > installation and the role it needs. If this is expected for your setup,
 > you can dismiss it with "Ignore" in the Repairs list — it won't come back
@@ -76,8 +77,9 @@ Confirmed to work with Zaptec products
   significantly reduced access: the installation hierarchy, firmware info,
   individual charger detail/state, and the live update stream are all blocked
   by the Zaptec API itself, and this integration additionally blocks changing
-  installation-level current limits (see [Requirements](#requirements)).
-  Online/offline status and operating mode keep working, since those are
+  installation-level current limits, charger settings, and charger commands
+  (see [Requirements](#requirements)). Online/offline status and operating
+  mode keep working, since those are
   included in the basic charger list the API returns regardless of role.
 
 
