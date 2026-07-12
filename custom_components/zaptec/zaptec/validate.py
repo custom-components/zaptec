@@ -31,13 +31,25 @@ class Installations(BaseModel):
 
 
 class Charger(BaseModel):
-    """Pydantic model for a Zaptec charger."""
+    """Pydantic model for a Zaptec charger, as returned by /chargers and /chargers/{id}."""
 
     model_config = ConfigDict(extra="allow")
     Id: str
-    Name: str
-    Active: bool
+    Name: str | None = None
+    Active: bool | None = None
     DeviceType: int
+
+
+class HierarchyCharger(BaseModel):
+    """Pydantic model for the minimal charger stub embedded in a hierarchy Circuit.
+
+    This is a distinct, smaller shape than Charger: at parse time in
+    Installation.build() only Id is read from it -- the rest of a charger's
+    data is filled in later from the /chargers list response.
+    """
+
+    model_config = ConfigDict(extra="allow")
+    Id: str
 
 
 class ChargerState(BaseModel):
@@ -61,17 +73,18 @@ class Circuit(BaseModel):
 
     model_config = ConfigDict(extra="allow")
     Id: str
-    Name: str
-    Chargers: list[Charger]
+    Name: str | None = None
+    MaxCurrent: float
+    Chargers: list[HierarchyCharger] | None = None
 
 
 class Hierarchy(BaseModel):
     """Pydantic model for the hierarchy of Zaptec objects in an installation."""
 
     model_config = ConfigDict(extra="allow")
-    Id: str
-    Name: str
-    NetworkType: int
+    Id: str | None = None
+    Name: str | None = None
+    NetworkType: int | None = None
     Circuits: list[Circuit]
 
 
