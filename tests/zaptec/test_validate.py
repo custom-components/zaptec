@@ -90,9 +90,21 @@ def test_installation_validation() -> None:
     with pytest.raises(ValidationError):
         validate(invalid_installation_list, installation_list_url)
 
-    # check that an installation missing NetworkType fails validation
+    # Users without the Owner/Service role get a reduced installation object
+    # missing Active/CurrentUserRoles/InstallationType/NetworkType (see #357).
+    # api.py only ever indexes Id directly, so this must still validate.
+    limited_installation = {"Id": valid_installation["Id"]}
+    validate(limited_installation, single_installation_url)
+
+    limited_installation_list = {
+        "Pages": 1,
+        "Data": [limited_installation],
+    }
+    validate(limited_installation_list, installation_list_url)
+
+    # Id is required: Zaptec.build() indexes inst_item["Id"] directly.
     invalid_installation = valid_installation.copy()
-    invalid_installation.pop("NetworkType")
+    invalid_installation.pop("Id")
     with pytest.raises(ValidationError):
         validate(invalid_installation, single_installation_url)
 
