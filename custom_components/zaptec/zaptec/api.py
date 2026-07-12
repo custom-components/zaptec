@@ -274,14 +274,15 @@ class Installation(ZaptecBase):
             redact.add_uid(ctid, "Circuit")
             _LOGGER.debug("    Circuit %s", redact(ctid))
 
-            for charger_item in circuit["Chargers"]:
+            # Chargers and Name are nullable per the Zaptec API docs.
+            for charger_item in circuit.get("Chargers") or []:
                 chgid = charger_item["Id"]
                 redact.add_uid(chgid, "Charger")
 
                 # Inject additional attributes
                 charger_item["InstallationId"] = self.id
                 charger_item["CircuitId"] = ctid
-                charger_item["CircuitName"] = circuit["Name"]
+                charger_item["CircuitName"] = circuit.get("Name")
                 charger_item["CircuitMaxCurrent"] = circuit["MaxCurrent"]
 
                 # Add or update the charger
