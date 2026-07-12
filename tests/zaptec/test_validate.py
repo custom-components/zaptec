@@ -202,6 +202,38 @@ def test_hierarchy_validation() -> None:
         validate(missing_circuit_id, hierarchy_url)
 
 
+def test_charger_firmware_validation() -> None:
+    """Check validation of chargerFirmware/installation/{id} responses."""
+
+    firmware_url = "chargerFirmware/installation/abcdef01-2345-6789-abcd-ef0123456789"
+
+    valid_firmware = [
+        {
+            "ChargerId": "12345678-90ab-cdef-1234567890ab",
+            "DeviceType": 4,
+            "IsOnline": True,
+            "CurrentVersion": "1.2.3",
+            "AvailableVersion": "1.2.4",
+            "IsUpToDate": False,
+        },
+    ]
+    validate(valid_firmware, firmware_url)
+
+    # A charger added to the platform but not yet initialized reports only
+    # ChargerId, per api.py's poll_firmware_info(), which treats
+    # CurrentVersion/AvailableVersion/IsUpToDate as optional and skips the
+    # charger if any are missing. Per the Zaptec API docs, all fields
+    # except ChargerId are nullable, so validation must not reject this
+    # before that defensive code ever gets to run.
+    uninitialized_firmware = [{"ChargerId": "12345678-90ab-cdef-1234567890ab"}]
+    validate(uninitialized_firmware, firmware_url)
+
+    # ChargerId is required: poll_firmware_info() indexes fm["ChargerId"] directly.
+    missing_charger_id = [{"DeviceType": 4}]
+    with pytest.raises(ValidationError):
+        validate(missing_charger_id, firmware_url)
+
+
 def test_missing_and_skipped_validation() -> None:
     """Check that unknown urls and urls setup with None as the Validation model pass."""
 
