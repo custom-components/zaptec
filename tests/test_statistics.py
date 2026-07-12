@@ -36,7 +36,12 @@ def _session(
 
 
 def test_single_session_within_one_hour() -> None:
-    """A session with all points inside one hour produces a single bucket."""
+    """A session with all points inside one hour produces a single bucket.
+
+    Each point's `energy` is already the delta for that interval (confirmed
+    live against OCMF-signed meter readings), so same-hour points sum
+    directly rather than differencing against the previous point.
+    """
     session = _session(
         "s1", [("2026-01-01T10:10:00+00:00", 1.0), ("2026-01-01T10:40:00+00:00", 2.5)]
     )
@@ -45,8 +50,8 @@ def test_single_session_within_one_hour() -> None:
 
     assert len(result) == 1
     assert result[0]["start"] == datetime(2026, 1, 1, 10, tzinfo=timezone.utc)  # noqa: UP017
-    assert result[0]["state"] == 2.5  # noqa: PLR2004
-    assert result[0]["sum"] == 2.5  # noqa: PLR2004
+    assert result[0]["state"] == 3.5  # noqa: PLR2004
+    assert result[0]["sum"] == 3.5  # noqa: PLR2004
 
 
 def test_session_spanning_two_hours_creates_two_buckets() -> None:
@@ -67,8 +72,8 @@ def test_session_spanning_two_hours_creates_two_buckets() -> None:
     ]
     assert result[0]["state"] == 1.0
     assert result[0]["sum"] == 1.0
-    assert result[1]["state"] == 0.6000000000000001  # noqa: PLR2004
-    assert result[1]["sum"] == 1.6  # noqa: PLR2004
+    assert result[1]["state"] == 1.6  # noqa: PLR2004
+    assert result[1]["sum"] == 2.6  # noqa: PLR2004
 
 
 def test_after_cutoff_excludes_already_imported_points() -> None:
@@ -86,8 +91,8 @@ def test_after_cutoff_excludes_already_imported_points() -> None:
 
     assert len(result) == 1
     assert result[0]["start"] == datetime(2026, 1, 1, 11, tzinfo=timezone.utc)  # noqa: UP017
-    assert result[0]["state"] == 1.0
-    assert result[0]["sum"] == 6.0  # noqa: PLR2004
+    assert result[0]["state"] == 2.0  # noqa: PLR2004
+    assert result[0]["sum"] == 7.0  # noqa: PLR2004
 
 
 def test_after_cutoff_excludes_entire_last_imported_hour() -> None:
@@ -105,8 +110,8 @@ def test_after_cutoff_excludes_entire_last_imported_hour() -> None:
 
     assert len(result) == 1
     assert result[0]["start"] == datetime(2026, 1, 1, 12, tzinfo=timezone.utc)  # noqa: UP017
-    assert result[0]["state"] == 0.5  # noqa: PLR2004
-    assert result[0]["sum"] == 3.5  # noqa: PLR2004
+    assert result[0]["state"] == 1.5  # noqa: PLR2004
+    assert result[0]["sum"] == 4.5  # noqa: PLR2004
 
 
 def test_session_without_energy_details_falls_back_to_total() -> None:

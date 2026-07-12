@@ -63,14 +63,18 @@ def bucket_sessions_hourly(
     """Convert archived charge sessions into hourly external-statistics points.
 
     Each session's `energyDetails` is a list of `{timestamp, energy}` points
-    where `energy` is cumulative *within that session* (starts near 0). This
-    turns those into per-hour consumption deltas, bucketed by the hour
-    containing each point's timestamp. That's an approximation: a delta
-    between two points less than an hour apart can span an hour boundary
-    (Zaptec's default meter-reporting interval is 30 minutes), so a small
-    amount of energy can be attributed to the following hour rather than
-    split proportionally. This is still a large accuracy improvement over the
-    live sensor, which can lag by 1+ hour (upstream issue #300).
+    where `energy` is *already* the incremental delta since the previous
+    point, not a cumulative running total (confirmed live 2026-07-12 by
+    diffing a session's energyDetails against its own OCMF-signed
+    sessionSignature meter readings - the two matched exactly once the OCMF
+    cumulative values were themselves differenced). This turns those points
+    into per-hour consumption, bucketed by the hour containing each point's
+    timestamp. That's an approximation: a delta between two points less than
+    an hour apart can span an hour boundary (Zaptec's default
+    meter-reporting interval is 30 minutes), so a small amount of energy can
+    be attributed to the following hour rather than split proportionally.
+    This is still a large accuracy improvement over the live sensor, which
+    can lag by 1+ hour (upstream issue #300).
 
     Sessions without `energyDetails` (e.g. pre-3.2 firmware) fall back to a
     single point at `endDateTime` using the session's total `energy`. Sessions
@@ -105,14 +109,11 @@ def bucket_sessions_hourly(
             if end and energy:
                 details = [{"timestamp": end, "energy": energy}]
 
-        prev_energy = 0.0
         for point in details:
             timestamp = dt_util.parse_datetime(point["timestamp"])
             if timestamp is None:
                 continue
-            energy = point["energy"]
-            delta = energy - prev_energy
-            prev_energy = energy
+            delta = point["energy"]
             hour = _floor_hour(timestamp)
             if after is not None and hour <= after:
                 continue
