@@ -95,11 +95,11 @@ class ChargerFirmware(BaseModel):
 
     model_config = ConfigDict(extra="allow")
     ChargerId: str
-    DeviceType: int
-    IsOnline: bool
-    CurrentVersion: str
-    AvailableVersion: str
-    IsUpToDate: bool
+    DeviceType: int | None = None
+    IsOnline: bool | None = None
+    CurrentVersion: str | None = None
+    AvailableVersion: str | None = None
+    IsUpToDate: bool | None = None
 
 
 class InstallationConnectionDetails(BaseModel):
