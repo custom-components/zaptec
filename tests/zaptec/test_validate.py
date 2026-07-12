@@ -116,6 +116,92 @@ def test_installation_validation() -> None:
         validate(invalid_installation_list2, installation_list_url)
 
 
+def test_charger_validation() -> None:
+    """Check validation of /chargers and /chargers/{id} responses."""
+
+    chargers_list_url = "chargers"
+    single_charger_url = "chargers/12345678-90ab-cdef-1234567890ab"
+
+    valid_charger = {
+        "Id": "12345678-90ab-cdef-1234567890ab",
+        "Name": "Garage",
+        "Active": True,
+        "DeviceType": 4,
+    }
+    validate(valid_charger, single_charger_url)
+    validate({"Pages": 1, "Data": [valid_charger]}, chargers_list_url)
+
+    # Users without the Owner role get a reduced charger object missing
+    # Name/Active; only Id and DeviceType are consumed directly by api.py.
+    limited_charger = {"Id": valid_charger["Id"], "DeviceType": 4}
+    validate(limited_charger, single_charger_url)
+    validate({"Pages": 1, "Data": [limited_charger]}, chargers_list_url)
+
+    # DeviceType is required: Zaptec.build() indexes chg["DeviceType"] on
+    # every registered charger once merged from the /chargers list.
+    missing_device_type = {"Id": valid_charger["Id"]}
+    with pytest.raises(ValidationError):
+        validate(missing_device_type, single_charger_url)
+
+    # Id is required: Zaptec.build() indexes charger_item["Id"] directly.
+    missing_id = {"DeviceType": 4}
+    with pytest.raises(ValidationError):
+        validate(missing_id, single_charger_url)
+
+
+def test_hierarchy_validation() -> None:
+    """Check validation of installation/{id}/hierarchy responses."""
+
+    hierarchy_url = "installation/abcdef01-2345-6789-abcd-ef0123456789/hierarchy"
+
+    valid_hierarchy = {
+        "Id": "abcdef01-2345-6789-abcd-ef0123456789",
+        "Name": "Main hierarchy",
+        "NetworkType": 2,
+        "Circuits": [
+            {
+                "Id": "11111111-1111-1111-1111-111111111111",
+                "Name": "Circuit 1",
+                "MaxCurrent": 32.0,
+                "Chargers": [
+                    {"Id": "12345678-90ab-cdef-1234567890ab"},
+                ],
+            },
+        ],
+    }
+    validate(valid_hierarchy, hierarchy_url)
+
+    # Id/Name/NetworkType on the hierarchy itself aren't read by api.py, and
+    # per the Zaptec API docs a circuit's Name/Chargers may be null -- all
+    # of this must still validate.
+    minimal_hierarchy = {
+        "Circuits": [
+            {
+                "Id": "11111111-1111-1111-1111-111111111111",
+                "MaxCurrent": 32.0,
+                "Chargers": None,
+            },
+        ],
+    }
+    validate(minimal_hierarchy, hierarchy_url)
+
+    # MaxCurrent is required: Installation.build() indexes
+    # circuit["MaxCurrent"] directly with no validation coverage today --
+    # exactly the class of bug #359 asks to close.
+    missing_max_current = {
+        "Circuits": [{"Id": "11111111-1111-1111-1111-111111111111"}],
+    }
+    with pytest.raises(ValidationError):
+        validate(missing_max_current, hierarchy_url)
+
+    # A circuit's Id is required: Installation.build() indexes circuit["Id"].
+    missing_circuit_id = {
+        "Circuits": [{"MaxCurrent": 32.0}],
+    }
+    with pytest.raises(ValidationError):
+        validate(missing_circuit_id, hierarchy_url)
+
+
 def test_missing_and_skipped_validation() -> None:
     """Check that unknown urls and urls setup with None as the Validation model pass."""
 
