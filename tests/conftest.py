@@ -5,6 +5,7 @@ import os
 from typing import Any
 from unittest.mock import MagicMock
 
+import aiohttp
 import pytest
 
 from custom_components.zaptec.zaptec.api import Zaptec
@@ -110,7 +111,12 @@ def zaptec_constants() -> dict:
     """Get latest constants from Zaptec API."""
 
     async def get_zaptec_constants() -> dict:
-        async with Zaptec("N/A", "N/A") as zaptec:
+        # aiohttp defaults to aiodns/pycares (AsyncResolver) whenever they're
+        # importable, which bypasses the OS resolver stack and fails to
+        # contact DNS in this dev environment. Force the OS-backed resolver.
+        connector = aiohttp.TCPConnector(resolver=aiohttp.resolver.ThreadedResolver())
+        client = aiohttp.ClientSession(connector=connector)
+        async with Zaptec("N/A", "N/A", client=client) as zaptec:
             # the constants API endpoint does not require login
             const: dict = await zaptec.request("constants")
             return const
