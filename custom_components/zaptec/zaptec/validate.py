@@ -73,7 +73,9 @@ class Circuit(BaseModel):
 
     model_config = ConfigDict(extra="allow")
     Id: str
-    Name: str | None = None
+    Name: str | None = (
+        None  # Relaxed to optional here; api.py still hard-subscripts it (hardened in Task 3)
+    )
     MaxCurrent: float
     Chargers: list[HierarchyCharger] | None = None
 
