@@ -49,9 +49,26 @@ on HA < ~2026, a required kwarg (with a deprecation warning if omitted) as of
 than version-compared since the exact introduction version isn't pinned down."""
 
 
+_HOUR_BOUNDARY_TOLERANCE = timedelta(seconds=5)
+"""Snap window applied before flooring to an hour, to absorb clock/reporting
+jitter right at an hour boundary (e.g. a report meant to land at HH:00:00
+arriving at HH-1:59:58 or HH:00:03). Chosen well under Zaptec's observed
+reporting granularity (reports land within ~200ms of the hour in practice),
+so it can't bleed into a neighboring, genuinely different report."""
+
+
 def _floor_hour(value: datetime) -> datetime:
-    """Floor a datetime down to the start of its hour, in UTC."""
-    return dt_util.as_utc(value).replace(minute=0, second=0, microsecond=0)
+    """Floor a datetime down to the start of its hour, in UTC.
+
+    Rounds to the nearest hour first if `value` is within
+    `_HOUR_BOUNDARY_TOLERANCE` of one, so a report timestamped a few seconds
+    early or late doesn't land in the wrong hour bucket.
+    """
+    value = dt_util.as_utc(value)
+    floor = value.replace(minute=0, second=0, microsecond=0)
+    if value - floor >= timedelta(hours=1) - _HOUR_BOUNDARY_TOLERANCE:
+        floor += timedelta(hours=1)
+    return floor
 
 
 def bucket_sessions_hourly(
@@ -67,14 +84,32 @@ def bucket_sessions_hourly(
     point, not a cumulative running total (confirmed live 2026-07-12 by
     diffing a session's energyDetails against its own OCMF-signed
     sessionSignature meter readings - the two matched exactly once the OCMF
-    cumulative values were themselves differenced). This turns those points
-    into per-hour consumption, bucketed by the hour containing each point's
-    timestamp. That's an approximation: a delta between two points less than
-    an hour apart can span an hour boundary (Zaptec's default
-    meter-reporting interval is 30 minutes), so a small amount of energy can
-    be attributed to the following hour rather than split proportionally.
-    This is still a large accuracy improvement over the live sensor, which
-    can lag by 1+ hour (upstream issue #300).
+    cumulative values were themselves differenced).
+
+    Zaptec reports on a fixed hourly schedule while a session has metering
+    activity, but silently skips ticks while paused/idle - so the gap
+    between two points can be much longer than an hour. Live evidence
+    (2026-07-12: real energyDetails cross-checked against the charger's own
+    power sensor) showed that whenever a report follows such a gap, the
+    energy it carries almost always happened in the hour immediately
+    *before* that report, not spread across the whole gap and not at the
+    gap's start - e.g. a report at 14:00 following the previous report at
+    10:00 (a 4-hour gap) carried energy that the power sensor confirmed was
+    drawn around 13:00-13:24, not 10:00. So each point's delta is bucketed
+    by the hour immediately before its *own* timestamp - except a session's
+    final, irregularly-timed point (its real end, not a scheduled tick) must
+    not be walked back past the previous point's own hour, since that would
+    misattribute a normal end-of-session interval backwards. Both rules
+    collapse to the same answer for back-to-back hourly reports (no gap),
+    so this is a refinement of - not a reversal of - that case. The first
+    point in a session carries no delta to attribute (its `energy` is
+    always 0, marking session start) and has no previous point, so it's
+    bucketed by its own timestamp - harmless either way since it contributes
+    nothing. This is still an approximation for intervals that don't land on
+    a clean hour boundary (Zaptec's default meter-reporting interval is 30
+    minutes): the whole delta is attributed to a single hour rather than
+    split proportionally. This is still a large accuracy improvement over
+    the live sensor, which can lag by 1+ hour (upstream issue #300).
 
     Sessions without `energyDetails` (e.g. pre-3.2 firmware) fall back to a
     single point at `endDateTime` using the session's total `energy`. Sessions
@@ -109,12 +144,19 @@ def bucket_sessions_hourly(
             if end and energy:
                 details = [{"timestamp": end, "energy": energy}]
 
+        prev_timestamp: datetime | None = None
         for point in details:
             timestamp = dt_util.parse_datetime(point["timestamp"])
             if timestamp is None:
                 continue
             delta = point["energy"]
-            hour = _floor_hour(timestamp)
+            if prev_timestamp is None:
+                hour = _floor_hour(timestamp)
+            else:
+                hour = max(
+                    _floor_hour(timestamp) - timedelta(hours=1), _floor_hour(prev_timestamp)
+                )
+            prev_timestamp = timestamp
             if after is not None and hour <= after:
                 continue
             hourly_deltas[hour] += delta
