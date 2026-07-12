@@ -9,6 +9,10 @@ class AuthenticationError(ZaptecApiError):
     """Authenatication failed."""
 
 
+class InsufficientRoleError(ZaptecApiError):
+    """The current Zaptec user's role does not permit this action."""
+
+
 class RequestError(ZaptecApiError):
     """Failed to get the results from the API."""
 

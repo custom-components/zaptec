@@ -41,6 +41,7 @@ from .const import (
 )
 from .exceptions import (
     AuthenticationError,
+    InsufficientRoleError,
     RequestConnectionError,
     RequestDataError,
     RequestError,
@@ -215,6 +216,30 @@ class ZaptecBase(Mapping[str, TValue]):
                     _LOGGER.debug("Duplicate key %s. Is '%s', new '%s'", kv, out[kv], value)
                 out[kv] = value
         return out
+
+    def _require_write_role(self, action: str) -> None:
+        """Raise InsufficientRoleError if the current user lacks write access.
+
+        `installation/update`, `chargers/{id}/update`, and
+        `chargers/{id}/SendCommand/{id}` all require the Owner or Service
+        (Maintainer) role (confirmed individually via docs.zaptec.com/reference
+        for each of the three endpoints). If CurrentUserRoles hasn't been
+        observed yet, let the request proceed and rely on the API's own 403
+        response instead of guessing.
+
+        `chargers/{id}/authorizecharge` and `chargers/{id}/localSettings` are
+        deliberately not gated by any caller of this method -- they aren't
+        documented anywhere, so there's no evidence for what role (if any)
+        they require.
+        """
+        roles = self.get("current_user_roles")
+        if roles is None or "Owner" in roles or "Maintainer" in roles:
+            return
+        raise InsufficientRoleError(
+            f"{action} requires the Owner or Service role on {self.qual_id} "
+            f"(current role: {roles or 'None'}). Grant Owner or Service access "
+            "to this Zaptec object in the Zaptec Portal to enable this."
+        )
 
 
 class Installation(ZaptecBase):
@@ -533,6 +558,8 @@ class Installation(ZaptecBase):
         Use availableCurrent for setting all phases at once. Use
         availableCurrentPhase* to set each phase individually.
         """
+        self._require_write_role("Setting the installation current limit")
+
         has_availablecurrent = kwargs.get("availableCurrent") is not None
         has_availablecurrentphases = [
             kwargs.get(k) is not None
@@ -576,6 +603,7 @@ class Installation(ZaptecBase):
 
     async def set_three_to_one_phase_switch_current(self, current: float) -> Any:
         """Set the 3 to 1-phase switch current."""
+        self._require_write_role("Setting the 3-to-1 phase switch current")
         if not (0 <= current <= DEFAULT_MAX_CURRENT):
             raise ValueError(f"Current must be between 0 and {DEFAULT_MAX_CURRENT:.0f} amps")
         return await self.zaptec.request(
@@ -706,6 +734,8 @@ class Charger(ZaptecBase):
         # Check that we can run the command at this time
         self.is_command_valid(command, raise_value_error_if_invalid=True)
 
+        self._require_write_role(f"Sending the {command} command")
+
         _LOGGER.debug("Command %s (%s)", command, cmdid)
         return await self.zaptec.request(f"chargers/{self.id}/SendCommand/{cmdid}", method="post")
 
@@ -743,6 +773,8 @@ class Charger(ZaptecBase):
 
     async def set_settings(self, settings: dict[str, Any]) -> Any:
         """Set settings on the charger."""
+
+        self._require_write_role("Setting charger parameters")
 
         if any(key not in ZCONST.update_params for key in settings):
             raise ValueError(f"Unknown setting '{settings}'")

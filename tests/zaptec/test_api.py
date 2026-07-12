@@ -13,6 +13,7 @@ from custom_components.zaptec.zaptec.api import Charger, Installation, Zaptec, Z
 from custom_components.zaptec.zaptec.const import API_RETRIES
 from custom_components.zaptec.zaptec.exceptions import (
     AuthenticationError,
+    InsufficientRoleError,
     RequestConnectionError,
     RequestDataError,
     RequestError,
@@ -1054,3 +1055,189 @@ async def test_zaptec_async_context_manager_closes_internal_client() -> None:
     """Entering/exiting the context manager works with an internally-created client."""
     async with Zaptec("user", "pass") as zap:
         assert isinstance(zap, Zaptec)
+
+
+# ---------------------------------------------------------------------------
+#   Installation write-call role gating (#311)
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def user_roles(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Populate ZCONST.UserRoles so CurrentUserRoles ints convert to role names."""
+    monkeypatch.setitem(ZCONST, "UserRoles", {"User": 1, "Owner": 2, "Maintainer": 4})
+
+
+@pytest.mark.asyncio
+async def test_set_limit_current_blocked_for_user_only_role(user_roles: None) -> None:
+    """A User-only role raises InsufficientRoleError without calling the API."""
+    zap, session = _make_zaptec([])
+    inst = Installation({"Id": "i1", "CurrentUserRoles": 1}, zap)
+
+    with pytest.raises(InsufficientRoleError, match="Owner or Service"):
+        await inst.set_limit_current(availableCurrent=10)
+    assert session.calls == []
+
+
+@pytest.mark.asyncio
+async def test_set_limit_current_allowed_for_owner_role(user_roles: None) -> None:
+    """An Owner role lets the call through to the API."""
+    zap, session = _make_zaptec([FakeResponse(HTTPStatus.OK, json_data={})])
+    inst = Installation({"Id": "i1", "CurrentUserRoles": 2}, zap)
+
+    await inst.set_limit_current(availableCurrent=10)
+
+    assert len(session.calls) == 1
+
+
+@pytest.mark.asyncio
+async def test_set_limit_current_allowed_for_maintainer_role(user_roles: None) -> None:
+    """A Maintainer (Service) role lets the call through to the API."""
+    zap, session = _make_zaptec([FakeResponse(HTTPStatus.OK, json_data={})])
+    inst = Installation({"Id": "i1", "CurrentUserRoles": 4}, zap)
+
+    await inst.set_limit_current(availableCurrent=10)
+
+    assert len(session.calls) == 1
+
+
+@pytest.mark.asyncio
+async def test_set_limit_current_allowed_when_role_unknown() -> None:
+    """No CurrentUserRoles observed yet -> fall through, let the API decide."""
+    inst, session = _installation_with_session([FakeResponse(HTTPStatus.OK, json_data={})])
+
+    await inst.set_limit_current(availableCurrent=10)
+
+    assert len(session.calls) == 1
+
+
+@pytest.mark.asyncio
+async def test_set_three_to_one_phase_switch_current_blocked_for_user_only_role(
+    user_roles: None,
+) -> None:
+    """A User-only role raises InsufficientRoleError without calling the API."""
+    zap, session = _make_zaptec([])
+    inst = Installation({"Id": "i1", "CurrentUserRoles": 1}, zap)
+
+    with pytest.raises(InsufficientRoleError, match="Owner or Service"):
+        await inst.set_three_to_one_phase_switch_current(10)
+    assert session.calls == []
+
+
+@pytest.mark.asyncio
+async def test_set_three_to_one_phase_switch_current_allowed_for_owner_role(
+    user_roles: None,
+) -> None:
+    """An Owner role lets the call through to the API."""
+    zap, session = _make_zaptec([FakeResponse(HTTPStatus.OK, json_data={})])
+    inst = Installation({"Id": "i1", "CurrentUserRoles": 2}, zap)
+
+    await inst.set_three_to_one_phase_switch_current(10)
+
+    assert len(session.calls) == 1
+
+
+@pytest.mark.asyncio
+async def test_set_settings_blocked_for_user_only_role(user_roles: None) -> None:
+    """A User-only role raises InsufficientRoleError without calling the API."""
+    zap, session = _make_zaptec([])
+    charger = Charger({"Id": "c1", "CurrentUserRoles": 1}, zap)
+
+    with pytest.raises(InsufficientRoleError, match="Owner or Service"):
+        await charger.set_settings({"maxChargeCurrent": 16})
+    assert session.calls == []
+
+
+@pytest.mark.asyncio
+async def test_set_settings_allowed_for_owner_role(user_roles: None) -> None:
+    """An Owner role lets the call through to the API."""
+    zap, session = _make_zaptec([FakeResponse(HTTPStatus.OK, json_data={})])
+    charger = Charger({"Id": "c1", "CurrentUserRoles": 2}, zap)
+
+    await charger.set_settings({"maxChargeCurrent": 16})
+
+    assert len(session.calls) == 1
+
+
+@pytest.mark.asyncio
+async def test_set_settings_allowed_when_role_unknown() -> None:
+    """No CurrentUserRoles observed yet -> fall through, let the API decide."""
+    charger, session = _charger_with_session([FakeResponse(HTTPStatus.OK, json_data={})])
+
+    await charger.set_settings({"maxChargeCurrent": 16})
+
+    assert len(session.calls) == 1
+
+
+@pytest.mark.asyncio
+async def test_command_blocked_for_user_only_role(
+    user_roles: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A User-only role raises InsufficientRoleError without calling the API."""
+    monkeypatch.setattr(ZCONST, "commands", {"restart_charger": 102}, raising=False)
+    zap, session = _make_zaptec([])
+    charger = Charger({"Id": "c1", "CurrentUserRoles": 1}, zap)
+
+    with pytest.raises(InsufficientRoleError, match="Owner or Service"):
+        await charger.command("restart_charger")
+    assert session.calls == []
+
+
+@pytest.mark.asyncio
+async def test_command_allowed_for_maintainer_role(
+    user_roles: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A Maintainer (Service) role lets the call through to the API."""
+    monkeypatch.setattr(ZCONST, "commands", {"restart_charger": 102}, raising=False)
+    zap, session = _make_zaptec([FakeResponse(HTTPStatus.OK, json_data={})])
+    charger = Charger({"Id": "c1", "CurrentUserRoles": 4}, zap)
+
+    await charger.command("restart_charger")
+
+    assert len(session.calls) == 1
+
+
+@pytest.mark.asyncio
+async def test_command_allowed_when_role_unknown(monkeypatch: pytest.MonkeyPatch) -> None:
+    """No CurrentUserRoles observed yet -> fall through, let the API decide."""
+    monkeypatch.setattr(ZCONST, "commands", {"restart_charger": 102}, raising=False)
+    charger, session = _charger_with_session([FakeResponse(HTTPStatus.OK, json_data={})])
+
+    await charger.command("restart_charger")
+
+    assert len(session.calls) == 1
+
+
+@pytest.mark.asyncio
+async def test_command_authorize_charge_alias_not_gated(user_roles: None) -> None:
+    """The undocumented authorize_charge alias is never role-gated, even for User-only."""
+    zap, session = _make_zaptec([FakeResponse(HTTPStatus.OK, json_data={})])
+    charger = Charger({"Id": "c1", "CurrentUserRoles": 1}, zap)
+
+    await charger.command("authorize_charge")
+
+    method, url, _ = session.calls[-1]
+    assert method == "post"
+    assert url.endswith("chargers/c1/authorizecharge")
+
+
+@pytest.mark.asyncio
+async def test_authorize_charge_not_gated_for_user_only_role(user_roles: None) -> None:
+    """authorize_charge is undocumented and deliberately not role-gated."""
+    zap, session = _make_zaptec([FakeResponse(HTTPStatus.OK, json_data={})])
+    charger = Charger({"Id": "c1", "CurrentUserRoles": 1}, zap)
+
+    await charger.authorize_charge()
+
+    assert len(session.calls) == 1
+
+
+@pytest.mark.asyncio
+async def test_set_hmi_brightness_not_gated_for_user_only_role(user_roles: None) -> None:
+    """set_hmi_brightness (localSettings) is undocumented and deliberately not role-gated."""
+    zap, session = _make_zaptec([FakeResponse(HTTPStatus.OK, json_data={})])
+    charger = Charger({"Id": "c1", "CurrentUserRoles": 1}, zap)
+
+    await charger.set_hmi_brightness(0.5)
+
+    assert len(session.calls) == 1

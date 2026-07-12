@@ -6,6 +6,7 @@ from .api import Charger, Installation, Zaptec, ZaptecBase
 from .const import MISSING, RETRYABLE_HTTP_STATUSES, Missing
 from .exceptions import (
     AuthenticationError,
+    InsufficientRoleError,
     RequestConnectionError,
     RequestDataError,
     RequestError,
@@ -24,6 +25,7 @@ __all__ = [
     "AuthenticationError",
     "Charger",
     "Installation",
+    "InsufficientRoleError",
     "Missing",
     "Redactor",
     "RequestConnectionError",
