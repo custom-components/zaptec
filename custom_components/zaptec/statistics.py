@@ -9,6 +9,7 @@ import logging
 from typing import TYPE_CHECKING, Any
 
 from homeassistant.components.recorder import get_instance
+from homeassistant.components.recorder.db_schema import StatisticsMeta
 from homeassistant.components.recorder.models import (
     StatisticData,
     StatisticMeanType,
@@ -40,6 +41,12 @@ so a session that closes slightly before our nominal `From` cutoff - but
 still has energy points after it - would otherwise be missed. Correctness is
 enforced by bucket_sessions_hourly()'s own `after` filter regardless; this is
 purely a fetch-window optimization to avoid re-scanning all of history."""
+
+_SUPPORTS_UNIT_CLASS = hasattr(StatisticsMeta, "unit_class")
+"""Whether the installed HA core's StatisticsMeta accepts unit_class - absent
+on HA < ~2026, a required kwarg (with a deprecation warning if omitted) as of
+2026.4.3, moving to a hard requirement in HA 2026.11. Feature-detected rather
+than version-compared since the exact introduction version isn't pinned down."""
 
 
 def _floor_hour(value: datetime) -> datetime:
@@ -194,13 +201,15 @@ class ZaptecStatisticsCoordinator(DataUpdateCoordinator[None]):
         if not statistics:
             return
 
-        metadata = StatisticMetaData(
-            mean_type=StatisticMeanType.NONE,
-            has_sum=True,
-            name=f"{self.charger.name} Energy",
-            source=DOMAIN,
-            statistic_id=self.statistic_id,
-            unit_class=EnergyConverter.UNIT_CLASS,
-            unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
-        )
+        metadata_kwargs: dict[str, Any] = {
+            "mean_type": StatisticMeanType.NONE,
+            "has_sum": True,
+            "name": f"{self.charger.name} Energy",
+            "source": DOMAIN,
+            "statistic_id": self.statistic_id,
+            "unit_of_measurement": UnitOfEnergy.KILO_WATT_HOUR,
+        }
+        if _SUPPORTS_UNIT_CLASS:
+            metadata_kwargs["unit_class"] = EnergyConverter.UNIT_CLASS
+        metadata = StatisticMetaData(**metadata_kwargs)
         async_add_external_statistics(self.hass, metadata, statistics)

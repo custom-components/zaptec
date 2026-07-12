@@ -381,3 +381,73 @@ async def test_pages_through_multiple_results(hass: MagicMock, config_entry: Any
     _hass_arg, _metadata, statistics = mock_add.call_args[0]
     assert len(statistics) == 2  # noqa: PLR2004
     assert [s["sum"] for s in statistics] == [1.0, 3.0]
+
+
+@pytest.mark.asyncio
+async def test_metadata_includes_unit_class_when_supported(
+    hass: MagicMock, config_entry: Any
+) -> None:
+    """unit_class is included in the metadata when the installed HA core supports it."""
+    charger = _make_charger()
+    charger.get_archived_sessions = AsyncMock(
+        return_value={
+            "sessions": [
+                {
+                    "id": "s1",
+                    "energyDetails": [{"timestamp": "2026-01-01T10:10:00+00:00", "energy": 2.0}],
+                }
+            ],
+            "cursor": None,
+            "hasMore": False,
+        }
+    )
+    coordinator = ZaptecStatisticsCoordinator(hass, entry=config_entry, charger=charger)
+
+    with (
+        patch("custom_components.zaptec.statistics.get_instance") as mock_get_instance,
+        patch("custom_components.zaptec.statistics.get_last_statistics", return_value={}),
+        patch("custom_components.zaptec.statistics.async_add_external_statistics") as mock_add,
+        patch("custom_components.zaptec.statistics._SUPPORTS_UNIT_CLASS", new=True),
+    ):
+        mock_get_instance.return_value.async_add_executor_job = AsyncMock(
+            side_effect=lambda func, *args: func(*args)
+        )
+        await coordinator._async_update_data()  # noqa: SLF001
+
+    _hass_arg, metadata, _statistics = mock_add.call_args[0]
+    assert "unit_class" in metadata
+
+
+@pytest.mark.asyncio
+async def test_metadata_omits_unit_class_when_unsupported(
+    hass: MagicMock, config_entry: Any
+) -> None:
+    """unit_class is omitted entirely on older HA cores whose StatisticsMeta lacks the column."""
+    charger = _make_charger()
+    charger.get_archived_sessions = AsyncMock(
+        return_value={
+            "sessions": [
+                {
+                    "id": "s1",
+                    "energyDetails": [{"timestamp": "2026-01-01T10:10:00+00:00", "energy": 2.0}],
+                }
+            ],
+            "cursor": None,
+            "hasMore": False,
+        }
+    )
+    coordinator = ZaptecStatisticsCoordinator(hass, entry=config_entry, charger=charger)
+
+    with (
+        patch("custom_components.zaptec.statistics.get_instance") as mock_get_instance,
+        patch("custom_components.zaptec.statistics.get_last_statistics", return_value={}),
+        patch("custom_components.zaptec.statistics.async_add_external_statistics") as mock_add,
+        patch("custom_components.zaptec.statistics._SUPPORTS_UNIT_CLASS", new=False),
+    ):
+        mock_get_instance.return_value.async_add_executor_job = AsyncMock(
+            side_effect=lambda func, *args: func(*args)
+        )
+        await coordinator._async_update_data()  # noqa: SLF001
+
+    _hass_arg, metadata, _statistics = mock_add.call_args[0]
+    assert "unit_class" not in metadata
