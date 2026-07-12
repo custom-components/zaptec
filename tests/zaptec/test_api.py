@@ -969,6 +969,33 @@ def test_zaptec_collections_and_accessors() -> None:
 
 
 @pytest.mark.asyncio
+async def test_build_hierarchy_handles_null_circuit_chargers() -> None:
+    """A circuit with a null Chargers list must not crash Installation.build().
+
+    A circuit with a null Chargers list (nullable per the Zaptec API docs)
+    must not crash Installation.build(); it should contribute no chargers
+    rather than raising a TypeError.
+    """
+
+    hierarchy_payload = {
+        "Circuits": [
+            {
+                "Id": "11111111-1111-1111-1111-111111111111",
+                "MaxCurrent": 32.0,
+                "Chargers": None,
+            },
+        ],
+    }
+    zap, _ = _make_zaptec([FakeResponse(HTTPStatus.OK, json_data=hierarchy_payload)])
+    inst = Installation({"Id": "abcdef01-2345-6789-abcd-ef0123456789"}, zap)
+    zap.register(inst.id, inst)
+
+    await inst.build()
+
+    assert inst.chargers == []
+
+
+@pytest.mark.asyncio
 async def test_zaptec_async_context_manager_closes_internal_client() -> None:
     """Entering/exiting the context manager works with an internally-created client."""
     async with Zaptec("user", "pass") as zap:
