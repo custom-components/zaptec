@@ -996,6 +996,60 @@ async def test_build_hierarchy_handles_null_circuit_chargers() -> None:
 
 
 @pytest.mark.asyncio
+async def test_build_hierarchy_charger_with_device_type_survives_full_build() -> None:
+    """A hierarchy-sourced charger stub with DeviceType must not crash Zaptec.build().
+
+    Chargers found only via the installation hierarchy are never re-merged
+    with the fuller /chargers list data -- Zaptec.build()'s standalone-charger
+    loop skips any charger id already present via the hierarchy -- so such a
+    charger's DeviceType comes solely from its hierarchy stub. This drives
+    the full Zaptec.build() sequence (constants -> installation list ->
+    hierarchy -> chargers list) to confirm the chg["DeviceType"] hard
+    subscript at the end of build() no longer raises a raw KeyError now that
+    HierarchyCharger requires DeviceType (see test_validate.py's
+    missing_device_type_in_hierarchy case for the validation-layer half of
+    this fix).
+    """
+    inst_id = "abcdef01-2345-6789-abcd-ef0123456789"
+    charger_id = "12345678-90ab-cdef-1234567890ab"
+
+    outcomes = [
+        FakeResponse(HTTPStatus.OK, json_data={}),  # constants
+        FakeResponse(  # installation list
+            HTTPStatus.OK, json_data={"Pages": 1, "Data": [{"Id": inst_id}]}
+        ),
+        FakeResponse(  # installation/{id}/hierarchy
+            HTTPStatus.OK,
+            json_data={
+                "Circuits": [
+                    {
+                        "Id": "11111111-1111-1111-1111-111111111111",
+                        "MaxCurrent": 32.0,
+                        "Chargers": [{"Id": charger_id, "DeviceType": 4}],
+                    },
+                ],
+            },
+        ),
+        FakeResponse(  # chargers list
+            HTTPStatus.OK,
+            json_data={"Pages": 1, "Data": [{"Id": charger_id, "DeviceType": 4}]},
+        ),
+    ]
+    zap, _ = _make_zaptec(outcomes)
+
+    await zap.build()
+
+    assert zap.is_built
+    charger: Charger = zap[charger_id]
+    # DeviceType is stored via the type_device_type converter, which falls
+    # back to str(val) when (as here) the constants schema has no matching
+    # entry -- the point of this assertion is simply that build() populated
+    # the attribute at all, proving the chg["DeviceType"] subscript in
+    # Zaptec.build() succeeded instead of raising KeyError.
+    assert charger["DeviceType"] == "4"
+
+
+@pytest.mark.asyncio
 async def test_zaptec_async_context_manager_closes_internal_client() -> None:
     """Entering/exiting the context manager works with an internally-created client."""
     async with Zaptec("user", "pass") as zap:

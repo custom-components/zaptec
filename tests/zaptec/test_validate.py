@@ -164,7 +164,7 @@ def test_hierarchy_validation() -> None:
                 "Name": "Circuit 1",
                 "MaxCurrent": 32.0,
                 "Chargers": [
-                    {"Id": "12345678-90ab-cdef-1234567890ab"},
+                    {"Id": "12345678-90ab-cdef-1234567890ab", "DeviceType": 4},
                 ],
             },
         ],
@@ -200,6 +200,22 @@ def test_hierarchy_validation() -> None:
     }
     with pytest.raises(ValidationError):
         validate(missing_circuit_id, hierarchy_url)
+
+    # DeviceType is required: Zaptec.build() indexes chg["DeviceType"] on every
+    # registered charger once merged, including hierarchy-only chargers that are
+    # never re-merged with the /chargers list (see api.py's installation_chargers
+    # skip in the standalone-charger loop).
+    missing_device_type_in_hierarchy = {
+        "Circuits": [
+            {
+                "Id": "11111111-1111-1111-1111-111111111111",
+                "MaxCurrent": 32.0,
+                "Chargers": [{"Id": "12345678-90ab-cdef-1234567890ab"}],
+            },
+        ],
+    }
+    with pytest.raises(ValidationError):
+        validate(missing_device_type_in_hierarchy, hierarchy_url)
 
 
 def test_charger_firmware_validation() -> None:
