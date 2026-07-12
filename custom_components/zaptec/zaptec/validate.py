@@ -16,10 +16,10 @@ class Installation(BaseModel):
 
     model_config = ConfigDict(extra="allow")
     Id: str
-    Active: bool
-    CurrentUserRoles: int
-    InstallationType: int
-    NetworkType: int
+    Active: bool | None = None
+    CurrentUserRoles: int | None = None
+    InstallationType: int | None = None
+    NetworkType: int | None = None
 
 
 class Installations(BaseModel):
@@ -27,7 +27,7 @@ class Installations(BaseModel):
 
     model_config = ConfigDict(extra="allow")
     Data: list[Installation]
-    Pages: int
+    Pages: int | None = None
 
 
 class Charger(BaseModel):
