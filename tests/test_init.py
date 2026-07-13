@@ -99,6 +99,7 @@ def test_cleanup_removes_device_with_no_entities() -> None:
         MagicMock(entry_id="entry1"),
         tracked_devices={"charger-empty"},  # tracked, but still has no entities
         circuit_ids=set(),
+        check_untracked=True,
     )
 
     device_registry.async_remove_device.assert_called_once_with("dev-empty")
@@ -119,6 +120,7 @@ def test_cleanup_removes_deprecated_circuit_device() -> None:
         MagicMock(entry_id="entry1"),
         tracked_devices=set(),
         circuit_ids={"circuit-123"},
+        check_untracked=True,
     )
 
     entity_registry.async_remove.assert_called_once_with("sensor.circuit_123_power")
@@ -139,6 +141,7 @@ def test_cleanup_keeps_tracked_device_with_entities() -> None:
         MagicMock(entry_id="entry1"),
         tracked_devices={"charger-kept"},
         circuit_ids=set(),
+        check_untracked=True,
     )
 
     device_registry.async_remove_device.assert_not_called()
@@ -172,7 +175,66 @@ def test_cleanup_removes_deselected_charger_device() -> None:
         MagicMock(entry_id="entry1"),
         tracked_devices={"charger-kept"},  # charger-stale was deselected
         circuit_ids=set(),
+        check_untracked=True,
     )
 
     entity_registry.async_remove.assert_called_once_with("sensor.stale_charger_power")
     device_registry.async_remove_device.assert_called_once_with("dev-stale")
+
+
+def test_cleanup_skips_untracked_removal_when_selection_incomplete() -> None:
+    """A device not in tracked_devices is left alone when check_untracked is False.
+
+    This guards against a real risk found in review: if the Zaptec API returns
+    a partial account this session (outage, transient blip), a charger the
+    user genuinely still has selected can silently drop out of
+    tracked_devices. Without this guard, that transient blip would be
+    mistaken for the user deselecting the charger and its device+entities
+    would be permanently deleted.
+    """
+    maybe_stale_device = _device("dev-maybe-stale", "charger-maybe-stale")
+    maybe_stale_entity = _entity("sensor.maybe_stale_charger_power")
+
+    device_registry, entity_registry = _mock_registries(
+        device_entries=[maybe_stale_device],
+        entities_by_device={"dev-maybe-stale": [maybe_stale_entity]},
+    )
+
+    _cleanup_stale_devices(
+        MagicMock(),
+        MagicMock(entry_id="entry1"),
+        tracked_devices=set(),  # would look untracked...
+        circuit_ids=set(),
+        check_untracked=False,  # ...but the API response was incomplete this session
+    )
+
+    device_registry.async_remove_device.assert_not_called()
+    entity_registry.async_remove.assert_not_called()
+
+
+def test_cleanup_keeps_tracked_installation_device() -> None:
+    """An installation device (not a charger) with a tracked id is left alone.
+
+    tracked_devices holds both charger ids and their installation ids
+    (ZaptecManager.first_time_setup keeps an installation whenever any of its
+    chargers is selected) - this documents that installations go through the
+    same tracked-device check as chargers.
+    """
+    installation_device = _device("dev-installation", "installation-1")
+    installation_entity = _entity("sensor.installation_1_power")
+
+    device_registry, entity_registry = _mock_registries(
+        device_entries=[installation_device],
+        entities_by_device={"dev-installation": [installation_entity]},
+    )
+
+    _cleanup_stale_devices(
+        MagicMock(),
+        MagicMock(entry_id="entry1"),
+        tracked_devices={"installation-1"},
+        circuit_ids=set(),
+        check_untracked=True,
+    )
+
+    device_registry.async_remove_device.assert_not_called()
+    entity_registry.async_remove.assert_not_called()
