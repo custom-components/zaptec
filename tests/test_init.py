@@ -143,3 +143,36 @@ def test_cleanup_keeps_tracked_device_with_entities() -> None:
 
     device_registry.async_remove_device.assert_not_called()
     entity_registry.async_remove.assert_not_called()
+
+
+def test_cleanup_removes_deselected_charger_device() -> None:
+    """Issue #272: a charger deselected via reconfigure loses its device and entities.
+
+    Before this fix, `tracked_devices` correctly excludes the deselected
+    charger (so no new entities are created for it, per the #274/#275 fix),
+    but its old entity-registry entries from the prior session were never
+    explicitly removed, so `dev_entities` stayed non-empty and the device
+    was never cleaned up.
+    """
+    stale_device = _device("dev-stale", "charger-stale")
+    kept_device = _device("dev-kept", "charger-kept")
+    stale_entity = _entity("sensor.stale_charger_power")
+    kept_entity = _entity("sensor.kept_charger_power")
+
+    device_registry, entity_registry = _mock_registries(
+        device_entries=[stale_device, kept_device],
+        entities_by_device={
+            "dev-stale": [stale_entity],
+            "dev-kept": [kept_entity],
+        },
+    )
+
+    _cleanup_stale_devices(
+        MagicMock(),
+        MagicMock(entry_id="entry1"),
+        tracked_devices={"charger-kept"},  # charger-stale was deselected
+        circuit_ids=set(),
+    )
+
+    entity_registry.async_remove.assert_called_once_with("sensor.stale_charger_power")
+    device_registry.async_remove_device.assert_called_once_with("dev-stale")
