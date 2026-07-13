@@ -217,7 +217,23 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Make a set of the circuit ids from zaptec to check for deprecated Circuit-devices
     circuit_ids = {cid for c in manager.zaptec.chargers if (cid := c.get("CircuitId"))}
 
-    # Clean up unused device entries with no entities
+    _cleanup_stale_devices(hass, entry, manager.tracked_devices, circuit_ids)
+
+    return True
+
+
+def _cleanup_stale_devices(
+    hass: HomeAssistant,
+    entry: ConfigEntry,
+    tracked_devices: set[str],
+    circuit_ids: set[str],
+) -> None:
+    """Remove device entries that no longer belong to this config entry.
+
+    Three cases are handled: devices left with no entities at all, deprecated
+    Circuit-devices (pre-dating a hierarchy change), and devices whose zaptec
+    id is no longer tracked, e.g. a charger deselected via reconfigure.
+    """
     device_registry = dr.async_get(hass)
     entity_registry = er.async_get(hass)
 
@@ -239,12 +255,19 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                     "removing device and associated entities",
                     zap_dev_id,
                 )
-                for ent in dev_entities:
-                    _LOGGER.debug("Deleting entity %s", ent.entity_id)
-                    entity_registry.async_remove(ent.entity_id)
-                device_registry.async_remove_device(dev.id)
+            elif zap_dev_id not in tracked_devices:
+                _LOGGER.warning(
+                    "Detected stale device %s no longer selected, "
+                    "removing device and associated entities",
+                    zap_dev_id,
+                )
+            else:
+                continue
 
-    return True
+            for ent in dev_entities:
+                _LOGGER.debug("Deleting entity %s", ent.entity_id)
+                entity_registry.async_remove(ent.entity_id)
+            device_registry.async_remove_device(dev.id)
 
 
 def remove_deprecated_entities(hass: HomeAssistant, entry: ZaptecConfigEntry) -> None:
