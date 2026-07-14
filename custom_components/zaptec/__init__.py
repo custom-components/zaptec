@@ -217,17 +217,31 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Make a set of the circuit ids from zaptec to check for deprecated Circuit-devices
     circuit_ids = {cid for c in manager.zaptec.chargers if (cid := c.get("CircuitId"))}
 
-    if not all_selected_present:
+    check_untracked = _should_check_untracked(configured_chargers, all_selected_present)
+    if configured_chargers is not None and not all_selected_present:
         _LOGGER.warning(
             "One or more selected chargers were not returned by the Zaptec API "
             "this session; skipping removal of untracked devices to avoid deleting "
             "a still-selected charger due to a transient/partial response"
         )
-    _cleanup_stale_devices(
-        hass, entry, manager.tracked_devices, circuit_ids, all_selected_present
-    )
+    _cleanup_stale_devices(hass, entry, manager.tracked_devices, circuit_ids, check_untracked)
 
     return True
+
+
+def _should_check_untracked(
+    configured_chargers: set[str] | None, all_selected_present: bool
+) -> bool:
+    """Only treat `tracked_devices` as authoritative for device removal in manual-select mode.
+
+    In track-all mode (`configured_chargers` is None) nothing is ever deliberately
+    deselected, so there's no reliable signal to distinguish a charger actually
+    removed from the account from one merely missing from a partial API response
+    this session - untracked-device removal must never run there. In manual-select
+    mode it's safe only once `first_time_setup` has confirmed every selected
+    charger was present this session (`all_selected_present`).
+    """
+    return configured_chargers is not None and all_selected_present
 
 
 def _cleanup_stale_devices(

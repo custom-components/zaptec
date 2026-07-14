@@ -6,7 +6,11 @@ from unittest.mock import MagicMock, patch
 from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryError, ConfigEntryNotReady
 import pytest
 
-from custom_components.zaptec import _cleanup_stale_devices, _config_entry_error
+from custom_components.zaptec import (
+    _cleanup_stale_devices,
+    _config_entry_error,
+    _should_check_untracked,
+)
 from custom_components.zaptec.zaptec.exceptions import (
     AuthenticationError,
     RequestConnectionError,
@@ -238,3 +242,25 @@ def test_cleanup_keeps_tracked_installation_device() -> None:
 
     device_registry.async_remove_device.assert_not_called()
     entity_registry.async_remove.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    ("configured_chargers", "all_selected_present", "expected"),
+    [
+        # Track-all mode: never check untracked, regardless of all_selected_present
+        # (which is always True in this mode anyway - included for defensiveness).
+        (None, True, False),
+        (None, False, False),
+        # Manual-select mode, every selected charger confirmed present -> safe to check.
+        ({"charger-a"}, True, True),
+        # Manual-select mode, API response was partial this session -> must not check.
+        ({"charger-a"}, False, False),
+    ],
+)
+def test_should_check_untracked(
+    configured_chargers: set[str] | None,
+    all_selected_present: bool,
+    expected: bool,
+) -> None:
+    """Untracked-device removal is only ever safe in confirmed manual-select mode."""
+    assert _should_check_untracked(configured_chargers, all_selected_present) is expected
