@@ -205,7 +205,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     entry.runtime_data = manager
 
     # Setup services
-    await async_setup_services(hass, manager)
+    await async_setup_services(hass)
 
     # Setup all platforms
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
@@ -281,8 +281,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ZaptecConfigEntry) -> b
 
     manager = entry.runtime_data
     await manager.cancel_streams()
-    unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
-    return unload_ok
+    return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
 
 
 async def async_reload_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:

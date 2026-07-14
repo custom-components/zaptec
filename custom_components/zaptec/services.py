@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Awaitable, Callable, Generator
 import logging
-from typing import TYPE_CHECKING, TypeVar
+from typing import TYPE_CHECKING
 
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.exceptions import HomeAssistantError
@@ -22,7 +22,6 @@ if TYPE_CHECKING:
 _LOGGER = logging.getLogger(__name__)
 
 TServiceHandler = Callable[[ServiceCall], Awaitable[None]]
-T = TypeVar("T")
 
 CHARGER_ID_SCHEMA = vol.Schema(
     vol.All(
@@ -131,7 +130,7 @@ def _iter_managers(hass: HomeAssistant) -> Generator[ZaptecManager]:
             yield entry.runtime_data
 
 
-def iter_objects(
+def iter_objects[T](
     service_call: ServiceCall, mustbe: type[T]
 ) -> Generator[tuple[ZaptecUpdateCoordinator, T]]:
     """Resolve the devices/entities targeted by a service call to zaptec objects.
@@ -214,6 +213,7 @@ def iter_objects(
 
 
 async def service_handle_stop_charging(service_call: ServiceCall) -> None:
+    """Handle the stop_charging service call."""
     _LOGGER.debug("Called stop charging")
     _LOGGER.warning(
         "The 'stop_charging' action is deprecated and will be removed in a future release. "
@@ -229,6 +229,7 @@ async def service_handle_stop_charging(service_call: ServiceCall) -> None:
 
 
 async def service_handle_resume_charging(service_call: ServiceCall) -> None:
+    """Handle the resume_charging service call."""
     _LOGGER.debug("Called resume charging")
     _LOGGER.warning(
         "The 'resume_charging' action is deprecated and will be removed in a future release. "
@@ -244,6 +245,7 @@ async def service_handle_resume_charging(service_call: ServiceCall) -> None:
 
 
 async def service_handle_authorize_charging(service_call: ServiceCall) -> None:
+    """Handle the authorize_charging service call."""
     _LOGGER.debug("Called authorize charging")
     _LOGGER.warning(
         "The 'authorize_charging' action is deprecated and will be removed in a future "
@@ -259,6 +261,7 @@ async def service_handle_authorize_charging(service_call: ServiceCall) -> None:
 
 
 async def service_handle_deauthorize_charging(service_call: ServiceCall) -> None:
+    """Handle the deauthorize_charging service call."""
     _LOGGER.debug("Called deauthorize charging and stop")
     _LOGGER.warning(
         "The 'deauthorize_charging' action is deprecated and will be removed in a future "
@@ -274,6 +277,7 @@ async def service_handle_deauthorize_charging(service_call: ServiceCall) -> None
 
 
 async def service_handle_restart_charger(service_call: ServiceCall) -> None:
+    """Handle the restart_charger service call."""
     _LOGGER.debug("Called restart charger")
     _LOGGER.warning(
         "The 'restart_charger' action is deprecated and will be removed in a future release. "
@@ -289,6 +293,7 @@ async def service_handle_restart_charger(service_call: ServiceCall) -> None:
 
 
 async def service_handle_upgrade_firmware(service_call: ServiceCall) -> None:
+    """Handle the upgrade_firmware service call."""
     _LOGGER.debug("Called update firmware")
     _LOGGER.warning(
         "The 'upgrade_firmware' action is deprecated and will be removed in a future "
@@ -304,6 +309,7 @@ async def service_handle_upgrade_firmware(service_call: ServiceCall) -> None:
 
 
 async def service_handle_limit_current(service_call: ServiceCall) -> None:
+    """Handle the limit_current service call."""
     _LOGGER.debug("Called set current limit")
     limit_args = {}
     # only add the relevant arguments if they are not None
@@ -331,6 +337,7 @@ async def service_handle_limit_current(service_call: ServiceCall) -> None:
 
 
 async def service_handle_send_command(service_call: ServiceCall) -> None:
+    """Handle the send_command service call."""
     _LOGGER.debug("Called send command")
     for coordinator, obj in iter_objects(service_call, mustbe=Charger):
         _LOGGER.debug("  >> to %s", obj.id)
