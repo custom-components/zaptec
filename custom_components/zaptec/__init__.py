@@ -24,7 +24,7 @@ from .const import (
 )
 from .coordinator import ZaptecUpdateCoordinator, ZaptecUpdateOptions
 from .manager import ZaptecConfigEntry, ZaptecManager
-from .services import async_setup_services, async_unload_services
+from .services import async_setup_services
 from .zaptec import (
     RETRYABLE_HTTP_STATUSES,
     AuthenticationError,
@@ -282,7 +282,6 @@ async def async_unload_entry(hass: HomeAssistant, entry: ZaptecConfigEntry) -> b
     manager = entry.runtime_data
     await manager.cancel_streams()
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
-    await async_unload_services(hass)
     return unload_ok
 
 

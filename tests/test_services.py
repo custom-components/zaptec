@@ -20,7 +20,6 @@ from custom_components.zaptec.services import (
     LIMIT_CURRENT_SCHEMA,
     SEND_COMMAND_SCHEMA,
     async_setup_services,
-    async_unload_services,
 )
 from custom_components.zaptec.zaptec import Charger, Installation
 
@@ -110,8 +109,9 @@ def add_installation(manager: MagicMock) -> Any:
 @pytest.fixture
 async def handlers(hass: MagicMock, manager: MagicMock) -> dict[str, Any]:
     """Register zaptec services and return {name: handler} for direct invocation."""
+    hass.config_entries.async_entries.return_value = [SimpleNamespace(runtime_data=manager)]
     hass.services.has_service = MagicMock(return_value=False)
-    await async_setup_services(hass, manager)
+    await async_setup_services(hass)
     return {call.args[1]: call.args[2] for call in hass.services.async_register.call_args_list}
 
 
@@ -122,10 +122,9 @@ async def handlers(hass: MagicMock, manager: MagicMock) -> dict[str, Any]:
 
 async def test_async_setup_services_registers_all_services(hass: MagicMock) -> None:
     """All eight zaptec services get registered under the zaptec domain."""
-    manager = MagicMock()
     hass.services.has_service = MagicMock(return_value=False)
 
-    await async_setup_services(hass, manager)
+    await async_setup_services(hass)
 
     registered = {call.args[1] for call in hass.services.async_register.call_args_list}
     assert registered == {
@@ -143,31 +142,15 @@ async def test_async_setup_services_registers_all_services(hass: MagicMock) -> N
 
 async def test_async_setup_services_skips_already_registered(hass: MagicMock) -> None:
     """A service that has_service reports as already present is not re-registered."""
-    manager = MagicMock()
     hass.services.has_service = MagicMock(
         side_effect=lambda _domain, name: name == "stop_charging"
     )
 
-    await async_setup_services(hass, manager)
+    await async_setup_services(hass)
 
     registered = {call.args[1] for call in hass.services.async_register.call_args_list}
     assert "stop_charging" not in registered
     assert "resume_charging" in registered
-
-
-async def test_async_unload_services_removes_all_domain_services(hass: MagicMock) -> None:
-    """All services under the zaptec domain get removed."""
-    hass.services.async_services.return_value = {
-        DOMAIN: {"stop_charging": None, "limit_current": None},
-        "other_domain": {"foo": None},
-    }
-
-    await async_unload_services(hass)
-
-    assert hass.services.async_remove.call_count == 2  # noqa: PLR2004
-    removed = {call.args[1] for call in hass.services.async_remove.call_args_list}
-    assert removed == {"stop_charging", "limit_current"}
-    assert all(call.args[0] == DOMAIN for call in hass.services.async_remove.call_args_list)
 
 
 # ---------------------------------------------------------------------------
@@ -330,6 +313,46 @@ async def test_multiple_chargers_in_one_call_are_all_processed(
     coordinator1.trigger_poll.assert_awaited_once()
     charger2.command.assert_awaited_once_with("stop_charging_final")
     coordinator2.trigger_poll.assert_awaited_once()
+
+
+async def test_resolves_across_multiple_config_entries(
+    hass: MagicMock, add_charger: Any, handlers: dict[str, Any]
+) -> None:
+    """A service call resolves a charger that lives under a second config entry's manager.
+
+    Regression test for the bug this refactor fixes: services now register
+    once at HA startup instead of once per config entry, so iter_objects must
+    search every loaded entry's manager, not just the one that happened to
+    exist when async_setup_services first ran.
+    """
+    charger1, _coordinator1 = add_charger("charger1")
+
+    other_manager = MagicMock()
+    other_charger = make_charger("charger2")
+    other_coordinator = MagicMock()
+    other_coordinator.trigger_poll = AsyncMock()
+    other_manager.zaptec = {"charger2": other_charger}
+    other_manager.device_coordinators = {"charger2": other_coordinator}
+
+    hass.config_entries.async_entries.return_value.append(
+        SimpleNamespace(runtime_data=other_manager)
+    )
+
+    await handlers["stop_charging"](make_call(hass, {"charger_id": "charger2"}))
+
+    other_charger.command.assert_awaited_once_with("stop_charging_final")
+    other_coordinator.trigger_poll.assert_awaited_once()
+    charger1.command.assert_not_awaited()
+
+
+async def test_unloaded_config_entry_without_runtime_data_is_skipped(
+    hass: MagicMock, handlers: dict[str, Any]
+) -> None:
+    """An entry with no runtime_data (not currently loaded) is skipped, not crashed on."""
+    hass.config_entries.async_entries.return_value.append(SimpleNamespace())
+
+    with pytest.raises(HomeAssistantError, match="Unable to find zaptec object"):
+        await handlers["stop_charging"](make_call(hass, {"charger_id": "charger_missing"}))
 
 
 # ---------------------------------------------------------------------------
@@ -675,9 +698,8 @@ async def test_services_yaml_keys_match_registered_service_names(hass: MagicMock
     undocumented, field-less form for the real service, while the yaml entry
     documents a service that doesn't exist.
     """
-    manager = MagicMock()
     hass.services.has_service = MagicMock(return_value=False)
-    await async_setup_services(hass, manager)
+    await async_setup_services(hass)
     registered = {call.args[1] for call in hass.services.async_register.call_args_list}
 
     documented = set(yaml.safe_load(SERVICES_YAML_PATH.read_text()))
