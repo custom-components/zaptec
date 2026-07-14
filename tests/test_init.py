@@ -1,11 +1,12 @@
 """Tests for custom_components.zaptec.__init__."""
 
 from http import HTTPStatus
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryError, ConfigEntryNotReady
 import pytest
 
-from custom_components.zaptec import _config_entry_error
+from custom_components.zaptec import _config_entry_error, async_setup
 from custom_components.zaptec.zaptec.exceptions import (
     AuthenticationError,
     RequestConnectionError,
@@ -33,3 +34,16 @@ from custom_components.zaptec.zaptec.exceptions import (
 def test_config_entry_error_mapping(err: Exception, expected: type[Exception]) -> None:
     """Setup login errors map to the right Home Assistant config-entry error."""
     assert isinstance(_config_entry_error(err), expected)
+
+
+async def test_async_setup_registers_services() -> None:
+    """async_setup wires up zaptec's services once, independent of any config entry."""
+    hass = MagicMock()
+
+    with patch(
+        "custom_components.zaptec.async_setup_services", new=AsyncMock()
+    ) as mock_setup_services:
+        result = await async_setup(hass, {})
+
+    assert result is True
+    mock_setup_services.assert_awaited_once_with(hass)

@@ -10,6 +10,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryError, ConfigEntryNotReady
 from homeassistant.helpers import device_registry as dr, entity_registry as er
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.typing import ConfigType
 
 from .const import (
     CONF_CHARGERS,
@@ -67,6 +68,17 @@ PLATFORMS = [
     Platform.SWITCH,
     Platform.UPDATE,
 ]
+
+
+async def async_setup(hass: HomeAssistant, _config: ConfigType) -> bool:
+    """Set up the zaptec integration's services.
+
+    Called once at Home Assistant startup, independent of how many zaptec
+    config entries exist, so services are available regardless of which
+    (or how many) accounts are configured.
+    """
+    await async_setup_services(hass)
+    return True
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -203,9 +215,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Attach the local data to the HA config entry so it can be accessed later
     # in various HA functions.
     entry.runtime_data = manager
-
-    # Setup services
-    await async_setup_services(hass)
 
     # Setup all platforms
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
