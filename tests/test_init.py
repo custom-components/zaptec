@@ -1,5 +1,6 @@
 """Tests for custom_components.zaptec.__init__."""
 
+from collections.abc import Generator
 from http import HTTPStatus
 from unittest.mock import MagicMock, patch
 
@@ -71,7 +72,7 @@ def _mock_registries(
 
 
 @pytest.fixture(autouse=True)
-def _stop_patches():
+def _stop_patches() -> Generator[None]:
     """Undo any patch.start() calls made via _mock_registries after each test."""
     yield
     patch.stopall()
