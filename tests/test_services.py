@@ -116,7 +116,7 @@ async def handlers(hass: MagicMock, manager: MagicMock) -> dict[str, Any]:
 
 
 # ---------------------------------------------------------------------------
-# async_setup_services / async_unload_services
+# async_setup_services
 # ---------------------------------------------------------------------------
 
 
