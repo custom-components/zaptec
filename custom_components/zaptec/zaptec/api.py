@@ -35,6 +35,7 @@ from .const import (
     DEFAULT_MAX_CURRENT,
     MAX_DEBUG_TEXT_LEN_ON_500,
     MISSING,
+    RETRYABLE_HTTP_STATUSES,
     TOKEN_URL,
     TRUTHY,
 )
@@ -958,6 +959,19 @@ class Zaptec(Mapping[str, ZaptecBase]):
         except Exception:
             _LOGGER.exception("Failed to log response (ignored exception)")
 
+    @staticmethod
+    def _parse_retry_after(value: str | None) -> float | None:
+        """Parse a Retry-After header value into seconds.
+
+        Only the integer delta-seconds form is supported; the HTTP-date form
+        returns None so the caller falls back to the exponential backoff."""
+        if not value:
+            return None
+        try:
+            return max(0.0, float(value))
+        except (TypeError, ValueError):
+            return None
+
     async def _request_worker(
         self, url: str, method: str = "get", retries: int = API_RETRIES, **kwargs: Any
     ) -> AsyncGenerator[tuple[aiohttp.ClientResponse, TLogExc]]:
@@ -971,6 +985,7 @@ class Zaptec(Mapping[str, ZaptecBase]):
         error: Exception | None = None
         delay: float = API_RETRY_INIT_DELAY
         sleep_delay: float = 0.0
+        retry_after: float | None = None
         start_time: float = time.perf_counter()
         iteration = 0
         for iteration in range(1, retries + 1):
@@ -1016,6 +1031,22 @@ class Zaptec(Mapping[str, ZaptecBase]):
                             _LOGGER.error(str(exc), exc_info=exc)
                         return exc
 
+                    # Retry transient, infrastructure-level server errors
+                    # (429/502/503/504) regardless of method. These indicate
+                    # the request likely never reached the application, so a
+                    # retry is safe even for POST/PUT -- unlike 500, which is
+                    # handled per-method by the caller. On the final iteration
+                    # we fall through to yield so the caller raises the error.
+                    if response.status in RETRYABLE_HTTP_STATUSES and iteration < retries:
+                        if DEBUG_API_CALLS:
+                            _LOGGER.debug(
+                                "@@@  RETRYABLE STATUS %s, retrying (attempt %s)",
+                                response.status,
+                                iteration,
+                            )
+                        retry_after = self._parse_retry_after(response.headers.get("Retry-After"))
+                        continue  # Retry after backoff (or the Retry-After delay)
+
                     # Let the caller handle the response. If the caller
                     # calls __next__ on the generator the request will be
                     # retried.
@@ -1042,6 +1073,12 @@ class Zaptec(Mapping[str, ZaptecBase]):
                 # If the sleep time is negative, it means the request took
                 # longer than the calculated delay, so we don't need to sleep.
                 sleep_delay = delay - time.perf_counter() + start_time
+
+                # A Retry-After header from a transient response overrides the
+                # computed backoff for the next attempt.
+                if retry_after is not None:
+                    sleep_delay = min(retry_after, self._max_time)
+                    retry_after = None
 
         if isinstance(error, TimeoutError):
             raise RequestTimeoutError(

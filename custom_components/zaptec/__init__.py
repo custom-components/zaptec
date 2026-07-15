@@ -26,15 +26,38 @@ from .coordinator import ZaptecUpdateCoordinator, ZaptecUpdateOptions
 from .manager import ZaptecConfigEntry, ZaptecManager
 from .services import async_setup_services, async_unload_services
 from .zaptec import (
+    RETRYABLE_HTTP_STATUSES,
     AuthenticationError,
     Installation,
     RequestConnectionError,
+    RequestError,
     RequestTimeoutError,
     Zaptec,
     ZaptecApiError,
 )
 
 _LOGGER = logging.getLogger(__name__)
+
+
+def _config_entry_error(
+    err: ZaptecApiError,
+) -> ConfigEntryAuthFailed | ConfigEntryNotReady | ConfigEntryError:
+    """Map a Zaptec API error from setup login to a HA config-entry error.
+
+    Authentication failures are non-recoverable (trigger re-auth). Connection
+    and timeout errors, and transient server statuses (429/502/503/504), are
+    recoverable, so we raise ConfigEntryNotReady to let Home Assistant retry
+    setup automatically instead of failing permanently (issue #392). All other
+    API errors remain permanent ConfigEntryError failures.
+    """
+    if isinstance(err, AuthenticationError):
+        return ConfigEntryAuthFailed(str(err))
+    if isinstance(err, (RequestTimeoutError, RequestConnectionError)):
+        return ConfigEntryNotReady(str(err))
+    if isinstance(err, RequestError) and err.error_code in RETRYABLE_HTTP_STATUSES:
+        return ConfigEntryNotReady(str(err))
+    return ConfigEntryError(str(err))
+
 
 PLATFORMS = [
     Platform.BINARY_SENSOR,
@@ -80,18 +103,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Login to the Zaptec account
     try:
         await zaptec.login()
-    except AuthenticationError as err:
-        _LOGGER.error("Authentication failed: %s", err)
-        raise ConfigEntryAuthFailed from err
-    except (RequestTimeoutError, RequestConnectionError) as err:
-        _LOGGER.error("Connection error: %s", err)
-        raise ConfigEntryNotReady from err
     except ZaptecApiError as err:
-        _LOGGER.error("Zaptec API error: %s", err)
-        raise ConfigEntryError from err
+        _LOGGER.error("Zaptec login failed: %s", err)
+        raise _config_entry_error(err) from err
 
     # Get the structure of devices from Zaptec and determine the zaptec objects to track
-    tracked_devices = await ZaptecManager.first_time_setup(
+    tracked_devices, all_selected_present = await ZaptecManager.first_time_setup(
         zaptec=zaptec,
         configured_chargers=configured_chargers,
     )
@@ -200,7 +217,50 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Make a set of the circuit ids from zaptec to check for deprecated Circuit-devices
     circuit_ids = {cid for c in manager.zaptec.chargers if (cid := c.get("CircuitId"))}
 
-    # Clean up unused device entries with no entities
+    check_untracked = _should_check_untracked(configured_chargers, all_selected_present)
+    if configured_chargers is not None and not all_selected_present:
+        _LOGGER.warning(
+            "One or more selected chargers were not returned by the Zaptec API "
+            "this session; skipping removal of untracked devices to avoid deleting "
+            "a still-selected charger due to a transient/partial response"
+        )
+    _cleanup_stale_devices(hass, entry, manager.tracked_devices, circuit_ids, check_untracked)
+
+    return True
+
+
+def _should_check_untracked(
+    configured_chargers: set[str] | None, all_selected_present: bool
+) -> bool:
+    """Only treat `tracked_devices` as authoritative for device removal in manual-select mode.
+
+    In track-all mode (`configured_chargers` is None) nothing is ever deliberately
+    deselected, so there's no reliable signal to distinguish a charger actually
+    removed from the account from one merely missing from a partial API response
+    this session - untracked-device removal must never run there. In manual-select
+    mode it's safe only once `first_time_setup` has confirmed every selected
+    charger was present this session (`all_selected_present`).
+    """
+    return configured_chargers is not None and all_selected_present
+
+
+def _cleanup_stale_devices(
+    hass: HomeAssistant,
+    entry: ConfigEntry,
+    tracked_devices: set[str],
+    circuit_ids: set[str],
+    check_untracked: bool,
+) -> None:
+    """Remove device entries that no longer belong to this config entry.
+
+    Three cases are handled: devices left with no entities at all, deprecated
+    Circuit-devices (pre-dating a hierarchy change), and, only when
+    `check_untracked` is True, devices whose zaptec id is no longer tracked,
+    e.g. a charger deselected via reconfigure. `check_untracked` must be False
+    whenever `tracked_devices` might be incomplete due to a partial API
+    response rather than a real deselection, or a transient blip could
+    permanently delete a still-selected charger's device and entities.
+    """
     device_registry = dr.async_get(hass)
     entity_registry = er.async_get(hass)
 
@@ -222,12 +282,19 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                     "removing device and associated entities",
                     zap_dev_id,
                 )
-                for ent in dev_entities:
-                    _LOGGER.debug("Deleting entity %s", ent.entity_id)
-                    entity_registry.async_remove(ent.entity_id)
-                device_registry.async_remove_device(dev.id)
+            elif check_untracked and zap_dev_id not in tracked_devices:
+                _LOGGER.warning(
+                    "Detected stale device %s no longer selected, "
+                    "removing device and associated entities",
+                    zap_dev_id,
+                )
+            else:
+                continue
 
-    return True
+            for ent in dev_entities:
+                _LOGGER.debug("Deleting entity %s", ent.entity_id)
+                entity_registry.async_remove(ent.entity_id)
+            device_registry.async_remove_device(dev.id)
 
 
 def remove_deprecated_entities(hass: HomeAssistant, entry: ZaptecConfigEntry) -> None:

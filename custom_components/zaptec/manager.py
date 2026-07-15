@@ -229,8 +229,18 @@ class ZaptecManager:
         coordinator.async_update_listeners()
 
     @staticmethod
-    async def first_time_setup(zaptec: Zaptec, configured_chargers: set[str] | None) -> set[str]:
-        """Run the first time setup for the account."""
+    async def first_time_setup(
+        zaptec: Zaptec, configured_chargers: set[str] | None
+    ) -> tuple[set[str], bool]:
+        """Run the first time setup for the account.
+
+        Returns the set of tracked device ids, plus a bool that is False if
+        one or more user-selected chargers were not returned by the Zaptec
+        API this session (a transient/partial response, not a deselection).
+        Callers must not treat a device as user-deselected off `tracked_devices`
+        alone when this is False, or a temporary API blip could be mistaken
+        for the user having removed the charger.
+        """
         _LOGGER.debug("Running first time setup")
 
         # Build the Zaptec hierarchy
@@ -238,6 +248,7 @@ class ZaptecManager:
 
         all_objects = set(zaptec)
         tracked_devices = all_objects
+        all_selected_present = True
 
         # Selected chargers to add
         if configured_chargers is not None:
@@ -247,6 +258,7 @@ class ZaptecManager:
             # Log if there are any objects listed not found in Zaptec
             if not_present := want - all_objects:
                 _LOGGER.error("Charger objects %s not found", not_present)
+                all_selected_present = False
 
             # Calculate the objects to keep. From the list of chargers we
             # want to keep, we also want to keep the installation objects.
@@ -263,4 +275,4 @@ class ZaptecManager:
             # These objects will be updated by the coordinator
             tracked_devices = keep
 
-        return tracked_devices
+        return tracked_devices, all_selected_present
