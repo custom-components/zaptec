@@ -192,5 +192,11 @@
                 "name": "Fastvareoppdatering"
             }
         }
+    },
+    "issues": {
+        "insufficient_role": {
+            "title": "Begrenset tilgang til {installation_name}",
+            "description": "Zaptec-kontoen som brukes av denne integrasjonen har kun følgende rolle(r) på installasjonen «{installation_name}»: {role}. Å endre tilgjengelig strøm eller 3-til-1-fase bytteterskel krever Owner- eller Service-rollen.\n\nFor å aktivere disse kontrollene, gi Owner- eller Service-tilgang for denne installasjonen til denne kontoen i Zaptec Portal."
+        }
     }
 }

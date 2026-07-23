@@ -192,5 +192,11 @@
                 "name": "Firmware"
             }
         }
+    },
+    "issues": {
+        "insufficient_role": {
+            "title": "Beperkte toegang tot {installation_name}",
+            "description": "Het Zaptec-account dat door deze integratie wordt gebruikt heeft alleen de volgende rol(len) op installatie \"{installation_name}\": {role}. Het wijzigen van de beschikbare stroom of de 3-naar-1-fase omschakeldrempel vereist de rol Owner of Service.\n\nOm deze bedieningselementen in te schakelen, geef Owner- of Service-toegang voor deze installatie aan dit account in het Zaptec Portal."
+        }
     }
 }

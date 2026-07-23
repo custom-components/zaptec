@@ -192,5 +192,11 @@
                 "name": "Uppdatera mjukvara"
             }
         }
+    },
+    "issues": {
+        "insufficient_role": {
+            "title": "Begränsad åtkomst till {installation_name}",
+            "description": "Zaptec-kontot som används av den här integrationen har endast följande roll(er) på installationen \"{installation_name}\": {role}. Att ändra tillgänglig ström eller 3-till-1-fas växlingströskeln kräver rollen Owner eller Service.\n\nFör att aktivera dessa kontroller, ge Owner- eller Service-åtkomst för den här installationen till det här kontot i Zaptec Portal."
+        }
     }
 }
