@@ -46,6 +46,18 @@ Confirmed to work with Zaptec products
   * Disable [Zaptec Sense](https://help.zaptec.com/hc/en-GB/article/how-to-manage-zaptec-sense-in-the-zaptec-portal) (aka APM/Automatic Power Management).
   * Disable [stand-alone mode](https://help.zaptec.com/hc/en-GB/article/use-stand-alone-mode-for-troubleshooting-and-unstable-internet).
 
+> [!NOTE]
+> If the configured account only has the _User_ role on an installation, the
+> integration still sets up and works normally for everything that doesn't
+> need Owner/Service access (see [Known issues](#known-issues)). Trying to
+> change the available current, the 3-to-1 phase switch current, a charger's
+> settings, or send a charger command (e.g. restart) will fail with a clear
+> error instead of a raw HTTP 403, and Home Assistant will show
+> a persistent notice under *Settings → Repairs* naming the affected
+> installation and the role it needs. If this is expected for your setup,
+> you can dismiss it with "Ignore" in the Repairs list — it won't come back
+> unless the account's role actually changes.
+
 # Known issues
 
 * Sending a _"deauthorize_and_stop"_ command will give an error. This is due to
@@ -61,6 +73,14 @@ Confirmed to work with Zaptec products
   a workaround is to use the more frequently updated _Session total charge_ entity instead. This reduces the delay-issue,
   but has a separate drawback where a restart of Home Assistant during a charging session can give a fake spike in the logged
   consumption that needs to be manually edited using "Adjust sum" in the Statistics tab of the Developer tools dashboard.
+* A Zaptec Portal user with only the _User_ role (no _Owner_ or _Service_) has
+  significantly reduced access: the installation hierarchy, firmware info,
+  individual charger detail/state, and the live update stream are all blocked
+  by the Zaptec API itself, and this integration additionally blocks changing
+  installation-level current limits, charger settings, and charger commands
+  (see [Requirements](#requirements)). Online/offline status and operating
+  mode keep working, since those are
+  included in the basic charger list the API returns regardless of role.
 
 
 # Installation and setup

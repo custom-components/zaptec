@@ -16,10 +16,10 @@ class Installation(BaseModel):
 
     model_config = ConfigDict(extra="allow")
     Id: str
-    Active: bool
-    CurrentUserRoles: int
-    InstallationType: int
-    NetworkType: int
+    Active: bool | None = None
+    CurrentUserRoles: int | None = None
+    InstallationType: int | None = None
+    NetworkType: int | None = None
 
 
 class Installations(BaseModel):
@@ -27,16 +27,32 @@ class Installations(BaseModel):
 
     model_config = ConfigDict(extra="allow")
     Data: list[Installation]
-    Pages: int
+    Pages: int | None = None
 
 
 class Charger(BaseModel):
-    """Pydantic model for a Zaptec charger."""
+    """Pydantic model for a Zaptec charger, as returned by /chargers and /chargers/{id}."""
 
     model_config = ConfigDict(extra="allow")
     Id: str
-    Name: str
-    Active: bool
+    Name: str | None = None
+    Active: bool | None = None
+    DeviceType: int
+
+
+class HierarchyCharger(BaseModel):
+    """Pydantic model for the minimal charger stub embedded in a hierarchy Circuit.
+
+    This is a distinct, smaller shape than Charger: at parse time in
+    Installation.build() only Id is read from it. But Zaptec.build()'s
+    standalone-charger merge loop skips re-merging any charger already found
+    via the installation hierarchy, so a hierarchy-sourced charger's
+    attributes come only from this stub -- including DeviceType, which is
+    later hard-subscripted for every registered charger.
+    """
+
+    model_config = ConfigDict(extra="allow")
+    Id: str
     DeviceType: int
 
 
@@ -61,17 +77,20 @@ class Circuit(BaseModel):
 
     model_config = ConfigDict(extra="allow")
     Id: str
-    Name: str
-    Chargers: list[Charger]
+    Name: str | None = (
+        None  # Nullable per the Zaptec API docs; api.py reads it defensively via .get().
+    )
+    MaxCurrent: float
+    Chargers: list[HierarchyCharger] | None = None
 
 
 class Hierarchy(BaseModel):
     """Pydantic model for the hierarchy of Zaptec objects in an installation."""
 
     model_config = ConfigDict(extra="allow")
-    Id: str
-    Name: str
-    NetworkType: int
+    Id: str | None = None
+    Name: str | None = None
+    NetworkType: int | None = None
     Circuits: list[Circuit]
 
 
@@ -80,11 +99,11 @@ class ChargerFirmware(BaseModel):
 
     model_config = ConfigDict(extra="allow")
     ChargerId: str
-    DeviceType: int
-    IsOnline: bool
-    CurrentVersion: str
-    AvailableVersion: str
-    IsUpToDate: bool
+    DeviceType: int | None = None
+    IsOnline: bool | None = None
+    CurrentVersion: str | None = None
+    AvailableVersion: str | None = None
+    IsUpToDate: bool | None = None
 
 
 class InstallationConnectionDetails(BaseModel):

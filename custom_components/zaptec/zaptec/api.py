@@ -35,11 +35,13 @@ from .const import (
     DEFAULT_MAX_CURRENT,
     MAX_DEBUG_TEXT_LEN_ON_500,
     MISSING,
+    RETRYABLE_HTTP_STATUSES,
     TOKEN_URL,
     TRUTHY,
 )
 from .exceptions import (
     AuthenticationError,
+    InsufficientRoleError,
     RequestConnectionError,
     RequestDataError,
     RequestError,
@@ -215,6 +217,30 @@ class ZaptecBase(Mapping[str, TValue]):
                 out[kv] = value
         return out
 
+    def _require_write_role(self, action: str) -> None:
+        """Raise InsufficientRoleError if the current user lacks write access.
+
+        `installation/update`, `chargers/{id}/update`, and
+        `chargers/{id}/SendCommand/{id}` all require the Owner or Service
+        (Maintainer) role (confirmed individually via docs.zaptec.com/reference
+        for each of the three endpoints). If CurrentUserRoles hasn't been
+        observed yet, let the request proceed and rely on the API's own 403
+        response instead of guessing.
+
+        `chargers/{id}/authorizecharge` and `chargers/{id}/localSettings` are
+        deliberately not gated by any caller of this method -- they aren't
+        documented anywhere, so there's no evidence for what role (if any)
+        they require.
+        """
+        roles = self.get("current_user_roles")
+        if roles is None or "Owner" in roles or "Maintainer" in roles:
+            return
+        raise InsufficientRoleError(
+            f"{action} requires the Owner or Service role on {self.qual_id} "
+            f"(current role: {roles or 'None'}). Grant Owner or Service access "
+            "to this Zaptec object in the Zaptec Portal to enable this."
+        )
+
 
 class Installation(ZaptecBase):
     """Represents an installation."""
@@ -273,14 +299,15 @@ class Installation(ZaptecBase):
             redact.add_uid(ctid, "Circuit")
             _LOGGER.debug("    Circuit %s", redact(ctid))
 
-            for charger_item in circuit["Chargers"]:
+            # Chargers and Name are nullable per the Zaptec API docs.
+            for charger_item in circuit.get("Chargers") or []:
                 chgid = charger_item["Id"]
                 redact.add_uid(chgid, "Charger")
 
                 # Inject additional attributes
                 charger_item["InstallationId"] = self.id
                 charger_item["CircuitId"] = ctid
-                charger_item["CircuitName"] = circuit["Name"]
+                charger_item["CircuitName"] = circuit.get("Name")
                 charger_item["CircuitMaxCurrent"] = circuit["MaxCurrent"]
 
                 # Add or update the charger
@@ -531,6 +558,8 @@ class Installation(ZaptecBase):
         Use availableCurrent for setting all phases at once. Use
         availableCurrentPhase* to set each phase individually.
         """
+        self._require_write_role("Setting the installation current limit")
+
         has_availablecurrent = kwargs.get("availableCurrent") is not None
         has_availablecurrentphases = [
             kwargs.get(k) is not None
@@ -574,6 +603,7 @@ class Installation(ZaptecBase):
 
     async def set_three_to_one_phase_switch_current(self, current: float) -> Any:
         """Set the 3 to 1-phase switch current."""
+        self._require_write_role("Setting the 3-to-1 phase switch current")
         if not (0 <= current <= DEFAULT_MAX_CURRENT):
             raise ValueError(f"Current must be between 0 and {DEFAULT_MAX_CURRENT:.0f} amps")
         return await self.zaptec.request(
@@ -704,6 +734,8 @@ class Charger(ZaptecBase):
         # Check that we can run the command at this time
         self.is_command_valid(command, raise_value_error_if_invalid=True)
 
+        self._require_write_role(f"Sending the {command} command")
+
         _LOGGER.debug("Command %s (%s)", command, cmdid)
         return await self.zaptec.request(f"chargers/{self.id}/SendCommand/{cmdid}", method="post")
 
@@ -741,6 +773,8 @@ class Charger(ZaptecBase):
 
     async def set_settings(self, settings: dict[str, Any]) -> Any:
         """Set settings on the charger."""
+
+        self._require_write_role("Setting charger parameters")
 
         if any(key not in ZCONST.update_params for key in settings):
             raise ValueError(f"Unknown setting '{settings}'")
@@ -958,6 +992,19 @@ class Zaptec(Mapping[str, ZaptecBase]):
         except Exception:
             _LOGGER.exception("Failed to log response (ignored exception)")
 
+    @staticmethod
+    def _parse_retry_after(value: str | None) -> float | None:
+        """Parse a Retry-After header value into seconds.
+
+        Only the integer delta-seconds form is supported; the HTTP-date form
+        returns None so the caller falls back to the exponential backoff."""
+        if not value:
+            return None
+        try:
+            return max(0.0, float(value))
+        except (TypeError, ValueError):
+            return None
+
     async def _request_worker(
         self, url: str, method: str = "get", retries: int = API_RETRIES, **kwargs: Any
     ) -> AsyncGenerator[tuple[aiohttp.ClientResponse, TLogExc]]:
@@ -971,6 +1018,7 @@ class Zaptec(Mapping[str, ZaptecBase]):
         error: Exception | None = None
         delay: float = API_RETRY_INIT_DELAY
         sleep_delay: float = 0.0
+        retry_after: float | None = None
         start_time: float = time.perf_counter()
         iteration = 0
         for iteration in range(1, retries + 1):
@@ -1016,6 +1064,22 @@ class Zaptec(Mapping[str, ZaptecBase]):
                             _LOGGER.error(str(exc), exc_info=exc)
                         return exc
 
+                    # Retry transient, infrastructure-level server errors
+                    # (429/502/503/504) regardless of method. These indicate
+                    # the request likely never reached the application, so a
+                    # retry is safe even for POST/PUT -- unlike 500, which is
+                    # handled per-method by the caller. On the final iteration
+                    # we fall through to yield so the caller raises the error.
+                    if response.status in RETRYABLE_HTTP_STATUSES and iteration < retries:
+                        if DEBUG_API_CALLS:
+                            _LOGGER.debug(
+                                "@@@  RETRYABLE STATUS %s, retrying (attempt %s)",
+                                response.status,
+                                iteration,
+                            )
+                        retry_after = self._parse_retry_after(response.headers.get("Retry-After"))
+                        continue  # Retry after backoff (or the Retry-After delay)
+
                     # Let the caller handle the response. If the caller
                     # calls __next__ on the generator the request will be
                     # retried.
@@ -1042,6 +1106,12 @@ class Zaptec(Mapping[str, ZaptecBase]):
                 # If the sleep time is negative, it means the request took
                 # longer than the calculated delay, so we don't need to sleep.
                 sleep_delay = delay - time.perf_counter() + start_time
+
+                # A Retry-After header from a transient response overrides the
+                # computed backoff for the next attempt.
+                if retry_after is not None:
+                    sleep_delay = min(retry_after, self._max_time)
+                    retry_after = None
 
         if isinstance(error, TimeoutError):
             raise RequestTimeoutError(

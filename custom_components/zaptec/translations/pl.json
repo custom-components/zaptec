@@ -192,5 +192,11 @@
                 "name": "Aktualizacja oprogramowania"
             }
         }
+    },
+    "issues": {
+        "insufficient_role": {
+            "title": "Ograniczony dostęp do {installation_name}",
+            "description": "Konto Zaptec używane przez tę integrację ma tylko następującą rolę (role) w instalacji „{installation_name}”: {role}. Zmiana dostępnego prądu lub progu przełączania 3-fazowego na 1-fazowe wymaga roli Owner lub Service.\n\nAby włączyć te funkcje, nadaj temu kontu dostęp Owner lub Service dla tej instalacji w portalu Zaptec."
+        }
     }
 }
