@@ -1,0 +1,196 @@
+{
+    "config": {
+        "abort": {
+            "already_exists": "Eine Zaptec-Instanz existiert bereits."
+        },
+        "error": {
+            "cannot_connect": "Verbindung fehlgeschlagen",
+            "invalid_auth": "Ungültige Authentifizierung",
+            "no_chargers_selected": "Keine Ladestationen ausgewählt. Bitte wählen Sie mindestens eine Ladestation aus.",
+            "unknown": "Unerwarteter Fehler"
+        },
+        "step": {
+            "chargers": {
+                "title": "Zaptec-Ladestationsauswahl",
+                "description": "Wählen Sie die Ladestationen aus, die Sie zu Home Assistant hinzufügen möchten.",
+                "data": {
+                    "chargers": "Ladestationen"
+                }
+            },
+            "reconfigure": {
+                "title": "Zaptec erneut konfigurieren",
+                "description": "Zaptec Portal-Anmeldedaten.\n\nDas optionale Präfix wird allen Geräten hinzugefügt. Beachten Sie, dass es im Allgemeinen besser ist, die Gerätenamen in HA umzubenennen, als ein Präfix zu verwenden.",
+                "data": {
+                    "manual_select": "Ladestationen manuell auswählen. Im nächsten Bildschirm können Sie die hinzuzufügenden Ladestationen auswählen.",
+                    "password": "Passwort",
+                    "prefix": "Optionales Präfix",
+                    "username": "Benutzername"
+                }
+            },
+            "user": {
+                "title": "Zaptec-Einrichtung",
+                "description": "Geben Sie Ihre Zaptec Portal-Anmeldedaten ein.\n\nDas optionale Präfix wird allen Geräten hinzugefügt. Beachten Sie, dass es im Allgemeinen besser ist, die Gerätenamen in HA umzubenennen, als ein Präfix zu verwenden.",
+                "data": {
+                    "manual_select": "Ladestationen manuell auswählen. Im nächsten Bildschirm können Sie die hinzuzufügenden Ladestationen auswählen.",
+                    "password": "Passwort",
+                    "prefix": "Optionales Präfix",
+                    "username": "Benutzername"
+                }
+            }
+        }
+    },
+    "entity": {
+        "binary_sensor": {
+            "authorization_required": {
+                "name": "Autorisierung erforderlich",
+                "state": {
+                    "off": "Nicht erforderlich",
+                    "on": "Erforderlich"
+                }
+            },
+            "online": {
+                "name": "Online"
+            }
+        },
+        "button": {
+            "authorize_charge": {
+                "name": "Laden autorisieren"
+            },
+            "deauthorize_and_stop": {
+                "name": "Ladeautorisierung entfernen"
+            },
+            "restart_charger": {
+                "name": "Ladestation neu starten"
+            },
+            "resume_charging": {
+                "name": "Laden fortsetzen"
+            },
+            "stop_charging": {
+                "name": "Laden stoppen"
+            },
+            "upgrade_firmware": {
+                "name": "Firmware aktualisieren"
+            }
+        },
+        "number": {
+            "available_current": {
+                "name": "Verfügbarer Strom"
+            },
+            "charger_max_current": {
+                "name": "Max. Ladestrom"
+            },
+            "charger_min_current": {
+                "name": "Min. Ladestrom"
+            },
+            "hmi_brightness": {
+                "name": "Helligkeit der Statusanzeige"
+            },
+            "three_to_one_phase_switch_current": {
+                "name": "Umschaltstrom 3- zu 1-phasig"
+            }
+        },
+        "sensor": {
+            "authentication_type": {
+                "name": "Authentifizierungstyp",
+                "state": {
+                    "native": "Nativ",
+                    "ocpp": "OCPP",
+                    "webhooks": "Web Hooks"
+                }
+            },
+            "available_current_phase1": {
+                "name": "Verfügbarer Strom Phase 1"
+            },
+            "available_current_phase2": {
+                "name": "Verfügbarer Strom Phase 2"
+            },
+            "available_current_phase3": {
+                "name": "Verfügbarer Strom Phase 3"
+            },
+            "charge_current_set": {
+                "name": "Zugewiesener Ladestrom"
+            },
+            "charger_operation_mode": {
+                "name": "Lademodus",
+                "state": {
+                    "connected_charging": "Lädt",
+                    "connected_finished": "Ladevorgang beendet",
+                    "connected_requesting": "Wartet",
+                    "disconnected": "Getrennt",
+                    "unknown": "Unbekannt"
+                }
+            },
+            "completed_session_energy": {
+                "name": "Energie der abgeschlossenen Ladesitzung"
+            },
+            "current_phase1": {
+                "name": "Strom Phase 1"
+            },
+            "current_phase2": {
+                "name": "Strom Phase 2"
+            },
+            "current_phase3": {
+                "name": "Strom Phase 3"
+            },
+            "device_type": {
+                "name": "Gerätetyp"
+            },
+            "humidity": {
+                "name": "Luftfeuchtigkeit"
+            },
+            "installation_type": {
+                "name": "Installationstyp"
+            },
+            "max_current": {
+                "name": "Max. Strom"
+            },
+            "network_type": {
+                "name": "Netzwerktyp",
+                "state": {
+                    "it_1_phase": "IT 1-phasig",
+                    "it_3_phase": "IT 3-phasig",
+                    "tn_1_phase": "TN 1-phasig",
+                    "tn_3_phase": "TN 3-phasig",
+                    "unknown": "Unbekannt"
+                }
+            },
+            "signed_meter_value": {
+                "name": "Energiezähler"
+            },
+            "temperature_internal5": {
+                "name": "Temperatur (intern)"
+            },
+            "total_charge_power_session": {
+                "name": "Gesamtladung der Sitzung"
+            },
+            "total_charge_power": {
+                "name": "Ladeleistung"
+            },
+            "voltage_phase1": {
+                "name": "Spannung Phase 1"
+            },
+            "voltage_phase2": {
+                "name": "Spannung Phase 2"
+            },
+            "voltage_phase3": {
+                "name": "Spannung Phase 3"
+            }
+        },
+        "switch": {
+            "authorization_required": {
+                "name": "Autorisierung erforderlich"
+            },
+            "charger_operation_mode": {
+                "name": "Laden"
+            },
+            "permanent_cable_lock": {
+                "name": "Permanente Kabelverriegelung"
+            }
+        },
+        "update": {
+            "firmware_update": {
+                "name": "Firmware-Update"
+            }
+        }
+    }
+}
