@@ -7,6 +7,7 @@ from unittest.mock import MagicMock
 
 import aiohttp
 import pytest
+import pytest_socket
 
 from custom_components.zaptec.zaptec.api import Zaptec
 
@@ -121,4 +122,17 @@ def zaptec_constants() -> dict:
             const: dict = await zaptec.request("constants")
             return const
 
-    return asyncio.run(get_zaptec_constants())
+    # pytest-homeassistant-custom-component blocks real sockets by default;
+    # this fixture deliberately makes a live call, so allow it just here.
+    pytest_socket.enable_socket()
+    try:
+        # Not asyncio.run(): it clears the event-loop-policy's current loop
+        # on exit, and HA's custom policy raises (rather than lazily
+        # recreating one) the next time something calls get_event_loop().
+        loop = asyncio.new_event_loop()
+        try:
+            return loop.run_until_complete(get_zaptec_constants())
+        finally:
+            loop.close()
+    finally:
+        pytest_socket.disable_socket(allow_unix_socket=True)
