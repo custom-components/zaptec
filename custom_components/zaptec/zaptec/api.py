@@ -964,7 +964,8 @@ class Zaptec(Mapping[str, ZaptecBase]):
         """Parse a Retry-After header value into seconds.
 
         Only the integer delta-seconds form is supported; the HTTP-date form
-        returns None so the caller falls back to the exponential backoff."""
+        returns None so the caller falls back to the exponential backoff.
+        """
         if not value:
             return None
         try:
