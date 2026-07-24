@@ -62,6 +62,16 @@ Confirmed to work with Zaptec products
   but has a separate drawback where a restart of Home Assistant during a charging session can give a fake spike in the logged
   consumption that needs to be manually edited using "Adjust sum" in the Statistics tab of the Developer tools dashboard.
 
+## Features missing from the API
+
+In order to conform to the [Zaptec API Fair Use policy](https://docs.zaptec.com/docs/api-fair-use-policy#/),
+we can only use officially documented and supported [Zaptec API endpoints](https://docs.zaptec.com/reference) in this integration.
+
+Some of the functionality in the Zaptec App may rely on internal/undocumented API calls, in which case it cannot be implemented
+in this integration. We already have a list of such features in [issue 192](https://github.com/custom-components/zaptec/issues/192).
+
+If there are any of these undocumented features from the Zaptec App you would like to have access to in the HA integration, please
+consider reaching out to Zaptec Support and requesting that it is added to the official API.
 
 # Installation and setup
 
