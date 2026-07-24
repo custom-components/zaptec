@@ -1056,10 +1056,12 @@ class Zaptec(Mapping[str, ZaptecBase]):
                 # longer than the calculated delay, so we don't need to sleep.
                 sleep_delay = delay - time.perf_counter() + start_time
 
-                # A Retry-After header from a transient response overrides the
-                # computed backoff for the next attempt.
+                # A Retry-After header from a transient response extends the
+                # computed backoff for the next attempt, but never shortens
+                # it -- an authoritative but short Retry-After shouldn't undo
+                # our own exponential backoff progression.
                 if retry_after is not None:
-                    sleep_delay = min(retry_after, self._max_time)
+                    sleep_delay = max(sleep_delay, min(retry_after, self._max_time))
                     retry_after = None
 
         if isinstance(error, TimeoutError):
