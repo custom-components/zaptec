@@ -8,6 +8,7 @@ pythonpath = [
 testpaths = [
     "tests",
 ]
+addopts = "-p no:homeassistant"
 log_format = "%(asctime)s.%(msecs)03d %(levelname)-8s %(threadName)s %(name)s:%(filename)s:%(lineno)s %(message)s"
 log_date_format = "%Y-%m-%d %H:%M:%S"
 filterwarnings = [
