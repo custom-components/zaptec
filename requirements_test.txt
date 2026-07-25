@@ -1,15 +1,18 @@
-pytest
-pytest-asyncio
+# The CI test job installs ONLY this file (see .github/workflows/validate.yaml).
+# pytest-homeassistant-custom-component brings Home Assistant plus the full,
+# version-matched pytest stack (pytest, pytest-asyncio, pytest-cov, ...), so those
+# are not listed separately. Add here only the integration's own non-HA runtime
+# deps (from manifest.json) that HA's closure does not provide, plus test tools
+# pytest-hacc doesn't pin (pytest-mock).
 pytest-mock
-pytest-cov
-# pytest-homeassistant-custom-component pins an EXACT `homeassistant==` version,
-# so it must match the HA that requirements.txt installs on each CI Python leg
-# (validate.yaml sed-reverts HA to 2026.2.3 on the 3.13 leg). Select the matching
-# release per Python version via environment markers: the newest releases require
-# Python >=3.14, so the 3.13 leg needs the last 3.13-compatible one (0.13.316,
-# which pins homeassistant==2026.2.3); 3.14 uses 0.13.324 (pins ==2026.4.3).
-# Leaving this unpinned makes pip backtrack to an ancient release (dragging in
-# pytest 6.2.2, which crashes on Python 3.13). When bumping the HA pin in
-# requirements.txt, bump these two to the matching pytest-hacc releases.
+azure-servicebus==7.14.3
+aiolimiter==1.2.1
+# pydantic is intentionally NOT pinned here: pytest-hacc pins it to HA's version
+# (2.12.2), which satisfies the manifest range (>=2.11.7,<2.14).
+#
+# pytest-hacc pins an EXACT homeassistant version, so the release must match the
+# Python leg: newest releases require Python >=3.14, so 3.13 uses the last
+# 3.13-compatible one. 0.13.324 -> HA 2026.4.3 (py>=3.14); 0.13.316 -> HA
+# 2026.2.3 (py>=3.13). Bump both together when raising the HA target.
 pytest-homeassistant-custom-component==0.13.324; python_version >= "3.14"
 pytest-homeassistant-custom-component==0.13.316; python_version < "3.14"
