@@ -16,8 +16,8 @@ class FakeConfigEntry:
     Exposes only what coordinator.py and entity.py actually touch
     (`pref_disable_polling`, `async_on_unload`,
     `async_create_background_task`). A real ConfigEntry pulls in HA's full
-    test-harness machinery, which cannot run on native Windows in this dev
-    environment - see CLAUDE.md's environment notes.
+    test-harness machinery (`pytest-homeassistant-custom-component`), which
+    this repo's lightweight, dependency-free test setup deliberately avoids.
     """
 
     pref_disable_polling = False

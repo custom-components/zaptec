@@ -155,8 +155,8 @@ def test_handle_coordinator_update_key_unavailable_sets_attr_available_false(
     # the `available` property inherited from HA's CoordinatorEntity (which
     # returns coordinator.last_update_success instead), so this flag currently
     # has no effect on the entity's actual reported availability. This test
-    # documents today's real behavior, not the intended one - see the "Known
-    # finding" note at the top of this plan.
+    # documents today's real behavior, not the intended one - see
+    # https://github.com/custom-components/zaptec/issues/410.
     assert entity._attr_available is False  # noqa: SLF001
     assert "sensor.test is unavailable" in caplog.text
     entity.async_write_ha_state.assert_called_once()
