@@ -99,7 +99,14 @@ def zaptec_constants() -> dict:
 
 
 def _backed_get(data: dict[str, Any]) -> Callable[..., Any]:
-    """Return a `.get(key, default=MISSING)` implementation backed by `data`."""
+    """Return a `.get(key, default=MISSING)` implementation backed by `data`.
+
+    Intentionally diverges from `ZaptecBase.get` in two ways: (1) defaults to
+    `MISSING` instead of `None`, and (2) does not normalize keys via `to_under`.
+    This is sufficient for coordinator/entity code under test (which always passes
+    `default=MISSING` and uses snake_case keys), but future fixtures like #395's
+    diagnostics dump should not blindly inherit these assumptions.
+    """
 
     def _get(key: str, default: Any = MISSING) -> Any:
         return data.get(key, default)
