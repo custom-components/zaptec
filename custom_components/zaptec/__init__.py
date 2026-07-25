@@ -26,15 +26,39 @@ from .coordinator import ZaptecUpdateCoordinator, ZaptecUpdateOptions
 from .manager import ZaptecConfigEntry, ZaptecManager
 from .services import async_setup_services, async_unload_services
 from .zaptec import (
+    RETRYABLE_HTTP_STATUSES,
     AuthenticationError,
     Installation,
     RequestConnectionError,
+    RequestError,
     RequestTimeoutError,
     Zaptec,
     ZaptecApiError,
 )
 
 _LOGGER = logging.getLogger(__name__)
+
+
+def _config_entry_error(
+    err: ZaptecApiError,
+) -> ConfigEntryAuthFailed | ConfigEntryNotReady | ConfigEntryError:
+    """Map a Zaptec API error from setup login to a HA config-entry error.
+
+    Authentication failures are non-recoverable (trigger re-auth). Connection
+    and timeout errors, and transient server statuses (see
+    RETRYABLE_HTTP_STATUSES), are recoverable, so we raise ConfigEntryNotReady
+    to let Home Assistant retry setup automatically instead of failing
+    permanently (issue #392). All other API errors remain permanent
+    ConfigEntryError failures.
+    """
+    if isinstance(err, AuthenticationError):
+        return ConfigEntryAuthFailed(str(err))
+    if isinstance(err, (RequestTimeoutError, RequestConnectionError)):
+        return ConfigEntryNotReady(str(err))
+    if isinstance(err, RequestError) and err.error_code in RETRYABLE_HTTP_STATUSES:
+        return ConfigEntryNotReady(str(err))
+    return ConfigEntryError(str(err))
+
 
 PLATFORMS = [
     Platform.BINARY_SENSOR,
@@ -80,15 +104,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Login to the Zaptec account
     try:
         await zaptec.login()
-    except AuthenticationError as err:
-        _LOGGER.error("Authentication failed: %s", err)
-        raise ConfigEntryAuthFailed from err
-    except (RequestTimeoutError, RequestConnectionError) as err:
-        _LOGGER.error("Connection error: %s", err)
-        raise ConfigEntryNotReady from err
     except ZaptecApiError as err:
-        _LOGGER.error("Zaptec API error: %s", err)
-        raise ConfigEntryError from err
+        _LOGGER.error("Zaptec login failed: %s", err)
+        raise _config_entry_error(err) from err
 
     # Get the structure of devices from Zaptec and determine the zaptec objects to track
     tracked_devices = await ZaptecManager.first_time_setup(

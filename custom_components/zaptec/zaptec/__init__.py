@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 from .api import Charger, Installation, Zaptec, ZaptecBase
-from .const import MISSING, Missing
+from .const import MISSING, RETRYABLE_HTTP_STATUSES, Missing
 from .exceptions import (
     AuthenticationError,
     RequestConnectionError,
     RequestDataError,
+    RequestError,
     RequestRetryError,
     RequestTimeoutError,
     ZaptecApiError,
@@ -18,6 +19,7 @@ from .zconst import ZCONST
 
 __all__ = [
     "MISSING",
+    "RETRYABLE_HTTP_STATUSES",
     "ZCONST",
     "AuthenticationError",
     "Charger",
@@ -26,6 +28,7 @@ __all__ = [
     "Redactor",
     "RequestConnectionError",
     "RequestDataError",
+    "RequestError",
     "RequestRetryError",
     "RequestTimeoutError",
     "Zaptec",
