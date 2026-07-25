@@ -1,14 +1,36 @@
 """Behavior tests for ZaptecBaseEntity, driven through the real harness."""
 
 import logging
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 from homeassistant.core import HomeAssistant
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
+from custom_components.zaptec.const import KEYS_TO_SKIP_ENTITY_AVAILABILITY_CHECK
+from custom_components.zaptec.coordinator import ZaptecUpdateCoordinator
+from custom_components.zaptec.entity import KeyUnavailableError, ZaptecBaseEntity
 from custom_components.zaptec.zaptec import MISSING
 from tests.conftest import setup_integration
+
+
+def _entity_from_coordinator(
+    coordinator: ZaptecUpdateCoordinator, *, key_not_in_skip_list: bool = False
+) -> ZaptecBaseEntity:
+    """Return a real entity instance bound to `coordinator`.
+
+    `_listeners` also holds the coordinator's own `set_update_interval` listener
+    (registered in ZaptecUpdateCoordinator.__init__), so filter for a callback
+    bound to an actual entity rather than assuming the first one qualifies.
+    """
+    for cb, _context in coordinator._listeners.values():  # noqa: SLF001
+        candidate = cb.__self__
+        if not hasattr(candidate, "_log_value"):
+            continue
+        if key_not_in_skip_list and candidate.key in KEYS_TO_SKIP_ENTITY_AVAILABILITY_CHECK:
+            continue
+        return candidate
+    raise AssertionError("no matching zaptec entity found")
 
 
 async def _get_zaptec_entity(hass: HomeAssistant) -> str:
@@ -78,16 +100,8 @@ async def test_log_value_logs_on_change_then_skips_when_unchanged(
 ) -> None:
     """_log_value logs when the tracked value changes and stays quiet when it doesn't."""
     manager = await setup_integration(hass, mock_config_entry, mock_zaptec)
-    # Grab a real entity instance from the platform via the coordinator's listeners.
-    # `_listeners` also holds the coordinator's own `set_update_interval` listener
-    # (registered in ZaptecUpdateCoordinator.__init__), so filter for a callback
-    # bound to an actual entity rather than assuming the first one qualifies.
     coordinator = manager.device_coordinators["chg-mock-1"]
-    entity = next(
-        cb.__self__
-        for cb, _context in coordinator._listeners.values()  # noqa: SLF001
-        if hasattr(cb.__self__, "_log_value")
-    )
+    entity = _entity_from_coordinator(coordinator)
     entity.some_attr = "value1"
 
     with caplog.at_level(logging.DEBUG):
@@ -98,3 +112,99 @@ async def test_log_value_logs_on_change_then_skips_when_unchanged(
     with caplog.at_level(logging.DEBUG):
         entity._log_value("some_attr")  # noqa: SLF001
     assert caplog.text == ""
+
+
+async def test_get_zaptec_value_returns_default_when_key_missing(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    mock_zaptec: MagicMock,
+    enable_custom_integrations: None,
+) -> None:
+    """_get_zaptec_value() returns the caller's default when the key isn't backed."""
+    manager = await setup_integration(hass, mock_config_entry, mock_zaptec)
+    coordinator = manager.device_coordinators["chg-mock-1"]
+    entity = _entity_from_coordinator(coordinator)
+
+    sentinel = object()
+    assert entity._get_zaptec_value(key="totally_missing_key", default=sentinel) is sentinel  # noqa: SLF001
+
+
+async def test_get_zaptec_value_raises_when_intermediate_value_not_mapping(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    mock_zaptec: MagicMock,
+    enable_custom_integrations: None,
+) -> None:
+    """A dotted key whose first segment resolves to a non-Mapping value raises."""
+    manager = await setup_integration(hass, mock_config_entry, mock_zaptec)
+    coordinator = manager.device_coordinators["chg-mock-1"]
+    entity = _entity_from_coordinator(coordinator)
+
+    # "operating_mode" is seeded as a plain string, which has no `.get()`.
+    with pytest.raises(KeyUnavailableError):
+        entity._get_zaptec_value(key="operating_mode.sub")  # noqa: SLF001
+
+
+async def test_log_zaptec_attribute_formats_none_str_and_iterable_keys(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    mock_zaptec: MagicMock,
+    enable_custom_integrations: None,
+) -> None:
+    """_log_zaptec_attribute formats None, a single key, and an iterable of keys."""
+    manager = await setup_integration(hass, mock_config_entry, mock_zaptec)
+    coordinator = manager.device_coordinators["chg-mock-1"]
+    entity = _entity_from_coordinator(coordinator)
+
+    entity._log_zaptec_key = None  # noqa: SLF001
+    assert entity._log_zaptec_attribute == ""  # noqa: SLF001
+
+    entity._log_zaptec_key = "foo"  # noqa: SLF001
+    assert entity._log_zaptec_attribute == ".foo"  # noqa: SLF001
+
+    entity._log_zaptec_key = ["foo", "bar"]  # noqa: SLF001
+    assert entity._log_zaptec_attribute == ".foo and .bar"  # noqa: SLF001
+
+
+async def test_log_unavailable_logs_error_and_recovery_transitions(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    mock_zaptec: MagicMock,
+    caplog: pytest.LogCaptureFixture,
+    enable_custom_integrations: None,
+) -> None:
+    """_log_unavailable logs the real exception on going unavailable, and logs recovery."""
+    manager = await setup_integration(hass, mock_config_entry, mock_zaptec)
+    coordinator = manager.device_coordinators["chg-mock-1"]
+    entity = _entity_from_coordinator(coordinator, key_not_in_skip_list=True)
+
+    entity._prev_available = True  # noqa: SLF001
+    entity._attr_available = False  # noqa: SLF001
+    with caplog.at_level(logging.DEBUG):
+        entity._log_unavailable(RuntimeError("boom"))  # noqa: SLF001
+    assert f"Entity {entity.entity_id} is unavailable" in caplog.text
+    assert "Getting value failed" in caplog.text
+
+    caplog.clear()
+    entity._prev_available = False  # noqa: SLF001
+    entity._attr_available = True  # noqa: SLF001
+    with caplog.at_level(logging.DEBUG):
+        entity._log_unavailable()  # noqa: SLF001
+    assert f"Entity {entity.entity_id} is available" in caplog.text
+
+
+async def test_entity_trigger_poll_delegates_to_coordinator(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    mock_zaptec: MagicMock,
+    enable_custom_integrations: None,
+) -> None:
+    """ZaptecBaseEntity.trigger_poll() awaits the bound coordinator's trigger_poll()."""
+    manager = await setup_integration(hass, mock_config_entry, mock_zaptec)
+    coordinator = manager.device_coordinators["chg-mock-1"]
+    entity = _entity_from_coordinator(coordinator)
+
+    coordinator.trigger_poll = AsyncMock()
+    await entity.trigger_poll()
+
+    coordinator.trigger_poll.assert_awaited_once()
