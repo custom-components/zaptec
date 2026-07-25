@@ -10,7 +10,7 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 from custom_components.zaptec.const import KEYS_TO_SKIP_ENTITY_AVAILABILITY_CHECK
 from custom_components.zaptec.coordinator import ZaptecUpdateCoordinator
 from custom_components.zaptec.entity import KeyUnavailableError, ZaptecBaseEntity
-from custom_components.zaptec.zaptec import MISSING
+from custom_components.zaptec.zaptec import MISSING, ZaptecApiError
 from tests.conftest import setup_integration
 
 
@@ -64,20 +64,26 @@ async def test_entity_reports_value_from_zaptec(
     assert state.state not in ("unavailable", "unknown")
 
 
-@pytest.mark.xfail(
-    reason="#410: _attr_available is set on KeyUnavailableError but never affects "
-    "reported availability (available is not overridden). Documenting current behavior.",
-    strict=True,
-)
-async def test_entity_becomes_unavailable_when_key_missing(
+async def test_entity_stays_available_when_single_key_missing(
     hass: HomeAssistant,
     mock_config_entry: MockConfigEntry,
     mock_zaptec: MagicMock,
     enable_custom_integrations: None,
 ) -> None:
-    """A key that disappears SHOULD mark the entity unavailable (currently it does not — #410)."""
+    """A single missing backing key does NOT mark the entity unavailable (#410 is not a bug).
+
+    `ZaptecBaseEntity` extends `CoordinatorEntity`, whose `available` property is
+    driven solely by `coordinator.last_update_success` and never reads
+    `_attr_available`. When `_update_from_zaptec` raises `KeyUnavailableError`,
+    `_handle_coordinator_update` catches it and the coordinator's poll still
+    succeeds, so the entity stays available and simply retains its previous
+    value/state.
+    """
     await setup_integration(hass, mock_config_entry, mock_zaptec)
     entity_id = await _get_zaptec_entity(hass)
+
+    state_before = hass.states.get(entity_id)
+    assert state_before.state not in ("unavailable", "unknown")
 
     # Make every key lookup miss, then re-run a refresh so entities re-read.
     mock_zaptec.chargers[0].get.side_effect = lambda _key, default=MISSING: default
@@ -86,8 +92,30 @@ async def test_entity_becomes_unavailable_when_key_missing(
         await coordinator.async_refresh()
     await hass.async_block_till_done()
 
-    # This assertion is what SHOULD hold; strict xfail => the test failing here is expected
-    # and will turn XPASS (alerting us) once #410 is fixed.
+    state_after = hass.states.get(entity_id)
+    assert state_after.state != "unavailable"
+    assert state_after.state == state_before.state
+
+
+async def test_entity_unavailable_when_coordinator_poll_fails(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    mock_zaptec: MagicMock,
+    enable_custom_integrations: None,
+) -> None:
+    """The entity reports 'unavailable' when its coordinator's poll fails.
+
+    This is the actual mechanism behind entity availability: `CoordinatorEntity.available`
+    reflects `coordinator.last_update_success`, not any per-key state.
+    """
+    manager = await setup_integration(hass, mock_config_entry, mock_zaptec)
+    entity_id = await _get_zaptec_entity(hass)
+
+    mock_zaptec.poll.side_effect = ZaptecApiError("boom")
+    coordinator = manager.device_coordinators["chg-mock-1"]
+    await coordinator.async_refresh()
+    await hass.async_block_till_done()
+
     assert hass.states.get(entity_id).state == "unavailable"
 
 
