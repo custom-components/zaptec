@@ -1,10 +1,19 @@
 """Zaptec testing configuration file."""
 
 import asyncio
+from collections.abc import Callable, Iterable
 import os
+from typing import Any
+from unittest.mock import AsyncMock, MagicMock, patch
 
+from homeassistant.const import CONF_PASSWORD, CONF_USERNAME
+from homeassistant.core import HomeAssistant
 import pytest
+from pytest_homeassistant_custom_component.common import MockConfigEntry
 
+from custom_components.zaptec.const import DOMAIN
+from custom_components.zaptec.manager import ZaptecManager
+from custom_components.zaptec.zaptec import MISSING, Charger, Installation
 from custom_components.zaptec.zaptec.api import Zaptec
 
 
@@ -87,3 +96,99 @@ def zaptec_constants() -> dict:
     finally:
         loop.close()
         asyncio.set_event_loop(previous_loop)
+
+
+def _backed_get(data: dict[str, Any]) -> Callable[..., Any]:
+    """Return a `.get(key, default=MISSING)` implementation backed by `data`."""
+
+    def _get(key: str, default: Any = MISSING) -> Any:
+        return data.get(key, default)
+
+    return _get
+
+
+def make_charger(
+    data: dict[str, Any], *, installation: MagicMock | None = None, charging: bool = False
+) -> MagicMock:
+    """Build a spec'd Charger double backed by `data`."""
+    charger = MagicMock(spec=Charger)
+    charger.id = data["id"]
+    charger.name = data.get("name", "Mock Charger")
+    charger.model = "Zaptec Charger"
+    charger.qual_id = f"Charger[{data['id'][-6:]}]"
+    charger.get.side_effect = _backed_get(data)
+    charger.is_charging.return_value = charging
+    charger.installation = installation
+    return charger
+
+
+def make_installation(data: dict[str, Any], *, chargers: Iterable[MagicMock] = ()) -> MagicMock:
+    """Build a spec'd Installation double backed by `data`."""
+    install = MagicMock(spec=Installation)
+    install.id = data["id"]
+    install.name = data.get("name", "Mock Installation")
+    install.model = "Zaptec Installation"
+    install.qual_id = f"Installation[{data['id'][-6:]}]"
+    install.get.side_effect = _backed_get(data)
+    install.chargers = list(chargers)
+    install.stream_main = AsyncMock(return_value=None)
+    install.stream_close = AsyncMock(return_value=None)
+    return install
+
+
+@pytest.fixture
+def mock_zaptec() -> MagicMock:
+    """A spec'd Zaptec client seeded with one installation and one charger."""
+    installation = make_installation({"id": "inst-mock-1", "name": "Mock Home"})
+    charger = make_charger(
+        {
+            "id": "chg-mock-1",
+            "name": "Mock Charger",
+            # Keys read by entities under test; extend as needed for coverage.
+            "operating_mode": "Connected",
+            "charger_operation_mode": "Connected",
+        },
+        installation=installation,
+        charging=False,
+    )
+    installation.chargers = [charger]
+
+    objects = {installation.id: installation, charger.id: charger}
+
+    zaptec = MagicMock(spec=Zaptec)
+    zaptec.__getitem__.side_effect = objects.__getitem__
+    zaptec.__iter__.side_effect = lambda: iter(objects)
+    zaptec.__contains__.side_effect = objects.__contains__
+    zaptec.__len__.side_effect = lambda: len(objects)
+    zaptec.objects.return_value = list(objects.values())
+    zaptec.installations = [installation]
+    zaptec.chargers = [charger]
+    zaptec.login = AsyncMock(return_value=None)
+    zaptec.build = AsyncMock(return_value=None)
+    zaptec.poll = AsyncMock(return_value=None)
+    zaptec.show_all_updates = False
+    zaptec.redact = MagicMock()
+    zaptec.redact.dumps.return_value = ""
+    return zaptec
+
+
+@pytest.fixture
+def mock_config_entry() -> MockConfigEntry:
+    """A MockConfigEntry for the zaptec domain."""
+    return MockConfigEntry(
+        domain=DOMAIN,
+        title="Mock Zaptec",
+        data={CONF_USERNAME: "user", CONF_PASSWORD: "pass"},
+        entry_id="mock_entry_1",
+    )
+
+
+async def setup_integration(
+    hass: HomeAssistant, mock_config_entry: MockConfigEntry, mock_zaptec: MagicMock
+) -> ZaptecManager:
+    """Set the integration up through the real async_setup, with a mocked client."""
+    mock_config_entry.add_to_hass(hass)
+    with patch("custom_components.zaptec.Zaptec", return_value=mock_zaptec):
+        assert await hass.config_entries.async_setup(mock_config_entry.entry_id)
+        await hass.async_block_till_done()
+    return mock_config_entry.runtime_data
