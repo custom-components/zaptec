@@ -1033,11 +1033,12 @@ class Zaptec(Mapping[str, ZaptecBase]):
                         return exc
 
                     # Retry transient, infrastructure-level server errors
-                    # (429/502/503/504) regardless of method. These indicate
-                    # the request likely never reached the application, so a
-                    # retry is safe even for POST/PUT -- unlike 500, which is
-                    # handled per-method by the caller. On the final iteration
-                    # we fall through to yield so the caller raises the error.
+                    # (see RETRYABLE_HTTP_STATUSES) regardless of method. These
+                    # indicate the request likely never reached the application,
+                    # so a retry is safe even for POST/PUT -- unlike 500, which
+                    # is handled per-method by the caller. On the final
+                    # iteration we fall through to yield so the caller raises
+                    # the error.
                     if response.status in RETRYABLE_HTTP_STATUSES and iteration < retries:
                         if DEBUG_API_CALLS:
                             _LOGGER.debug(

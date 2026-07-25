@@ -45,10 +45,11 @@ def _config_entry_error(
     """Map a Zaptec API error from setup login to a HA config-entry error.
 
     Authentication failures are non-recoverable (trigger re-auth). Connection
-    and timeout errors, and transient server statuses (429/502/503/504), are
-    recoverable, so we raise ConfigEntryNotReady to let Home Assistant retry
-    setup automatically instead of failing permanently (issue #392). All other
-    API errors remain permanent ConfigEntryError failures.
+    and timeout errors, and transient server statuses (see
+    RETRYABLE_HTTP_STATUSES), are recoverable, so we raise ConfigEntryNotReady
+    to let Home Assistant retry setup automatically instead of failing
+    permanently (issue #392). All other API errors remain permanent
+    ConfigEntryError failures.
     """
     if isinstance(err, AuthenticationError):
         return ConfigEntryAuthFailed(str(err))
