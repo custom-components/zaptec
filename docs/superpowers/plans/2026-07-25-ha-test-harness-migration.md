@@ -6,11 +6,11 @@
 
 **Architecture:** Adopt pytest-hacc with a repo-root, `win32`-guarded compatibility shim so the harness runs on native-Windows `py314` and on Linux CI. Tests set the integration up through the real `hass` + `MockConfigEntry`, patching only the `Zaptec` client at its construction boundary (`patch("custom_components.zaptec.Zaptec", ...)`) so the manager, coordinators, entities, and platforms all run as real code against canned data. Assertions target public state (`hass.states.get(...)`, registries) instead of private methods.
 
-**Tech Stack:** Python 3.13/3.14 (CI matrix), Home Assistant 2026.4.3 (3.14) / 2026.2.3 (3.13 revert), `pytest-homeassistant-custom-component` (unpinned, follows HA), pytest 9, `syrupy` (available, used later by #395), `MagicMock(spec=...)` test doubles.
+**Tech Stack:** Python 3.13/3.14 (CI matrix), Home Assistant 2026.4.3 (3.14) / 2026.2.3 (3.13 revert), `pytest-homeassistant-custom-component` pinned per-Python via markers (0.13.324 / 0.13.316), pytest 9.0.0 (pinned by pytest-hacc), `syrupy` (available, used later by #395), `MagicMock(spec=...)` test doubles.
 
 ## Global Constraints
 
-- Do NOT add `homeassistant` to `requirements_test.txt` (it is pinned in `requirements.txt`, with a 3.13 sed-revert in validate.yaml). Leave `pytest-homeassistant-custom-component` UNPINNED so it transitively resolves to the release matching whichever HA the active Python leg installs. Pinning an exact pytest-hacc version breaks CI's 3.13 leg (newest releases require Python >=3.14).
+- Do NOT add `homeassistant` to `requirements_test.txt` (it is pinned in `requirements.txt`, with a 3.13 sed-revert to `2026.2.3` in validate.yaml). `pytest-homeassistant-custom-component` pins an EXACT `homeassistant==`, so it must match the HA of each CI Python leg — pin it per-Python via environment markers: `==0.13.324` (HA 2026.4.3) for `python_version >= "3.14"`, `==0.13.316` (HA 2026.2.3, last 3.13-compatible) for `< "3.14"`. Do NOT leave it unpinned (pip backtracks to an ancient release + pytest 6.2.2 → crashes on 3.13) and do NOT single-pin the newest (uninstallable on 3.13, which requires py>=3.14).
 - The Windows shim MUST be guarded by `if sys.platform == "win32":` — it must be a complete no-op on Linux CI.
 - No production code changes in `custom_components/**`. This PR is test-only. Bug #410 is documented via `xfail`, never fixed here.
 - Local run command in this env: `SKIP_ZAPTEC_API_TEST=true "C:/Users/rhamm/anaconda3/envs/py314/python.exe" -m pytest <args>`. Use forward slashes for the python.exe path.
@@ -41,8 +41,11 @@ pytest
 pytest-asyncio
 pytest-mock
 pytest-cov
-pytest-homeassistant-custom-component
+pytest-homeassistant-custom-component==0.13.324; python_version >= "3.14"
+pytest-homeassistant-custom-component==0.13.316; python_version < "3.14"
 ```
+
+(pytest-hacc pins an exact HA version, so it must match the HA each CI Python leg installs; markers select the release matching the reverted HA on 3.13.)
 
 - [ ] **Step 2: Create the repo-root conftest with the Windows shim**
 

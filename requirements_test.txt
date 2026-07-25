@@ -2,10 +2,14 @@ pytest
 pytest-asyncio
 pytest-mock
 pytest-cov
-# HA version is pinned in requirements.txt (with a 3.13 sed-revert to the last
-# 3.13-compatible release in validate.yaml). pytest-homeassistant-custom-component
-# pins an exact `homeassistant==` itself, so leaving it unpinned lets pip resolve
-# the release matching whichever HA the active Python leg installs. Do NOT pin an
-# exact version here: the newest releases require Python >=3.14 and break the 3.13
-# CI leg.
-pytest-homeassistant-custom-component
+# pytest-homeassistant-custom-component pins an EXACT `homeassistant==` version,
+# so it must match the HA that requirements.txt installs on each CI Python leg
+# (validate.yaml sed-reverts HA to 2026.2.3 on the 3.13 leg). Select the matching
+# release per Python version via environment markers: the newest releases require
+# Python >=3.14, so the 3.13 leg needs the last 3.13-compatible one (0.13.316,
+# which pins homeassistant==2026.2.3); 3.14 uses 0.13.324 (pins ==2026.4.3).
+# Leaving this unpinned makes pip backtrack to an ancient release (dragging in
+# pytest 6.2.2, which crashes on Python 3.13). When bumping the HA pin in
+# requirements.txt, bump these two to the matching pytest-hacc releases.
+pytest-homeassistant-custom-component==0.13.324; python_version >= "3.14"
+pytest-homeassistant-custom-component==0.13.316; python_version < "3.14"
