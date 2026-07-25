@@ -38,7 +38,7 @@ PRs #394 and #395 have been converted to **draft** and will be replaced by PRs b
 
 ### 1. Test infrastructure (the foundation)
 
-- **`requirements_test.txt`** — add `pytest-homeassistant-custom-component` and a **pinned** `homeassistant` version matching what CI already resolves (validate workflow tests Python 3.13/3.14). Pin rather than float, so a new HA/plugin release can't silently break the harness.
+- **`requirements_test.txt`** — add `pytest-homeassistant-custom-component` **unpinned**. Do NOT add `homeassistant` here: it is already pinned in `requirements.txt`, and validate.yaml sed-reverts it to the last 3.13-compatible release (`2026.2.3`) on the 3.13 matrix leg. pytest-hacc pins an exact `homeassistant==` itself, so leaving it unpinned makes pip resolve the release matching whichever HA the active Python installs — stable (transitively pinned via HA) yet 3.13/3.14-portable. Pinning an exact pytest-hacc version breaks 3.13 (newest releases require Python >=3.14).
 - **`conftest.py` (repo root, new)** — port luxtronik's OS-guarded shim: under `sys.platform == "win32"`, stub `fcntl` / `resource` and wrap `socket.socketpair`, then `pytest_plugins = "pytest_homeassistant_custom_component.plugins"`. Completely no-op on Linux, so CI is unaffected. `pytest_plugins` is only honored in the rootdir conftest, so this cannot live in `tests/conftest.py`.
 - **pytest config** (`pyproject.toml` or `pytest.ini`) — add `-p no:homeassistant` to block the broken plugin autoload; the root conftest re-loads it explicitly *after* shimming. Confirm during planning that the repo has no conflicting existing pytest config.
 - **`tests/conftest.py`** — replace the hand-rolled `hass` / `FakeConfigEntry` with:
@@ -115,6 +115,6 @@ Investigation showed the fix is **not obvious** and needs maintainer input:
 
 ## Open items carried into planning
 
-- Confirm exact pinned `homeassistant` version and whether the repo has existing pytest config to reconcile.
+- Confirm whether the repo has existing pytest config to reconcile (it does: `[tool.pytest.ini_options]` in `pyproject.toml`). HA version is managed by `requirements.txt` + validate.yaml's 3.13 sed-revert, not by `requirements_test.txt`.
 - Confirm exact patch target (`custom_components.zaptec.Zaptec` import site) and the minimal `mock_zaptec` object-graph shape for #394.
 - Feasibility probe (plan step 1) before writing real tests.
