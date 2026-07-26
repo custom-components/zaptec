@@ -3,6 +3,22 @@
 This document intends to contain various documentation and tips & tricks for
 developing the integration.
 
+## Project structure
+
+The project is divided into two major modules/libries
+
+- `custom_components/zaptec/zaptec/*.py` - This is the access library for
+  communicating with the Zaptec cloud services.
+
+   * Presents a Python API to the Zaptec cloud service
+   * The intent is to later be able to separate the library into a separate
+     and independent python package
+   * No Home Assistant specific code should be located here
+
+- `custom_components/zaptec/*.py` - Contains the Home Assistant integration
+   * The code should only access the Zaptec access library through its public
+     interface exported by `import .zaptec`.
+
 ## Guidelines
 
 This is a collection of guidelines that should be considered when working with:

@@ -27,6 +27,10 @@ $RECYCLE.BIN/
 venv*/
 .venv*/
 /.python-version
+uv.lock
+
+# Development environments
+.devcontainer-lock.json
 
 # Zaptec files
 constant.json
