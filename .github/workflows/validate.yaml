@@ -104,7 +104,11 @@ jobs:
               -r requirements.txt \
               -r requirements_test.txt
 
-      - name: Tests suite
+      - name: Tests suite (HA integration — harness)
         run: |
-          pytest --cov=./custom_components/zaptec --cov-branch
+          pytest tests --ignore=tests/zaptec --cov=./custom_components/zaptec --cov-branch
+
+      - name: Tests suite (API client — plain pytest, no harness)
+        run: |
+          pytest tests/zaptec -p no:homeassistant --cov=./custom_components/zaptec --cov-branch --cov-append
 
