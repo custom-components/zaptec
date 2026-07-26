@@ -15,6 +15,7 @@ from custom_components.zaptec.const import DOMAIN
 from custom_components.zaptec.manager import ZaptecManager
 from custom_components.zaptec.zaptec import MISSING, Charger, Installation
 from custom_components.zaptec.zaptec.api import Zaptec
+from custom_components.zaptec.zaptec.utils import to_under
 
 
 @pytest.fixture(scope="session")
@@ -101,15 +102,16 @@ def zaptec_constants() -> dict:
 def _backed_get(data: dict[str, Any]) -> Callable[..., Any]:
     """Return a `.get(key, default=MISSING)` implementation backed by `data`.
 
-    Intentionally diverges from `ZaptecBase.get` in two ways: (1) defaults to
-    `MISSING` instead of `None`, and (2) does not normalize keys via `to_under`.
-    This is sufficient for coordinator/entity code under test (which always passes
-    `default=MISSING` and uses snake_case keys), but future fixtures like #395's
-    diagnostics dump should not blindly inherit these assumptions.
+    Mirrors `ZaptecBase.__getitem__`'s key normalization (`to_under`) so lookups
+    behave the same whether `data` is hand-authored snake_case or seeded from a
+    raw API payload. Still diverges from `ZaptecBase.get` (inherited from
+    `Mapping.get`) in its own default: `MISSING` instead of `None`. Harmless in
+    practice, since every real call site (`entity.py`'s `_get_zaptec_value`)
+    always passes `default=MISSING` explicitly.
     """
 
     def _get(key: str, default: Any = MISSING) -> Any:
-        return data.get(key, default)
+        return data.get(to_under(key), default)
 
     return _get
 
