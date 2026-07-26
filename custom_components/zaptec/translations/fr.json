@@ -1,0 +1,196 @@
+{
+    "config": {
+        "abort": {
+            "already_exists": "Une instance de Zaptec existe déjà."
+        },
+        "error": {
+            "cannot_connect": "Échec de la connexion",
+            "invalid_auth": "Authentification invalide",
+            "no_chargers_selected": "Aucune borne de recharge sélectionnée. Veuillez sélectionner au moins une borne de recharge.",
+            "unknown": "Erreur inattendue"
+        },
+        "step": {
+            "chargers": {
+                "title": "Sélection des bornes de recharge Zaptec",
+                "description": "Sélectionnez les bornes de recharge que vous souhaitez ajouter à Home Assistant.",
+                "data": {
+                    "chargers": "Bornes de recharge"
+                }
+            },
+            "reconfigure": {
+                "title": "Reconfigurer Zaptec",
+                "description": "Détails de connexion au portail Zaptec.\n\nLe préfixe facultatif sera ajouté à tous les appareils. Notez qu'il est généralement préférable de renommer les appareils dans HA plutôt que d'ajouter un préfixe.",
+                "data": {
+                    "manual_select": "Sélectionner manuellement les bornes de recharge. L'écran suivant permet de sélectionner les bornes à ajouter.",
+                    "password": "Mot de passe",
+                    "prefix": "Préfixe facultatif",
+                    "username": "Nom d'utilisateur"
+                }
+            },
+            "user": {
+                "title": "Configuration de Zaptec",
+                "description": "Ajoutez vos identifiants de connexion au portail Zaptec.\n\nLe préfixe facultatif sera ajouté à tous les appareils. Notez qu'il est généralement préférable de renommer les appareils dans HA plutôt que d'ajouter un préfixe.",
+                "data": {
+                    "manual_select": "Sélectionner manuellement les bornes de recharge. L'écran suivant permet de sélectionner les bornes à ajouter.",
+                    "password": "Mot de passe",
+                    "prefix": "Préfixe facultatif",
+                    "username": "Nom d'utilisateur"
+                }
+            }
+        }
+    },
+    "entity": {
+        "binary_sensor": {
+            "authorization_required": {
+                "name": "Autorisation requise",
+                "state": {
+                    "off": "Non requise",
+                    "on": "Requise"
+                }
+            },
+            "online": {
+                "name": "En ligne"
+            }
+        },
+        "button": {
+            "authorize_charge": {
+                "name": "Autoriser la recharge"
+            },
+            "deauthorize_and_stop": {
+                "name": "Retirer l'autorisation de recharge"
+            },
+            "restart_charger": {
+                "name": "Redémarrer la borne"
+            },
+            "resume_charging": {
+                "name": "Reprendre la recharge"
+            },
+            "stop_charging": {
+                "name": "Arrêter la recharge"
+            },
+            "upgrade_firmware": {
+                "name": "Mettre à jour le micrologiciel"
+            }
+        },
+        "number": {
+            "available_current": {
+                "name": "Courant disponible"
+            },
+            "charger_max_current": {
+                "name": "Courant max. de la borne"
+            },
+            "charger_min_current": {
+                "name": "Courant min. de la borne"
+            },
+            "hmi_brightness": {
+                "name": "Luminosité de l'indicateur d'état"
+            },
+            "three_to_one_phase_switch_current": {
+                "name": "Seuil de commutation triphasé vers monophasé"
+            }
+        },
+        "sensor": {
+            "authentication_type": {
+                "name": "Type d'authentification",
+                "state": {
+                    "native": "Native",
+                    "ocpp": "OCPP",
+                    "webhooks": "Web Hooks"
+                }
+            },
+            "available_current_phase1": {
+                "name": "Courant disponible phase 1"
+            },
+            "available_current_phase2": {
+                "name": "Courant disponible phase 2"
+            },
+            "available_current_phase3": {
+                "name": "Courant disponible phase 3"
+            },
+            "charge_current_set": {
+                "name": "Courant de charge alloué"
+            },
+            "charger_operation_mode": {
+                "name": "Mode de la borne",
+                "state": {
+                    "connected_charging": "En charge",
+                    "connected_finished": "Charge terminée",
+                    "connected_requesting": "En attente",
+                    "disconnected": "Déconnectée",
+                    "unknown": "Inconnu"
+                }
+            },
+            "completed_session_energy": {
+                "name": "Énergie de la session terminée"
+            },
+            "current_phase1": {
+                "name": "Courant phase 1"
+            },
+            "current_phase2": {
+                "name": "Courant phase 2"
+            },
+            "current_phase3": {
+                "name": "Courant phase 3"
+            },
+            "device_type": {
+                "name": "Type d'appareil"
+            },
+            "humidity": {
+                "name": "Humidité"
+            },
+            "installation_type": {
+                "name": "Type d'installation"
+            },
+            "max_current": {
+                "name": "Courant max."
+            },
+            "network_type": {
+                "name": "Type de réseau",
+                "state": {
+                    "it_1_phase": "IT monophasé",
+                    "it_3_phase": "IT triphasé",
+                    "tn_1_phase": "TN monophasé",
+                    "tn_3_phase": "TN triphasé",
+                    "unknown": "Inconnu"
+                }
+            },
+            "signed_meter_value": {
+                "name": "Compteur d'énergie"
+            },
+            "temperature_internal5": {
+                "name": "Température (interne)"
+            },
+            "total_charge_power_session": {
+                "name": "Charge totale de la session"
+            },
+            "total_charge_power": {
+                "name": "Puissance de charge"
+            },
+            "voltage_phase1": {
+                "name": "Tension phase 1"
+            },
+            "voltage_phase2": {
+                "name": "Tension phase 2"
+            },
+            "voltage_phase3": {
+                "name": "Tension phase 3"
+            }
+        },
+        "switch": {
+            "authorization_required": {
+                "name": "Autorisation requise"
+            },
+            "charger_operation_mode": {
+                "name": "Recharge"
+            },
+            "permanent_cable_lock": {
+                "name": "Verrouillage permanent du câble"
+            }
+        },
+        "update": {
+            "firmware_update": {
+                "name": "Mise à jour du micrologiciel"
+            }
+        }
+    }
+}
