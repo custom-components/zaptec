@@ -27,7 +27,7 @@ from tests.conftest import setup_integration
         # Connection/timeout are recoverable -> HA retries setup.
         (RequestTimeoutError("slow"), ConfigEntryNotReady),
         (RequestConnectionError("down"), ConfigEntryNotReady),
-        # Transient server statuses are recoverable -> HA retries setup (issue #392).
+        # Transient server statuses are recoverable -> HA retries setup.
         (RequestError("unavailable", HTTPStatus.SERVICE_UNAVAILABLE), ConfigEntryNotReady),
         (RequestError("too many", HTTPStatus.TOO_MANY_REQUESTS), ConfigEntryNotReady),
         # Other HTTP errors stay permanent.

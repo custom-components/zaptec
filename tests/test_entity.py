@@ -85,7 +85,7 @@ async def test_entity_stays_available_when_single_key_missing(
     mock_zaptec: MagicMock,
     enable_custom_integrations: None,
 ) -> None:
-    """A single missing backing key does NOT mark the entity unavailable (#410 is not a bug).
+    """A single missing backing key does NOT mark the entity unavailable.
 
     `ZaptecBaseEntity` extends `CoordinatorEntity`, whose `available` property is
     driven solely by `coordinator.last_update_success` and never reads
@@ -254,8 +254,8 @@ async def test_log_unavailable_logs_error_and_recovery_transitions(
     """_log_unavailable logs the real exception on going unavailable, and logs recovery.
 
     Its transition logging is driven purely by `_attr_available`/`_prev_available`
-    — which, per #410, are decoupled from the entity's actual HA-reported
-    availability (`CoordinatorEntity.available` reads `coordinator.last_update_success`,
+    — which are decoupled from the entity's actual HA-reported availability
+    (`CoordinatorEntity.available` reads `coordinator.last_update_success`,
     never these). So there's no realistic way to drive both log transitions
     through a real coordinator refresh; setting the attributes directly is the
     only way to exercise this logging branch in isolation.
