@@ -171,10 +171,13 @@ def test_hierarchy_validation() -> None:
     }
     validate(valid_hierarchy, hierarchy_url)
 
-    # Id/Name/NetworkType on the hierarchy itself aren't read by api.py, and
-    # per the Zaptec API docs a circuit's Name/Chargers may be null -- all
-    # of this must still validate.
+    hierarchy_id = "abcdef01-2345-6789-abcd-ef0123456789"
+
+    # Name/NetworkType on the hierarchy itself aren't read by api.py, and per
+    # the Zaptec API docs a circuit's Name/Chargers may be null -- all of this
+    # must still validate. The hierarchy Id, however, is always present.
     minimal_hierarchy = {
+        "Id": hierarchy_id,
         "Circuits": [
             {
                 "Id": "11111111-1111-1111-1111-111111111111",
@@ -185,10 +188,20 @@ def test_hierarchy_validation() -> None:
     }
     validate(minimal_hierarchy, hierarchy_url)
 
+    # The hierarchy Id is required: the response always carries it.
+    missing_hierarchy_id = {
+        "Circuits": [
+            {"Id": "11111111-1111-1111-1111-111111111111", "MaxCurrent": 32.0},
+        ],
+    }
+    with pytest.raises(ValidationError):
+        validate(missing_hierarchy_id, hierarchy_url)
+
     # MaxCurrent is required: Installation.build() indexes
     # circuit["MaxCurrent"] directly with no validation coverage today --
     # exactly the class of bug #359 asks to close.
     missing_max_current = {
+        "Id": hierarchy_id,
         "Circuits": [{"Id": "11111111-1111-1111-1111-111111111111"}],
     }
     with pytest.raises(ValidationError):
@@ -196,16 +209,16 @@ def test_hierarchy_validation() -> None:
 
     # A circuit's Id is required: Installation.build() indexes circuit["Id"].
     missing_circuit_id = {
+        "Id": hierarchy_id,
         "Circuits": [{"MaxCurrent": 32.0}],
     }
     with pytest.raises(ValidationError):
         validate(missing_circuit_id, hierarchy_url)
 
-    # DeviceType is required: Zaptec.build() indexes chg["DeviceType"] on every
-    # registered charger once merged, including hierarchy-only chargers that are
-    # never re-merged with the /chargers list (see api.py's installation_chargers
-    # skip in the standalone-charger loop).
+    # DeviceType is required: Zaptec.build() hard-subscripts chg["DeviceType"],
+    # including hierarchy-only chargers never re-merged with the /chargers list.
     missing_device_type_in_hierarchy = {
+        "Id": hierarchy_id,
         "Circuits": [
             {
                 "Id": "11111111-1111-1111-1111-111111111111",
@@ -235,12 +248,9 @@ def test_charger_firmware_validation() -> None:
     ]
     validate(valid_firmware, firmware_url)
 
-    # A charger added to the platform but not yet initialized reports only
-    # ChargerId, per api.py's poll_firmware_info(), which treats
-    # CurrentVersion/AvailableVersion/IsUpToDate as optional and skips the
-    # charger if any are missing. Per the Zaptec API docs, all fields
-    # except ChargerId are nullable, so validation must not reject this
-    # before that defensive code ever gets to run.
+    # A charger not yet initialized reports only ChargerId; poll_firmware_info()
+    # treats the rest as optional. All fields except ChargerId are nullable, so
+    # validation must not reject this before that defensive code runs.
     uninitialized_firmware = [{"ChargerId": "12345678-90ab-cdef-1234567890ab"}]
     validate(uninitialized_firmware, firmware_url)
 

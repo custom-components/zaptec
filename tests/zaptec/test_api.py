@@ -970,14 +970,10 @@ def test_zaptec_collections_and_accessors() -> None:
 
 @pytest.mark.asyncio
 async def test_build_hierarchy_handles_null_circuit_chargers() -> None:
-    """A circuit with a null Chargers list must not crash Installation.build().
-
-    A circuit with a null Chargers list (nullable per the Zaptec API docs)
-    must not crash Installation.build(); it should contribute no chargers
-    rather than raising a TypeError.
-    """
+    """A null Circuit.Chargers (nullable per the API docs) yields no chargers, not a TypeError."""
 
     hierarchy_payload = {
+        "Id": "abcdef01-2345-6789-abcd-ef0123456789",
         "Circuits": [
             {
                 "Id": "11111111-1111-1111-1111-111111111111",
@@ -997,18 +993,11 @@ async def test_build_hierarchy_handles_null_circuit_chargers() -> None:
 
 @pytest.mark.asyncio
 async def test_build_hierarchy_charger_with_device_type_survives_full_build() -> None:
-    """A hierarchy-sourced charger stub with DeviceType must not crash Zaptec.build().
+    """A hierarchy-only charger survives Zaptec.build()'s chg["DeviceType"] subscript.
 
-    Chargers found only via the installation hierarchy are never re-merged
-    with the fuller /chargers list data -- Zaptec.build()'s standalone-charger
-    loop skips any charger id already present via the hierarchy -- so such a
-    charger's DeviceType comes solely from its hierarchy stub. This drives
-    the full Zaptec.build() sequence (constants -> installation list ->
-    hierarchy -> chargers list) to confirm the chg["DeviceType"] hard
-    subscript at the end of build() no longer raises a raw KeyError now that
-    HierarchyCharger requires DeviceType (see test_validate.py's
-    missing_device_type_in_hierarchy case for the validation-layer half of
-    this fix).
+    A charger seen only via the hierarchy is never re-merged with the /chargers
+    list, so its DeviceType comes solely from the hierarchy stub -- which the
+    Charger model now requires. Drives the full build() to prove no KeyError.
     """
     inst_id = "abcdef01-2345-6789-abcd-ef0123456789"
     charger_id = "12345678-90ab-cdef-1234567890ab"
@@ -1021,6 +1010,7 @@ async def test_build_hierarchy_charger_with_device_type_survives_full_build() ->
         FakeResponse(  # installation/{id}/hierarchy
             HTTPStatus.OK,
             json_data={
+                "Id": inst_id,
                 "Circuits": [
                     {
                         "Id": "11111111-1111-1111-1111-111111111111",
@@ -1041,11 +1031,8 @@ async def test_build_hierarchy_charger_with_device_type_survives_full_build() ->
 
     assert zap.is_built
     charger: Charger = zap[charger_id]
-    # DeviceType is stored via the type_device_type converter, which falls
-    # back to str(val) when (as here) the constants schema has no matching
-    # entry -- the point of this assertion is simply that build() populated
-    # the attribute at all, proving the chg["DeviceType"] subscript in
-    # Zaptec.build() succeeded instead of raising KeyError.
+    # str(val) fallback: the constants schema has no DeviceType entry here. The
+    # point is only that build() populated it at all (no KeyError on subscript).
     assert charger["DeviceType"] == "4"
 
 
