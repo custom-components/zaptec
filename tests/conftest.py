@@ -119,7 +119,13 @@ def _backed_get(data: dict[str, Any]) -> Callable[..., Any]:
 def make_charger(
     data: dict[str, Any], *, installation: MagicMock | None = None, charging: bool = False
 ) -> MagicMock:
-    """Build a spec'd Charger double backed by `data`."""
+    """Build a spec'd Charger double backed by `data`.
+
+    `model` is hardcoded to the base `ZaptecBase.model`'s default format
+    (`f"Zaptec {qualname}"`, api.py) — it does NOT model `Charger.model`'s real
+    override, which looks up a device-ID-prefix in `ZCONST.serial_to_model`. A
+    known, deliberate simplification, same category as `_backed_get`'s divergences.
+    """
     charger = MagicMock(spec=Charger)
     charger.id = data["id"]
     charger.name = data.get("name", "Mock Charger")
@@ -147,7 +153,13 @@ def make_installation(data: dict[str, Any], *, chargers: Iterable[MagicMock] = (
 
 @pytest.fixture
 def mock_zaptec() -> MagicMock:
-    """A spec'd Zaptec client seeded with one installation and one charger."""
+    """A spec'd Zaptec client seeded with one installation and one charger.
+
+    The `__getitem__`/`__iter__`/`__contains__`/`__len__` wiring isn't arbitrary
+    mock scaffolding: `Zaptec` is itself `Mapping[str, ZaptecBase]` in production
+    (api.py), and real code indexes into it directly (e.g. `zaptec[deviceid]` in
+    `__init__.py`/`coordinator.py`).
+    """
     installation = make_installation({"id": "inst-mock-1", "name": "Mock Home"})
     charger = make_charger(
         {
@@ -177,6 +189,9 @@ def mock_zaptec() -> MagicMock:
     zaptec.poll = AsyncMock(return_value=None)
     zaptec.show_all_updates = False
     zaptec.redact = MagicMock()
+    # Load-bearing, not incidental: __init__.py's startup debug-dump path does
+    # `message += manager.zaptec.redact.dumps()`, which setup_integration actually
+    # exercises. An unconfigured MagicMock here would raise TypeError on the +=.
     zaptec.redact.dumps.return_value = ""
     return zaptec
 
@@ -195,7 +210,14 @@ def mock_config_entry() -> MockConfigEntry:
 async def setup_integration(
     hass: HomeAssistant, mock_config_entry: MockConfigEntry, mock_zaptec: MagicMock
 ) -> ZaptecManager:
-    """Set the integration up through the real async_setup, with a mocked client."""
+    """Set the integration up through the real async_setup, with a mocked client.
+
+    Patches `custom_components.zaptec.Zaptec`, not `custom_components.zaptec.zaptec.
+    api.Zaptec` where the class is defined — the standard unittest.mock rule is to
+    patch where a name is *looked up*, not where it's *defined*. `__init__.py` does
+    `from .zaptec import Zaptec`, so it holds its own local reference; patching the
+    original definition would silently do nothing here.
+    """
     mock_config_entry.add_to_hass(hass)
     with patch("custom_components.zaptec.Zaptec", return_value=mock_zaptec):
         assert await hass.config_entries.async_setup(mock_config_entry.entry_id)
