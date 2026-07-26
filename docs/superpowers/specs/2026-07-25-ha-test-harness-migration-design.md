@@ -1,6 +1,6 @@
 # Design: Migrate coordinator/entity tests to the HA test harness
 
-**Date:** 2026-07-25
+**Date:** 2026-07-25 (revised 2026-07-26: Linux-native infra + harness scoping per #257)
 **Status:** Approved (brainstorming complete)
 **Scope of this spec:** the replacement for PR #394 (coordinator + entity tests). Establishes the reusable infrastructure that a later, separate PR (replacing #395, the platform-entity tests) will build on.
 
@@ -12,45 +12,91 @@ The current test suite is hand-rolled: it instantiates `ZaptecUpdateCoordinator`
 
 Gold/platinum HA integrations instead use `pytest-homeassistant-custom-component` (pytest-hacc): a real `hass`, `MockConfigEntry`, and tests that set the integration up through the normal `async_setup` path with the cloud API mocked, then assert on **public state** (`hass.states.get(...)`, entity/device registries), often via `syrupy` snapshot tests.
 
-The original reason for the hand-rolled mocks was that pytest-hacc did not run on the maintainer's native-Windows dev environment (`homeassistant` imports `fcntl`, which is Unix-only). That is a local-dev constraint, not a project one: CI runs on Linux where pytest-hacc works, and the Windows issue is solvable with a small, OS-guarded compatibility shim (the sibling `luxtronik` integration already does exactly this).
-
 PRs #394 and #395 have been converted to **draft** and will be replaced by PRs built on this approach.
+
+## The two-audience problem this spec must solve
+
+The test suite has two structurally different halves, and pytest-hacc changes the rules for one of them:
+
+1. **HA-integration tests** (`tests/test_*.py`: coordinator, entity, init, diagnostics) — these want the real `hass` harness. pytest-hacc is exactly right here.
+2. **API-client tests** (`tests/zaptec/*`: `test_zconst`, `test_redact`, `test_api`, `test_utils`, `test_validate`) — these test the vendored `zaptec/` client, which per **issue #257** is a **standalone-PyPI-library-in-waiting** (sveinse: *"the API access parts will have to be a separate library on pypi… namespace `zaptec`, such as `from zaptec import Zaptec`"*). They have **no HA dependency** and must not acquire one. Two of them (`test_zconst`, `test_redact`) make a **live** call to `api.zaptec.com/api/constants`.
+
+pytest-hacc blocks non-localhost sockets **unconditionally** on every test in any process where its plugin is active (verified empirically: `disable_socket()` + a `127.0.0.1` allow-list run in `pytest_runtest_setup` before every test; neither the `enable_socket` marker nor a manual `pytest_socket.enable_socket()` defeats the host allow-list). So the moment the harness is active in a process, the live constants call raises `SocketBlockedError`.
+
+Interweaving the two — running `tests/zaptec/*` under the harness — both couples the future-standalone library to HA (against #257) and breaks its live call. The design keeps them **separated**: the harness governs only the HA-integration tests; the API-client tests run as plain pytest, exactly as today.
 
 ## Goals
 
 - Bring the coordinator + entity tests to gold/platinum shape: behavior-first, through the real HA harness.
-- Establish reusable test infrastructure (`mock_zaptec` + `setup_integration` + Windows shim) that the #395 replacement reuses without re-solving anything.
+- Establish reusable test infrastructure (`mock_zaptec` + `setup_integration`) that the #395 replacement reuses without re-solving anything.
 - Match or beat current coverage on `coordinator.py` / `entity.py` (100% / 98%) — but via observable behavior, not private-method assertions.
-- Tests must run green in **native-Windows py314** (via the shim) *and* Linux CI.
+- Keep the `tests/zaptec/*` API-client tests running exactly as today (plain pytest, live constants call intact), per #257.
+- Shipped test infra is **Linux-native**: it matches CI and the maintainers' devcontainer, and carries **no native-Windows accommodation in tracked files**.
 
 ## Non-goals (out of scope for this spec)
 
 - The six platform files (`sensor/switch/number/button/binary_sensor/update`) — that is the #395 replacement, a separate PR.
 - Config-flow / `__init__` coverage.
 - Snapshot tests (deferred to the #395 replacement, where full-state snapshots pay off).
-- Fixing bug #410 (see "Bug #410" below — this PR stays test-only).
+- Fixing bug #410 (this PR stays test-only; see "Bug #410" below).
+- An offline constants snapshot. The shelved `fix/constants-snapshot-fixture` design existed only to dodge the socket block; Option C avoids the block entirely by never running those tests under the harness, so the snapshot is unnecessary.
 
-## Approach (selected)
+## Approach (selected): Linux-native harness, scoped to the integration tests
 
-**Real harness, behavior-first.** Adopt pytest-hacc, patch the integration at the `Zaptec` client boundary, and assert on public state. Chosen over (B) a like-for-like fixture swap and (C) staying hand-rolled, because it is the only option that reaches the target standard and it turns the #410 gap into a real, self-catching test.
+Adopt pytest-hacc, patch the integration at the `Zaptec` client boundary, and assert on public state — but **scope the harness to the HA-integration tests only** ("Option C"), so `tests/zaptec/*` stays plain pytest.
+
+The scoping mechanism is deliberately minimal and standard: on Linux, pytest-hacc autoloads via its normal `pytest11` entry point, so the HA-integration run needs **no conftest machinery** to activate it. The API-client run disables it with a single, per-invocation `-p no:homeassistant`. Two pytest invocations, nothing more.
+
+Rejected alternatives:
+- **(B) like-for-like fixture swap / (C-stay) hand-rolled mocks** — don't reach the target standard; keep the white-box coupling the review flagged.
+- **Snapshot-under-harness** — runs `tests/zaptec/*` under the harness and dodges the socket block with a committed offline snapshot; keeps the two concerns interwoven (against #257) and adds a fixture to maintain.
+- **Per-test socket opt-out** — empirically does not defeat pytest-hacc's `127.0.0.1` allow-list.
+- **Committed native-Windows shim** — see "Why the shim is not committed" below.
 
 ## Design
 
-### 1. Test infrastructure (the foundation)
+### 1. Harness scope: two pytest invocations
+
+The harness must be active for `tests/test_*.py` and inactive for `tests/zaptec/*`. Because pytest-hacc's plugin (and its socket block) is process-wide, this is a **per-process** choice — one pytest run cannot have the harness on for some tests and off for others. So the suite runs as **two invocations**:
+
+```bash
+# 1. HA-integration tests — harness autoloads (Linux pytest11 entry point)
+pytest tests --ignore=tests/zaptec --cov=custom_components/zaptec --cov-branch
+
+# 2. API-client tests — harness disabled → plain pytest → live constants works
+pytest tests/zaptec -p no:homeassistant --cov=custom_components/zaptec --cov-branch --cov-append
+```
+
+- `-p no:homeassistant` disables pytest-hacc's autoloaded plugin for run 2 only, so there is no socket block and the live `api.zaptec.com/api/constants` call behaves exactly as today.
+- `--cov-append` on run 2 merges the two runs' coverage into one report, preserving the combined `coordinator.py`/`entity.py` numbers.
+- No global `-p no:homeassistant` and no root `conftest.py` `pytest_plugins` line — committing either would disable autoload for run 1 and defeat the harness. Scoping lives entirely in the two commands.
+
+### 2. Test infrastructure (the foundation)
 
 - **`requirements_test.txt`** — add `pytest-homeassistant-custom-component` pinned **per-Python via environment markers** (`==0.13.324` for `python_version >= "3.14"`, `==0.13.316` for `< "3.14"`). Do NOT add `homeassistant` here: it is already pinned in `requirements.txt`, and validate.yaml sed-reverts it to `2026.2.3` on the 3.13 leg. pytest-hacc pins an exact `homeassistant==`, so its version MUST match the HA of each Python leg — 0.13.324↔2026.4.3 (py≥3.14), 0.13.316↔2026.2.3 (py≥3.13). Leaving it unpinned makes pip backtrack to an ancient release (pytest 6.2.2 → crashes on 3.13); single-pinning the newest is uninstallable on 3.13.
-- **`conftest.py` (repo root, new)** — port luxtronik's OS-guarded shim: under `sys.platform == "win32"`, stub `fcntl` / `resource` and wrap `socket.socketpair`, then `pytest_plugins = "pytest_homeassistant_custom_component.plugins"`. Completely no-op on Linux, so CI is unaffected. `pytest_plugins` is only honored in the rootdir conftest, so this cannot live in `tests/conftest.py`.
-- **pytest config** (`pyproject.toml` or `pytest.ini`) — add `-p no:homeassistant` to block the broken plugin autoload; the root conftest re-loads it explicitly *after* shimming. Confirm during planning that the repo has no conflicting existing pytest config.
+- **`requirements.txt`** — relax the `pydantic` pin from an exact `==` to the manifest's supported range (`>=2.11.7,<2.14`) so pytest-hacc's transitive `pydantic==2.12.2` resolves alongside it. The devcontainer's `scripts/setup` installs both `requirements.txt` and `requirements_test.txt`, so they must co-resolve.
+- **No committed root `conftest.py` for the harness.** On Linux (CI + devcontainer) the plugin autoloads; no shim, no `pytest_plugins`, no global `-p no:homeassistant`. (See "Why the shim is not committed.")
 - **`tests/conftest.py`** — replace the hand-rolled `hass` / `FakeConfigEntry` with:
-  - the harness's real `hass` fixture,
+  - the harness's real `hass` fixture (available via autoload; no import needed in the conftest),
   - a **`mock_zaptec`** fixture: `MagicMock(spec=Zaptec)` pre-populated with a representative installation + charger object graph (and, because `Zaptec` is a `Mapping[str, ZaptecBase]`, implementing `__getitem__` / `__iter__` / `values()` to yield the fake `Charger` / `Installation` objects the platforms enumerate),
   - a **`mock_config_entry`** (`MockConfigEntry`) and a **`setup_integration(hass, mock_zaptec)`** helper that patches the client into the setup path and awaits `async_setup`.
+  - the existing **`zaptec_constants`** fixture stays as-is (live call). It is only requested by `tests/zaptec/test_zconst.py` / `test_redact.py`, which run in invocation 2 (no harness → no socket block). It is never triggered in invocation 1 (that run `--ignore`s `tests/zaptec`), so it needs no socket guard. The event-loop save/restore added earlier stays (it protects the async fetch regardless of harness).
 
-**Why this shim is justified now (and #403 was not):** a standalone shim PR (#403) was closed because pytest-hacc was not a real dependency, so CI didn't install it and the unconditional plugin import broke Linux CI. Here pytest-hacc becomes a genuine `requirements_test.txt` dependency (CI installs it, Linux import works natively) and the shim is `win32`-guarded (never runs on Linux). Both failure modes are avoided.
+### 3. Why the shim is not committed (native-Windows is a local-only concern)
 
-**Key risk & mitigation:** the whole approach hinges on the shim making pytest-hacc run in native-Windows py314. **Plan step 1 is a throwaway feasibility probe** (a trivial `async def test_hass(hass)` under the shim) before any real test is written. Fallback if it fails: run tests in a devcontainer on the user's Raspberry Pi (HA-in-Docker, separate port). Rated low-risk because luxtronik already runs pytest-hacc in this exact py314 env.
+Home Assistant imports `fcntl` (Unix-only), so pytest-hacc's plugin cannot autoload on native Windows. Earlier iterations of this migration carried a `win32`-guarded shim (fcntl/resource/socketpair stubs) in a root `conftest.py`, plus a `pytest_plugins` line and a global `-p no:homeassistant`, purely so the maintainer's — and this assistant's — native-Windows environment could run the integration tests.
 
-### 2. The #394-replacement tests (coordinator + entity, behavior-first)
+That machinery is **not committed**, for three reasons:
+
+1. **It contradicts the maintainers' stated workflow.** They promote the devcontainer and have pushed back on native-Windows accommodation (steinmn on #398); a standalone committed Windows shim (PR #403) was already **closed**.
+2. **It is the root cause of the scoping complexity.** The shim must run before pytest-hacc imports `fcntl`, which forces a root-conftest `pytest_plugins` + global `-p no:homeassistant` and thus a **session-wide** harness load — which is exactly what makes scoping `tests/zaptec/*` away from the harness hard. Dropping the shim lets Linux autoload the plugin, so scoping collapses to one per-invocation `-p no:homeassistant` (§1).
+3. **CI and the devcontainer are both Linux**, so nothing shipped needs the shim.
+
+**Local native-Windows runs** (this assistant's environment, and any contributor on native Windows) are handled outside tracked files:
+- `tests/zaptec/*` already run natively today: `pytest tests/zaptec -p no:homeassistant` (this is the existing convention; the harness is off, `fcntl` is never imported).
+- The **HA-integration tests** need Linux: run them in the **devcontainer** (what the maintainers promote), or, for a quick local check, under an **uncommitted, untracked** local shim conftest. Neither path ships.
+
+### 4. The #394-replacement tests (coordinator + entity, behavior-first)
 
 Same two modules, asserted through the real harness instead of poking privates.
 
@@ -68,7 +114,7 @@ Same two modules, asserted through the real harness instead of poking privates.
 
 **Coverage target:** match or beat current 100% / 98% on `coordinator.py` / `entity.py`, achieved via behavior.
 
-### 3. The mocked Zaptec client & shared test data
+### 5. The mocked Zaptec client & shared test data
 
 **Patch at the `Zaptec` client boundary (Layer 2), not the HTTP/SignalR wire (Layer 1).**
 
@@ -88,33 +134,37 @@ Everything *above* the client — `ZaptecManager`, `ZaptecUpdateCoordinator`, `Z
 
 **Test-data source:** a small hand-authored dict suffices for #394 (coordinator/entity base behavior needs only a couple of keys). The **fuller** payload needed by the #395 replacement will be seeded from a **redacted real diagnostics dump** (the repo already has `diagnostics.py` + `redact.py`), stored as a JSON fixture, so snapshots reflect real-world data rather than invented values.
 
-### 4. Bug #410 handling — test-only, deferred fix
+### 6. Bug #410 handling — test-only, deferred fix
 
-Filed as custom-components/zaptec#410: `ZaptecBaseEntity` sets `_attr_available = False` on `KeyUnavailableError` but never overrides `available`, so the flag has no effect on reported availability.
+Filed as custom-components/zaptec#410: `ZaptecBaseEntity` sets `_attr_available = False` on `KeyUnavailableError` but never overrides `available`. Contributor steinmn responded that this is **not a bug**, and the exact mechanism was confirmed against installed HA (2026.4.3): `ZaptecBaseEntity` subclasses `CoordinatorEntity`, whose `available` property is first in the MRO and returns `self.coordinator.last_update_success` — it never reads `_attr_available`. So a single missing key does not (and by design should not) take an entity `unavailable`; only a failed coordinator poll does. (steinmn's comment cited the *base* `Entity.available` reading `_attr_available`, but that base property is overridden by `CoordinatorEntity.available`, so it doesn't govern these entities — the conclusion holds via the override.) steinmn also noted the HA entity-vs-device distinction: one entity going unavailable would not make its charger/installation *device* unavailable.
 
-Investigation showed the fix is **not obvious** and needs maintainer input:
+**Status:** the reporter (rhammen) has concluded #410 is not a bug and intends to close it; it is currently still open. The earlier concern that `_attr_available` is "never reset to True on success" is also refuted: each derived platform's `_update_from_zaptec` sets it back to `True` on a good update (e.g. `binary_sensor.py:34`).
 
-1. **Mechanical gap:** `available` isn't overridden (trivial to add).
-2. **Latent sticky-flag bug:** `_handle_coordinator_update` never resets `_attr_available = True` on the success path, so a naive override would leave recovered entities unavailable forever. Any fix must override `available` *and* reset the flag on success.
-3. **Semantic design question:** many keys are legitimately absent for some charger models / installation types / roles (the code already has a skip-set for such keys in `_log_unavailable`). Making *any* `KeyUnavailableError` flip an entity to `unavailable` could make entities disappear for real users. Which keys are "required" vs. optional is a maintainer decision.
+**Decision:** this PR stays **test-only** and asserts the **observed, correct** behavior (no xfail — the observed behavior is definitive regardless of the still-open semantic discussion): an entity with a single missing key stays available; an entity is `unavailable` only when the coordinator poll fails. (Reworked from the earlier xfail-encoded premise; see commit 0ecebab.)
 
-**Decision:** this PR stays **test-only**. The availability case is asserted as today's real behavior with an `xfail(reason="#410")` documenting the gap through the real harness. The fix is deferred to a separate PR after the semantics are decided. #410 has been updated with findings (2) and (3) and a request for input from @sveinse / @steinmn.
+### 7. CI + scripts wiring
+
+- **`.github/workflows/validate.yaml`** — the test job installs `requirements.txt` + `requirements_test.txt` (co-resolving per §2) and runs the **two** pytest invocations (§1), preserving the existing 3.13 HA sed-revert. Coverage combines via `--cov-append`.
+- **`scripts/test`** — mirror the two-invocation structure so local (Linux/devcontainer) runs match CI. Keep the `--skip-api` path (`SKIP_ZAPTEC_API_TEST=true`) working for invocation 2's login-gated tests.
+- **`DEVELOPMENT.md`** — document the two-invocation split and that the HA-integration tests require Linux (devcontainer); `tests/zaptec/*` run natively with `-p no:homeassistant`.
 
 ## Success criteria (this PR)
 
 - Coverage on `coordinator.py` / `entity.py` ≥ current (100% / 98%), achieved via behavior.
-- `pytest tests` green in native-Windows py314 (via shim) **and** Linux CI.
+- `pytest tests --ignore=tests/zaptec` (harness) **and** `pytest tests/zaptec -p no:homeassistant` (plain) both green on Linux CI; combined coverage via `--cov-append`.
+- `tests/zaptec/*` behavior unchanged — live constants call still runs, no socket block, no HA import.
+- No native-Windows accommodation in tracked files (Linux-native infra).
 - `ruff format` + `ruff check` clean.
-- hassfest / HACS unaffected (`requirements_test.txt` is not shipped in the component; the root `conftest.py` and pytest config are dev-only).
+- hassfest / HACS unaffected (`requirements_test.txt` is not shipped in the component; no root `conftest.py` / pytest-config changes are shipped for the harness).
 
 ## PR / branch strategy
 
 - #394 and #395 held as draft (done 2026-07-25); reply posted on #394 explaining the direction.
-- New branch off `master` for this replacement PR (per repo convention: dedicated branch per unit of work).
-- The #395 replacement is a **separate, later** PR that reuses this infrastructure.
+- Migration lands on `test/ha-test-harness-migration` (already off `master`); it replaces #394. The #395 replacement is a **separate, later** PR reusing this infrastructure.
+- Reference #257 in the PR body as the rationale for keeping `tests/zaptec/*` out of the harness. Note the upstream-PR-stack dependency (see [[upstream-pr-stack]]).
 
 ## Open items carried into planning
 
-- Confirm whether the repo has existing pytest config to reconcile (it does: `[tool.pytest.ini_options]` in `pyproject.toml`). HA version is managed by `requirements.txt` + validate.yaml's 3.13 sed-revert, not by `requirements_test.txt`.
+- Confirm the two-invocation coverage numbers combine correctly under `--cov-append` (branch coverage merges).
+- Confirm `pyproject.toml`'s existing `[tool.pytest.ini_options]` has no global option that conflicts with the per-invocation `-p no:homeassistant` (e.g. no committed `addopts` that force-loads or force-disables the plugin).
 - Confirm exact patch target (`custom_components.zaptec.Zaptec` import site) and the minimal `mock_zaptec` object-graph shape for #394.
-- Feasibility probe (plan step 1) before writing real tests.
