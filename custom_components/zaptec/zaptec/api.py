@@ -298,7 +298,9 @@ class Installation(ZaptecBase):
 
     async def poll_info(self) -> None:
         """Update the installation info."""
-        _LOGGER.debug("Poll info from %s (%s)", self.qual_id, self.get("Name"))
+        _LOGGER.debug(
+            "Poll info from %s (%s)", self.qual_id, self.zaptec.redact(self.get("Name"))
+        )
 
         # Get the installation data
         data = await self.zaptec.request(f"installation/{self.id}")
@@ -316,7 +318,9 @@ class Installation(ZaptecBase):
 
     async def poll_firmware_info(self) -> None:
         """Update the installation firmware info."""
-        _LOGGER.debug("Poll firmware info from %s (%s)", self.qual_id, self.get("Name"))
+        _LOGGER.debug(
+            "Poll firmware info from %s (%s)", self.qual_id, self.zaptec.redact(self.get("Name"))
+        )
 
         try:
             firmware_info = await self.zaptec.request(f"chargerFirmware/installation/{self.id}")
@@ -631,7 +635,9 @@ class Charger(ZaptecBase):
 
     async def poll_info(self) -> None:
         """Refresh the charger data."""
-        _LOGGER.debug("Poll info from %s (%s)", self.qual_id, self.get("Name"))
+        _LOGGER.debug(
+            "Poll info from %s (%s)", self.qual_id, self.zaptec.redact(self.get("Name"))
+        )
 
         try:
             # Get the main charger info
@@ -652,7 +658,9 @@ class Charger(ZaptecBase):
 
     async def poll_state(self) -> None:
         """Update the charger state."""
-        _LOGGER.debug("Poll state from %s (%s)", self.qual_id, self.get("Name"))
+        _LOGGER.debug(
+            "Poll state from %s (%s)", self.qual_id, self.zaptec.redact(self.get("Name"))
+        )
 
         # Get the state from the charger
         try:
@@ -1211,7 +1219,7 @@ class Zaptec(Mapping[str, ZaptecBase]):
                     return json_result
 
                 error = RequestError(
-                    f"{method.upper()} request to {full_url} failed with status {response.status}: {response}",
+                    f"{method.upper()} request to {self.redact(full_url)} failed with status {response.status}: {response}",
                     response.status,
                 )
 
