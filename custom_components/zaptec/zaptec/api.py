@@ -269,13 +269,24 @@ class Installation(ZaptecBase):
         redact = self.zaptec.redact
 
         self.chargers = []
+        if not hierarchy.get("Circuits"):
+            _LOGGER.warning("Installation %s contains no circuits.", self.qual_id)
+            return
+
         for circuit in hierarchy["Circuits"]:
             ctid = circuit["Id"]
             redact.add_uid(ctid, "Circuit")
             _LOGGER.debug("    Circuit %s", redact(ctid))
 
-            # Chargers and Name are nullable per the Zaptec API docs.
-            for charger_item in circuit.get("Chargers") or []:
+            if not circuit.get("Chargers"):
+                _LOGGER.warning(
+                    "Circuit %s of installation %s contains no chargers.",
+                    redact(ctid),
+                    self.qual_id,
+                )
+                continue
+
+            for charger_item in circuit["Chargers"]:
                 chgid = charger_item["Id"]
                 redact.add_uid(chgid, "Charger")
 

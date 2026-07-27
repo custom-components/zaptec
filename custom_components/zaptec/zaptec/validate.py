@@ -31,7 +31,7 @@ class Installations(BaseModel):
 
 
 class Charger(BaseModel):
-    """Pydantic model for a Zaptec charger, as returned by /chargers and /chargers/{id}."""
+    """Pydantic model for a Zaptec charger."""
 
     model_config = ConfigDict(extra="allow")
     Id: str
@@ -61,11 +61,8 @@ class Circuit(BaseModel):
 
     model_config = ConfigDict(extra="allow")
     Id: str
-    # Nullable per the Zaptec API docs; api.py reads it defensively via .get().
     Name: str | None = None
     MaxCurrent: float
-    # Reuses Charger: a hierarchy-only charger is never re-merged with /chargers,
-    # so its required DeviceType (hard-subscripted later in build()) comes only from here.
     Chargers: list[Charger] | None = None
 
 
