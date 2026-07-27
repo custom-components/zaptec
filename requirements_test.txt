@@ -2,13 +2,5 @@ pytest
 pytest-asyncio
 pytest-mock
 pytest-cov
-# pytest-homeassistant-custom-component pins an EXACT `homeassistant==`, so the
-# release must match the HA that requirements.txt installs on each CI Python leg
-# (validate.yaml sed-reverts HA to 2026.2.3 on 3.13). Select the matching release
-# per Python version: newest releases require Python >=3.14, so 3.13 uses the last
-# 3.13-compatible one. 0.13.324 -> HA 2026.4.3 (py>=3.14); 0.13.316 -> HA 2026.2.3.
-# It also brings the full version-matched pytest stack, and pins pydantic to HA's
-# version (2.12.2), which is why requirements.txt uses a pydantic RANGE (matching
-# manifest.json) rather than an exact pin that would conflict.
 pytest-homeassistant-custom-component==0.13.324; python_version >= "3.14"
 pytest-homeassistant-custom-component==0.13.316; python_version < "3.14"
