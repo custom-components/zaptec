@@ -101,6 +101,23 @@ class InstallationConnectionDetails(BaseModel):
     Topic: str
 
 
+class ArchivedSession(BaseModel):
+    """Pydantic model for a single archived (completed) charge session."""
+
+    model_config = ConfigDict(extra="allow")
+    id: str
+    chargerId: str  # noqa: N815 (matches the API's actual camelCase field name)
+    startDateTime: str  # noqa: N815 (matches the API's actual camelCase field name)
+
+
+class GetArchivedSessionsResponse(BaseModel):
+    """Pydantic model for a page of archived charge sessions."""
+
+    model_config = ConfigDict(extra="allow")
+    sessions: list[ArchivedSession]
+    hasMore: bool  # noqa: N815 (matches the API's actual camelCase field name)
+
+
 CHARGER_FIRMWARES = TypeAdapter(list[ChargerFirmware])
 CHARGER_STATES = TypeAdapter(list[ChargerState])
 CONSTANTS = TypeAdapter(dict[str, Any])
@@ -124,6 +141,7 @@ URLS = {
     r"chargers/[0-9a-f\-]+/localSettings": None,
     r"chargers/[0-9a-f\-]+/update": None,
     r"chargerFirmware/installation/[0-9a-f\-]+": CHARGER_FIRMWARES,
+    "sessions/archived": GetArchivedSessionsResponse,
 }
 
 _URLS = [(k, re.compile(k), v) for k, v in URLS.items()]

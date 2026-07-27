@@ -57,6 +57,9 @@ API_RATELIMIT_PERIOD = 1
 API_RATELIMIT_MAX_REQUEST_RATE = 10
 """Maximum number of requests allowed per API rate limit period."""
 
+API_ARCHIVED_SESSIONS_PAGE_SIZE = 200
+"""Page size for GET /api/sessions/archived - the endpoint's documented maximum."""
+
 MAX_DEBUG_TEXT_LEN_ON_500 = 150
 """Maximum text length to add to debug log without truncating."""
 

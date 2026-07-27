@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 from collections.abc import AsyncGenerator, Awaitable, Callable, Iterable, Iterator, Mapping
 from contextlib import aclosing
+from datetime import datetime
 from http import HTTPStatus
 import itertools
 import json
@@ -22,6 +23,7 @@ from azure.servicebus.exceptions import ServiceBusError
 import pydantic
 
 from .const import (
+    API_ARCHIVED_SESSIONS_PAGE_SIZE,
     API_RATELIMIT_MAX_REQUEST_RATE,
     API_RATELIMIT_PERIOD,
     API_RETRIES,
@@ -765,6 +767,39 @@ class Charger(ZaptecBase):
         # NOTE: Undocumented API call
         return await self.zaptec.request(f"chargers/{self.id}/authorizecharge", method="post")
 
+    async def get_archived_sessions(
+        self,
+        *,
+        from_time: datetime,
+        to_time: datetime,
+        cursor: str | None = None,
+        page_size: int = API_ARCHIVED_SESSIONS_PAGE_SIZE,
+    ) -> dict[str, Any]:
+        """Fetch one page of archived (completed) charge sessions for this charger.
+
+        Wraps `GET /api/sessions/archived`, filtered to this charger and
+        ordered oldest-first by the API. `from_time`/`to_time` are required by
+        the endpoint and filter by session *end* time (not start time), so a
+        long-running session only appears once it closes within the window.
+        Returns the page as-is (`Sessions`, `Cursor`, `HasMore`); the caller
+        follows `Cursor` while `HasMore` is true to page through the full
+        result set.
+
+        Requires the Owner role on this charger; raises `RequestError` with
+        `error_code == HTTPStatus.FORBIDDEN` otherwise (see
+        `ZaptecStatisticsCoordinator._async_update_data` in statistics.py for
+        how that's handled).
+        """
+        params: TDict = {
+            "ChargerId": self.id,
+            "PageSize": page_size,
+            "From": from_time.isoformat(),
+            "To": to_time.isoformat(),
+        }
+        if cursor is not None:
+            params["Cursor"] = cursor
+        return await self.zaptec.request("sessions/archived", params=params)
+
     async def set_permanent_cable_lock(self, lock: bool) -> Any:
         """Set the permanent cable lock on the charger."""
         _LOGGER.debug("Set permanent cable lock %s", lock)
@@ -1161,7 +1196,13 @@ class Zaptec(Mapping[str, ZaptecBase]):
                 )
 
     async def request(
-        self, url: str, *, method: str = "get", data: Any = None, base_url: str = API_URL
+        self,
+        url: str,
+        *,
+        method: str = "get",
+        data: Any = None,
+        params: dict[str, Any] | None = None,
+        base_url: str = API_URL,
     ) -> Any:
         """Make a request to the API."""
 
@@ -1175,6 +1216,8 @@ class Zaptec(Mapping[str, ZaptecBase]):
         }
         if data is not None:
             kwargs["json"] = data
+        if params is not None:
+            kwargs["params"] = params
 
         # Run the _request_worker() in a context manager that will close the
         # generator when the context is exited, ensuring the request and
