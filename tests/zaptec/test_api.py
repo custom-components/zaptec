@@ -969,6 +969,74 @@ def test_zaptec_collections_and_accessors() -> None:
 
 
 @pytest.mark.asyncio
+async def test_build_hierarchy_handles_null_circuit_chargers() -> None:
+    """A null Circuit.Chargers (nullable per the API docs) yields no chargers, not a TypeError."""
+
+    hierarchy_payload = {
+        "Id": "abcdef01-2345-6789-abcd-ef0123456789",
+        "Circuits": [
+            {
+                "Id": "11111111-1111-1111-1111-111111111111",
+                "MaxCurrent": 32.0,
+                "Chargers": None,
+            },
+        ],
+    }
+    zap, _ = _make_zaptec([FakeResponse(HTTPStatus.OK, json_data=hierarchy_payload)])
+    inst = Installation({"Id": "abcdef01-2345-6789-abcd-ef0123456789"}, zap)
+    zap.register(inst.id, inst)
+
+    await inst.build()
+
+    assert inst.chargers == []
+
+
+@pytest.mark.asyncio
+async def test_build_hierarchy_charger_with_device_type_survives_full_build() -> None:
+    """A hierarchy-only charger survives Zaptec.build()'s chg["DeviceType"] subscript.
+
+    A charger seen only via the hierarchy is never re-merged with the /chargers
+    list, so its DeviceType comes solely from the hierarchy stub -- which the
+    Charger model now requires. Drives the full build() to prove no KeyError.
+    """
+    inst_id = "abcdef01-2345-6789-abcd-ef0123456789"
+    charger_id = "12345678-90ab-cdef-1234567890ab"
+
+    outcomes = [
+        FakeResponse(HTTPStatus.OK, json_data={}),  # constants
+        FakeResponse(  # installation list
+            HTTPStatus.OK, json_data={"Pages": 1, "Data": [{"Id": inst_id}]}
+        ),
+        FakeResponse(  # installation/{id}/hierarchy
+            HTTPStatus.OK,
+            json_data={
+                "Id": inst_id,
+                "Circuits": [
+                    {
+                        "Id": "11111111-1111-1111-1111-111111111111",
+                        "MaxCurrent": 32.0,
+                        "Chargers": [{"Id": charger_id, "DeviceType": 4}],
+                    },
+                ],
+            },
+        ),
+        FakeResponse(  # chargers list
+            HTTPStatus.OK,
+            json_data={"Pages": 1, "Data": [{"Id": charger_id, "DeviceType": 4}]},
+        ),
+    ]
+    zap, _ = _make_zaptec(outcomes)
+
+    await zap.build()
+
+    assert zap.is_built
+    charger: Charger = zap[charger_id]
+    # str(val) fallback: the constants schema has no DeviceType entry here. The
+    # point is only that build() populated it at all (no KeyError on subscript).
+    assert charger["DeviceType"] == "4"
+
+
+@pytest.mark.asyncio
 async def test_zaptec_async_context_manager_closes_internal_client() -> None:
     """Entering/exiting the context manager works with an internally-created client."""
     async with Zaptec("user", "pass") as zap:

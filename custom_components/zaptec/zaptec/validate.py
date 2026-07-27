@@ -16,10 +16,10 @@ class Installation(BaseModel):
 
     model_config = ConfigDict(extra="allow")
     Id: str
-    Active: bool
-    CurrentUserRoles: int
-    InstallationType: int
-    NetworkType: int
+    Active: bool | None = None
+    CurrentUserRoles: int | None = None
+    InstallationType: int | None = None
+    NetworkType: int | None = None
 
 
 class Installations(BaseModel):
@@ -27,7 +27,7 @@ class Installations(BaseModel):
 
     model_config = ConfigDict(extra="allow")
     Data: list[Installation]
-    Pages: int
+    Pages: int | None = None
 
 
 class Charger(BaseModel):
@@ -35,8 +35,8 @@ class Charger(BaseModel):
 
     model_config = ConfigDict(extra="allow")
     Id: str
-    Name: str
-    Active: bool
+    Name: str | None = None
+    Active: bool | None = None
     DeviceType: int
 
 
@@ -61,8 +61,9 @@ class Circuit(BaseModel):
 
     model_config = ConfigDict(extra="allow")
     Id: str
-    Name: str
-    Chargers: list[Charger]
+    Name: str | None = None
+    MaxCurrent: float
+    Chargers: list[Charger] | None = None
 
 
 class Hierarchy(BaseModel):
@@ -70,8 +71,8 @@ class Hierarchy(BaseModel):
 
     model_config = ConfigDict(extra="allow")
     Id: str
-    Name: str
-    NetworkType: int
+    Name: str | None = None
+    NetworkType: int | None = None
     Circuits: list[Circuit]
 
 
@@ -80,11 +81,11 @@ class ChargerFirmware(BaseModel):
 
     model_config = ConfigDict(extra="allow")
     ChargerId: str
-    DeviceType: int
-    IsOnline: bool
-    CurrentVersion: str
-    AvailableVersion: str
-    IsUpToDate: bool
+    DeviceType: int | None = None
+    IsOnline: bool | None = None
+    CurrentVersion: str | None = None
+    AvailableVersion: str | None = None
+    IsUpToDate: bool | None = None
 
 
 class InstallationConnectionDetails(BaseModel):
