@@ -33,12 +33,7 @@ def skip_if_user_disabled_api_tests() -> None:
 
 @pytest.fixture(scope="session")
 def zaptec_username(skip_if_user_disabled_api_tests, skip_if_in_github_actions) -> str:  # noqa: ANN001 (the inputs are purely to create dependencies to the env-flags above)
-    """
-    Get the zaptec username stored in env.
-
-    Any test relying on this fixture will be skipped if the test is running
-    in Gihub Actions, or the user has disabled tests requiring API login.
-    """
+    """Get the zaptec username from env, skipping if API-login tests are disabled."""
     username = os.environ.get("ZAPTEC_USERNAME")
     assert username, (
         "Missing username, either set it with \"export ZAPTEC_USERNAME='username'\" "
@@ -49,12 +44,7 @@ def zaptec_username(skip_if_user_disabled_api_tests, skip_if_in_github_actions) 
 
 @pytest.fixture(scope="session")
 def zaptec_password(skip_if_user_disabled_api_tests, skip_if_in_github_actions) -> str:  # noqa: ANN001
-    """
-    Get the zaptec password stored in env.
-
-    Any test relying on this fixture will be skipped if the test is running
-    in Gihub Actions, or the user has disabled tests requiring API login.
-    """
+    """Get the zaptec password from env, skipping if API-login tests are disabled."""
     password = os.environ.get("ZAPTEC_PASSWORD")
     assert password, (
         "Missing password, either set it with \"export ZAPTEC_PASSWORD='password'\" "
@@ -66,12 +56,9 @@ def zaptec_password(skip_if_user_disabled_api_tests, skip_if_in_github_actions) 
 def _backed_get(data: dict[str, Any]) -> Callable[..., Any]:
     """Return a `.get(key, default=MISSING)` implementation backed by `data`.
 
-    Mirrors `ZaptecBase.__getitem__`'s key normalization (`to_under`) so lookups
-    behave the same whether `data` is hand-authored snake_case or seeded from a
-    raw API payload. Still diverges from `ZaptecBase.get` (inherited from
-    `Mapping.get`) in its own default: `MISSING` instead of `None`. Harmless in
-    practice, since every real call site (`entity.py`'s `_get_zaptec_value`)
-    always passes `default=MISSING` explicitly.
+    Mirrors `ZaptecBase.__getitem__`'s key normalization (`to_under`); defaults
+    to `MISSING` rather than `Mapping.get`'s `None` since every real call site
+    (`entity.py`'s `_get_zaptec_value`) passes `default=MISSING` explicitly.
     """
 
     def _get(key: str, default: Any = MISSING) -> Any:
@@ -85,10 +72,8 @@ def make_charger(
 ) -> MagicMock:
     """Build a spec'd Charger double backed by `data`.
 
-    `model` is hardcoded to the base `ZaptecBase.model`'s default format
-    (`f"Zaptec {qualname}"`, api.py) — it does NOT model `Charger.model`'s real
-    override, which looks up a device-ID-prefix in `ZCONST.serial_to_model`. A
-    known, deliberate simplification, same category as `_backed_get`'s divergences.
+    `model` is hardcoded rather than modeling `Charger.model`'s real
+    `ZCONST.serial_to_model` lookup — a deliberate simplification.
     """
     charger = MagicMock(spec=Charger)
     charger.id = data["id"]
@@ -119,10 +104,9 @@ def make_installation(data: dict[str, Any], *, chargers: Iterable[MagicMock] = (
 def mock_zaptec() -> MagicMock:
     """A spec'd Zaptec client seeded with one installation and one charger.
 
-    The `__getitem__`/`__iter__`/`__contains__`/`__len__` wiring isn't arbitrary
-    mock scaffolding: `Zaptec` is itself `Mapping[str, ZaptecBase]` in production
-    (api.py), and real code indexes into it directly (e.g. `zaptec[deviceid]` in
-    `__init__.py`/`coordinator.py`).
+    `__getitem__`/`__iter__`/`__contains__`/`__len__` are wired because `Zaptec`
+    is itself `Mapping[str, ZaptecBase]` in production, and real code (e.g.
+    `zaptec[deviceid]` in `__init__.py`/`coordinator.py`) indexes into it directly.
     """
     installation = make_installation({"id": "inst-mock-1", "name": "Mock Home"})
     charger = make_charger(
@@ -176,11 +160,9 @@ async def setup_integration(
 ) -> ZaptecManager:
     """Set the integration up through the real async_setup, with a mocked client.
 
-    Patches `custom_components.zaptec.Zaptec`, not `custom_components.zaptec.zaptec.
-    api.Zaptec` where the class is defined — the standard unittest.mock rule is to
-    patch where a name is *looked up*, not where it's *defined*. `__init__.py` does
-    `from .zaptec import Zaptec`, so it holds its own local reference; patching the
-    original definition would silently do nothing here.
+    Patches `custom_components.zaptec.Zaptec` — where `__init__.py` looks the name
+    up, per unittest.mock's patch-at-the-lookup rule — not the original definition
+    in `zaptec/api.py`, which `__init__.py`'s own import wouldn't see patched.
     """
     mock_config_entry.add_to_hass(hass)
     with patch("custom_components.zaptec.Zaptec", return_value=mock_zaptec):

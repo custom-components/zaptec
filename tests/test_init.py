@@ -51,9 +51,7 @@ async def test_setup_entry_creates_manager_and_entities(
 
     assert isinstance(manager, ZaptecManager)
     assert mock_config_entry.runtime_data is manager
-    # HA slugifies each entity's name into its entity_id's object_id half; this
-    # only matches because conftest.py's mock_zaptec seeds "Mock Charger"/"Mock
-    # Home" (make_charger/make_installation), so every zaptec-created entity_id
-    # starts with "mock". If that seed naming ever changes, update this filter.
+    # Matches because mock_zaptec seeds "Mock Charger"/"Mock Home", which HA
+    # slugifies into "mock..." entity_ids. Update if that seed naming changes.
     states = [s for s in hass.states.async_all() if s.entity_id.split(".")[1].startswith("mock")]
     assert states, "expected at least one zaptec entity to be created"

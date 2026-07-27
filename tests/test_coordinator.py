@@ -62,10 +62,8 @@ async def test_device_coordinator_switches_interval_when_charging(
     charger_coord.set_update_interval()
 
     assert charger_coord.update_interval == timedelta(seconds=ZAPTEC_POLL_INTERVAL_CHARGING)
-    # Also assert the relation directly: charging must poll faster than idle. This
-    # catches a regression that equality checks alone would miss, e.g. const.py
-    # setting ZAPTEC_POLL_INTERVAL_CHARGING >= ZAPTEC_POLL_INTERVAL_IDLE, which would
-    # still pass both equality asserts above despite breaking the whole feature.
+    # Also assert the relation directly, catching e.g. const.py setting
+    # CHARGING >= IDLE, which the equality asserts alone would miss.
     assert charger_coord.update_interval < idle_interval
 
 
@@ -75,12 +73,9 @@ async def test_charging_update_interval_requires_charger_object(
 ) -> None:
     """Constructing a coordinator with a charging interval on a non-Charger object errors.
 
-    Constructs `ZaptecUpdateCoordinator` directly (skipping `setup_integration`)
-    to hit this constructor-time guard in isolation. A bare, unconfigured
-    `manager=MagicMock()` is enough: `__init__` does `self.zaptec = manager.zaptec`
-    (auto-vivifies on a MagicMock, no error) before the `isinstance(zaptec_object,
-    Charger)` check runs, so nothing about the manager's real behavior is
-    exercised before the ValueError fires.
+    Skips `setup_integration` to hit the constructor-time guard directly: a
+    bare `manager=MagicMock()` auto-vivifies `self.zaptec` with no error before
+    the `isinstance(zaptec_object, Charger)` check runs.
     """
     mock_config_entry.add_to_hass(hass)
 
@@ -108,10 +103,9 @@ async def test_trigger_poll_is_noop_without_zaptec_object(
 ) -> None:
     """trigger_poll() on a coordinator with no bound zaptec object does nothing.
 
-    `manager.head_coordinator` specifically: it's the one coordinator built with
-    `zaptec_object=None` (the account-wide coordinator; __init__.py), unlike every
-    device coordinator, which always gets a real Charger/Installation. That's what
-    satisfies trigger_poll()'s `if zaptec_obj is None: return` no-op guard.
+    `head_coordinator` is the one coordinator built with `zaptec_object=None`
+    (device coordinators always get a real Charger/Installation), satisfying
+    trigger_poll()'s no-op guard.
     """
     manager = await setup_integration(hass, mock_config_entry, mock_zaptec)
 
@@ -131,15 +125,14 @@ async def test_trigger_poll_cancels_in_flight_task_and_reschedules(
     manager = await setup_integration(hass, mock_config_entry, mock_zaptec)
     charger_coord = manager.device_coordinators["chg-mock-1"]
 
-    # Collapse the real multi-second delays to zero so the poll sequence runs fast, while
-    # still going through real asyncio.sleep(0) checkpoints (needed so the eagerly-started
-    # background task actually suspends and can be observed/cancelled mid-flight).
+    # Collapse the real delays to zero, keeping real asyncio.sleep(0) checkpoints so
+    # the eagerly-started background task actually suspends and can be cancelled mid-flight.
     monkeypatch.setattr(
         "custom_components.zaptec.coordinator.ZAPTEC_POLL_CHARGER_TRIGGER_DELAYS", [0, 0, 0]
     )
 
-    # HA's eager task factory starts the background task running immediately; it
-    # suspends at the first real `asyncio.sleep(0)` checkpoint and is left pending.
+    # HA's eager task factory runs the task immediately; it suspends at the
+    # first sleep(0) checkpoint and is left pending.
     await charger_coord.trigger_poll()
     first_task = charger_coord._trigger_task  # noqa: SLF001
     assert first_task is not None
@@ -167,13 +160,11 @@ async def test_trigger_poll_triggers_child_charger_coordinators(
 ) -> None:
     """Polling an installation also triggers the poll sequence of its tracked chargers.
 
-    Patches `asyncio.sleep` globally rather than a delays-list constant (as the
-    cancel/reschedule test does) because installations use a different constant
-    (ZAPTEC_POLL_INSTALLATION_TRIGGER_DELAYS) whose values this test doesn't care
-    about — it only needs to reach the loop's first iteration fast, since
-    children are triggered at `i == 1` (coordinator.py). `charger_coord.trigger_poll`
-    is replaced with a mock rather than left real, to isolate "did the parent call
-    the child" from "does the child's own trigger_poll work" (covered elsewhere).
+    Patches `asyncio.sleep` globally, rather than the delays-list constant (as the
+    cancel/reschedule test does), just to reach the loop's first iteration fast —
+    installations use their own delay constant this test doesn't care about.
+    `charger_coord.trigger_poll` is mocked to isolate "parent calls child" from
+    the child's own trigger_poll logic (covered elsewhere).
     """
     manager = await setup_integration(hass, mock_config_entry, mock_zaptec)
     install_coord = manager.device_coordinators["inst-mock-1"]
