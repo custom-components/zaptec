@@ -5,8 +5,14 @@ set -e
 if [ "$1" == "--skip-api" ]; then
     export SKIP_ZAPTEC_API_TEST="true"
 fi
+
+# HA-integration tests run under the pytest-hacc harness (autoloads on Linux).
+# API-client tests (tests/zaptec/*) run as plain pytest with the harness
+# disabled, so their live constants call is not socket-blocked. Coverage
+# from both is combined via --cov-append.
 # run tests with -s to display printouts and --log-cli-level to get logger output
-pytest --cov=./custom_components/zaptec --cov-branch --log-cli-level=INFO -s
+pytest tests --ignore=tests/zaptec --cov=./custom_components/zaptec --cov-branch --log-cli-level=INFO -s
+pytest tests/zaptec -p no:homeassistant --cov=./custom_components/zaptec --cov-branch --cov-append --log-cli-level=INFO -s
 
 # generate coverage report in html and xml
 coverage html
