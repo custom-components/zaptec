@@ -83,6 +83,8 @@ def make_charger(
     charger.get.side_effect = _backed_get(data)
     charger.is_charging.return_value = charging
     charger.installation = installation
+    charger.command = AsyncMock()
+    charger.authorize_charge = AsyncMock()
     return charger
 
 
@@ -97,6 +99,7 @@ def make_installation(data: dict[str, Any], *, chargers: Iterable[MagicMock] = (
     install.chargers = list(chargers)
     install.stream_main = AsyncMock(return_value=None)
     install.stream_close = AsyncMock(return_value=None)
+    install.set_limit_current = AsyncMock()
     return install
 
 
@@ -129,6 +132,7 @@ def mock_zaptec() -> MagicMock:
     zaptec.__iter__.side_effect = lambda: iter(objects)
     zaptec.__contains__.side_effect = objects.__contains__
     zaptec.__len__.side_effect = lambda: len(objects)
+    zaptec.get.side_effect = objects.get
     zaptec.objects.return_value = list(objects.values())
     zaptec.installations = [installation]
     zaptec.chargers = [charger]
