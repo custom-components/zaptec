@@ -50,18 +50,10 @@ async def _stream_supervisor(
 ) -> None:
     """Run install.stream_main(), reconnecting after a transient failure.
 
-    stream_main() returning normally means a permanent stop (e.g. no
-    permission to the live stream) -- this loop ends without retrying. It
-    raising means a transient failure to retry with exponential backoff.
-    asyncio.CancelledError is a BaseException, not an Exception, so it is
-    never caught here: cancelling the task (integration unload/reload)
-    still stops this immediately, whether currently inside stream_main()
-    or in the backoff sleep below.
-
-    The first failure of an outage logs at WARNING, later failures of the
-    same outage at DEBUG. An outage only counts as "new" once the prior
-    connection survived STREAM_RECONNECT_MAX_DELAY seconds -- a stream
-    flapping faster than that warns once, then stays at DEBUG.
+    stream_main() returning normally means a permanent stop; raising means
+    a transient failure to retry with backoff. asyncio.CancelledError is a
+    BaseException, not an Exception, so it's never caught here -- task
+    cancellation still stops this immediately.
     """
     delay = STREAM_RECONNECT_INIT_DELAY
     warned = False
