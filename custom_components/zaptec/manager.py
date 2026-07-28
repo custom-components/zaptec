@@ -57,6 +57,15 @@ async def _stream_supervisor(
     never caught here: cancelling the task (integration unload/reload)
     still stops this immediately, whether currently inside stream_main()
     or in the backoff sleep below.
+
+    The first failure of an outage is logged at WARNING; subsequent
+    failures of the same outage are logged at DEBUG only. An outage is
+    considered "new" -- and thus re-warned -- only once the previous
+    connection stayed up for at least STREAM_RECONNECT_MAX_DELAY seconds
+    before failing again. A rapidly flapping stream (reconnecting and
+    failing faster than that) will therefore log its first failure as
+    WARNING and every subsequent failure in that flapping sequence as
+    DEBUG only -- it does not periodically re-warn while flapping.
     """
     delay = STREAM_RECONNECT_INIT_DELAY
     warned = False
@@ -78,7 +87,7 @@ async def _stream_supervisor(
             else:
                 _LOGGER.debug("Stream for %s still reconnecting", install.qual_id, exc_info=True)
             await asyncio.sleep(delay)
-            delay = delay * STREAM_RECONNECT_FACTOR
+            delay = min(delay * STREAM_RECONNECT_FACTOR, STREAM_RECONNECT_MAX_DELAY)
             delay = random.normalvariate(delay, delay * STREAM_RECONNECT_JITTER)
             delay = min(delay, STREAM_RECONNECT_MAX_DELAY)
         else:

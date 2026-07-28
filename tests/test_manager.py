@@ -7,7 +7,12 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from custom_components.zaptec.manager import _stream_supervisor
+from custom_components.zaptec import manager as manager_module
+from custom_components.zaptec.manager import (
+    STREAM_RECONNECT_INIT_DELAY,
+    STREAM_RECONNECT_MAX_DELAY,
+    _stream_supervisor,
+)
 
 
 def _fake_install() -> SimpleNamespace:
@@ -28,14 +33,38 @@ async def test_stream_supervisor_stops_when_stream_main_returns_normally() -> No
 
 @pytest.mark.asyncio
 async def test_stream_supervisor_retries_on_exception(monkeypatch: pytest.MonkeyPatch) -> None:
-    """A raised exception is retried, not left dead."""
+    """A raised exception is retried, not left dead, using the initial backoff delay."""
     install = _fake_install()
     install.stream_main.side_effect = [ConnectionError("boom"), None]
-    monkeypatch.setattr(asyncio, "sleep", AsyncMock())
+    sleep_mock = AsyncMock()
+    monkeypatch.setattr(asyncio, "sleep", sleep_mock)
+    # Neutralize jitter so the first delay is deterministically the init delay.
+    monkeypatch.setattr(manager_module.random, "normalvariate", lambda mu, sigma: mu)  # noqa: ARG005
 
     await _stream_supervisor(install, cb=AsyncMock(), ssl_context=None)
 
     assert install.stream_main.await_count == 2  # noqa: PLR2004
+    sleep_mock.assert_awaited_once()
+    (delay,), _ = sleep_mock.await_args
+    assert delay == pytest.approx(STREAM_RECONNECT_INIT_DELAY)
+
+
+@pytest.mark.asyncio
+async def test_stream_supervisor_backoff_never_exceeds_max_delay(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Across many consecutive failures, every sleep delay stays within the cap."""
+    install = _fake_install()
+    install.stream_main.side_effect = [ConnectionError("boom")] * 10 + [None]
+    sleep_mock = AsyncMock()
+    monkeypatch.setattr(asyncio, "sleep", sleep_mock)
+
+    await _stream_supervisor(install, cb=AsyncMock(), ssl_context=None)
+
+    assert install.stream_main.await_count == 11  # noqa: PLR2004
+    assert sleep_mock.await_count == 10  # noqa: PLR2004
+    for (delay,), _ in sleep_mock.await_args_list:
+        assert delay <= STREAM_RECONNECT_MAX_DELAY
 
 
 @pytest.mark.asyncio
@@ -83,8 +112,6 @@ async def test_stream_supervisor_resets_backoff_after_long_lived_connection(
     DEBUG instead (see test_stream_supervisor_logs_warning_once_then_debug
     for that same-outage case).
     """
-    from custom_components.zaptec import manager as manager_module  # noqa: PLC0415
-
     install = _fake_install()
     install.stream_main.side_effect = [ConnectionError("1"), ConnectionError("2"), None]
     monkeypatch.setattr(asyncio, "sleep", AsyncMock())
