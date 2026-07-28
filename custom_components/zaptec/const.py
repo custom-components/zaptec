@@ -36,6 +36,18 @@ ZAPTEC_POLL_CHARGER_TRIGGER_DELAYS = [2, 7, 15]
 ZAPTEC_POLL_INSTALLATION_TRIGGER_DELAYS = [2, 7]
 """Delays in seconds for installation state updates after a change."""
 
+STREAM_RECONNECT_INIT_DELAY = 1.0
+"""Initial delay in seconds before the first stream reconnect attempt."""
+
+STREAM_RECONNECT_FACTOR = 2.0
+"""Exponential backoff multiplier applied between stream reconnect attempts."""
+
+STREAM_RECONNECT_JITTER = 0.1
+"""Relative jitter applied to the stream reconnect backoff delay."""
+
+STREAM_RECONNECT_MAX_DELAY = 300.0
+"""Maximum delay in seconds between stream reconnect attempts (5 minutes)."""
+
 # This sets the delay after doing actions and the poll of updated values.
 # It was 0.3 and evidently that is a bit too fast for Zaptec cloud to handle.
 REQUEST_REFRESH_DELAY = 1
