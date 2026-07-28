@@ -471,10 +471,6 @@ class Installation(ZaptecBase):
                         # remove the msg from the "queue"
                         await receiver.complete_message(msg)
 
-        except Exception:
-            # Do this in order to show the error in the log.
-            _LOGGER.exception("Stream failed")
-
         finally:
             # Cleanup
             self._stream_receiver = None
