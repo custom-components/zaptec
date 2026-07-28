@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Iterable
+from collections.abc import Awaitable, Callable, Iterable
 import contextlib
 from copy import copy
 from dataclasses import dataclass
 import logging
+import random
+import ssl
+import time
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
@@ -15,7 +18,15 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity import DeviceInfo, EntityDescription
 from homeassistant.util.ssl import get_default_context
 
-from .const import DOMAIN, KEYS_TO_SKIP_ENTITY_AVAILABILITY_CHECK, MANUFACTURER
+from .const import (
+    DOMAIN,
+    KEYS_TO_SKIP_ENTITY_AVAILABILITY_CHECK,
+    MANUFACTURER,
+    STREAM_RECONNECT_FACTOR,
+    STREAM_RECONNECT_INIT_DELAY,
+    STREAM_RECONNECT_JITTER,
+    STREAM_RECONNECT_MAX_DELAY,
+)
 from .coordinator import ZaptecUpdateCoordinator
 from .entity import KeyUnavailableError, ZaptecBaseEntity
 from .zaptec import Charger, Installation, Zaptec, ZaptecBase
@@ -30,6 +41,48 @@ class ZaptecEntityDescription(EntityDescription):
     """Class describing Zaptec entities."""
 
     cls: type[ZaptecBaseEntity[Any]]
+
+
+async def _stream_supervisor(
+    install: Installation,
+    cb: Callable[[dict], Awaitable[None]],
+    ssl_context: ssl.SSLContext | None,
+) -> None:
+    """Run install.stream_main(), reconnecting after a transient failure.
+
+    stream_main() returning normally means a permanent stop (e.g. no
+    permission to the live stream) -- this loop ends without retrying. It
+    raising means a transient failure to retry with exponential backoff.
+    asyncio.CancelledError is a BaseException, not an Exception, so it is
+    never caught here: cancelling the task (integration unload/reload)
+    still stops this immediately, whether currently inside stream_main()
+    or in the backoff sleep below.
+    """
+    delay = STREAM_RECONNECT_INIT_DELAY
+    warned = False
+    while True:
+        connected_at = time.monotonic()
+        try:
+            await install.stream_main(cb=cb, ssl_context=ssl_context)
+        except Exception:
+            if time.monotonic() - connected_at >= STREAM_RECONNECT_MAX_DELAY:
+                # The previous connection lived long enough to count this
+                # as a fresh outage rather than a continuation of the last.
+                delay = STREAM_RECONNECT_INIT_DELAY
+                warned = False
+            if not warned:
+                _LOGGER.warning(
+                    "Stream for %s disconnected, reconnecting", install.qual_id, exc_info=True
+                )
+                warned = True
+            else:
+                _LOGGER.debug("Stream for %s still reconnecting", install.qual_id, exc_info=True)
+            await asyncio.sleep(delay)
+            delay = delay * STREAM_RECONNECT_FACTOR
+            delay = random.normalvariate(delay, delay * STREAM_RECONNECT_JITTER)
+            delay = min(delay, STREAM_RECONNECT_MAX_DELAY)
+        else:
+            return
 
 
 class ZaptecManager:
@@ -196,7 +249,8 @@ class ZaptecManager:
             if install.id in self.zaptec:
                 task = self.config_entry.async_create_background_task(
                     self.hass,
-                    install.stream_main(
+                    _stream_supervisor(
+                        install,
                         cb=self.stream_callback,
                         ssl_context=get_default_context(),
                     ),
