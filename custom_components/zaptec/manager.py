@@ -58,14 +58,10 @@ async def _stream_supervisor(
     still stops this immediately, whether currently inside stream_main()
     or in the backoff sleep below.
 
-    The first failure of an outage is logged at WARNING; subsequent
-    failures of the same outage are logged at DEBUG only. An outage is
-    considered "new" -- and thus re-warned -- only once the previous
-    connection stayed up for at least STREAM_RECONNECT_MAX_DELAY seconds
-    before failing again. A rapidly flapping stream (reconnecting and
-    failing faster than that) will therefore log its first failure as
-    WARNING and every subsequent failure in that flapping sequence as
-    DEBUG only -- it does not periodically re-warn while flapping.
+    The first failure of an outage logs at WARNING, later failures of the
+    same outage at DEBUG. An outage only counts as "new" once the prior
+    connection survived STREAM_RECONNECT_MAX_DELAY seconds -- a stream
+    flapping faster than that warns once, then stays at DEBUG.
     """
     delay = STREAM_RECONNECT_INIT_DELAY
     warned = False
