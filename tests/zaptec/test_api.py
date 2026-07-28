@@ -553,12 +553,7 @@ def test_stream_update_zero_guid_is_ignored() -> None:
 
 @pytest.mark.asyncio
 async def test_stream_main_propagates_non_forbidden_error() -> None:
-    """A non-403 error fetching stream connection details now propagates.
-
-    Previously this was swallowed internally (logged, then stream_main()
-    returned None) so a caller had no way to distinguish "transient
-    failure, please retry" from "stream ended cleanly". See issue #417.
-    """
+    """A non-403 error fetching stream connection details now propagates (issue #417)."""
     inst = Installation({"Id": "inst-1"}, _fake_owner())
     inst.live_stream_connection_details = AsyncMock(  # type: ignore[method-assign]
         side_effect=RequestError("server error", HTTPStatus.BAD_GATEWAY)
@@ -569,11 +564,7 @@ async def test_stream_main_propagates_non_forbidden_error() -> None:
 
 @pytest.mark.asyncio
 async def test_stream_main_forbidden_returns_none() -> None:
-    """A 403 fetching stream connection details still returns cleanly.
-
-    This remains the "permanent stop, don't retry" signal the stream
-    supervisor (manager.py) relies on.
-    """
+    """A 403 fetching stream connection details still returns cleanly."""
     inst = Installation({"Id": "inst-1"}, _fake_owner())
     inst.live_stream_connection_details = AsyncMock(  # type: ignore[method-assign]
         side_effect=RequestError("no access", HTTPStatus.FORBIDDEN)
