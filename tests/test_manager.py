@@ -106,28 +106,19 @@ async def test_stream_supervisor_resets_backoff_after_long_lived_connection(
 ) -> None:
     """A connection that outlived the max backoff delay counts as a fresh outage.
 
-    Verified indirectly through logging: each failure that's treated as a
-    *new* outage logs at WARNING (the "warned" flag resets alongside the
-    delay). If the reset didn't happen, the second failure would log at
-    DEBUG instead (see test_stream_supervisor_logs_warning_once_then_debug
-    for that same-outage case).
+    Verified via logging: a failure treated as a new outage warns again (see
+    test_stream_supervisor_logs_warning_once_then_debug for the same-outage
+    case, which stays at DEBUG).
     """
     install = _fake_install()
     install.stream_main.side_effect = [ConnectionError("1"), ConnectionError("2"), None]
     monkeypatch.setattr(asyncio, "sleep", AsyncMock())
     monkeypatch.setattr(manager_module, "STREAM_RECONNECT_MAX_DELAY", 100.0)
-    # 5 monotonic() calls total: connected_at + failure-check for each of the
-    # 2 failed attempts, plus connected_at for the 3rd (successful) attempt.
-    # The gap between attempt 2's connected_at (0.0) and its failure-check
-    # (200.0) exceeds MAX_DELAY (100.0), so that failure counts as a new
-    # outage rather than a continuation of the first.
-    # `next(clock, 500.0)` (not bare `next(clock)`): on Windows, asyncio's
-    # ProactorEventLoop calls time.monotonic() a few more times during event
-    # loop teardown, after _stream_supervisor has already returned. A bare
-    # next(clock) would raise StopIteration from inside asyncio's own
-    # teardown for those extra calls; the fallback keeps that harmless while
-    # the 5 calls _stream_supervisor actually makes still get the exact
-    # scripted sequence below.
+    # 5 monotonic() calls: connected_at + failure-check per failed attempt (x2),
+    # then connected_at for the successful 3rd. Attempt 2's gap (0.0 -> 200.0)
+    # exceeds MAX_DELAY (100.0), so it counts as a new outage.
+    # Fallback (not bare next(clock)): Windows' ProactorEventLoop calls
+    # monotonic() more times during teardown, after the coroutine has returned.
     clock = iter([0.0, 0.0, 0.0, 200.0, 500.0])
     monkeypatch.setattr(manager_module.time, "monotonic", lambda: next(clock, 500.0))
 
