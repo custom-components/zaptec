@@ -34,11 +34,14 @@ class ZaptecBinarySensor(ZaptecBaseEntity, BinarySensorEntity):
         self._attr_available = True
 
 
-class ZaptecBinarySensorWithAttrs(ZaptecBinarySensor):
-    """Zaptec binary sensor with additional attributes."""
+class ZaptecActiveBinarySensor(ZaptecBinarySensor):
+    """Zaptec 'active' binary sensor for the main charger/installation device.
+
+    Uses the bare Zaptec object id as the unique id (without the entity key
+    suffix) to preserve the historical entity identity.
+    """
 
     def _post_init(self) -> None:
-        self._attr_extra_state_attributes = self.zaptec_obj.asdict()
         self._attr_unique_id = self.zaptec_obj.id
 
 
@@ -55,7 +58,7 @@ INSTALLATION_ENTITIES: list[ZaptecEntityDescription] = [
         entity_category=const.EntityCategory.DIAGNOSTIC,
         icon="mdi:cloud",
         has_entity_name=False,
-        cls=ZaptecBinarySensorWithAttrs,
+        cls=ZaptecActiveBinarySensor,
     ),
     ZapBinarySensorEntityDescription(
         # The Zaptec API is not consistent with the naming of the usage of
@@ -77,7 +80,7 @@ CHARGER_ENTITIES: list[ZaptecEntityDescription] = [
         entity_category=const.EntityCategory.DIAGNOSTIC,
         icon="mdi:cloud",
         has_entity_name=False,
-        cls=ZaptecBinarySensorWithAttrs,
+        cls=ZaptecActiveBinarySensor,
     ),
     ZapBinarySensorEntityDescription(
         key="is_online",

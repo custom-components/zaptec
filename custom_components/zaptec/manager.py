@@ -173,7 +173,9 @@ class ZaptecManager:
                 )
 
             elif isinstance(obj, Charger):
-                info = DeviceInfo()
+                # Expose the Zaptec device id as the device serial number, matching
+                # what the Zaptec app shows as the charger serial.
+                info = DeviceInfo(serial_number=obj.get("DeviceId"))
                 if obj.installation:
                     info["via_device"] = (DOMAIN, obj.installation.id)
 
