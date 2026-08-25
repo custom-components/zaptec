@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Container
 import logging
 
 from homeassistant.config_entries import ConfigEntry
@@ -15,6 +16,7 @@ from .const import (
     CONF_CHARGERS,
     CONF_MANUAL_SELECT,
     CONF_PREFIX,
+    DOMAIN,
     REDACT_DUMP_ON_STARTUP,
     REDACT_LOGS,
     ZAPTEC_POLL_INTERVAL_BUILD,
@@ -109,7 +111,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         raise _config_entry_error(err) from err
 
     # Get the structure of devices from Zaptec and determine the zaptec objects to track
-    tracked_devices = await ZaptecManager.first_time_setup(
+    tracked_devices, all_selected_present = await ZaptecManager.first_time_setup(
         zaptec=zaptec,
         configured_chargers=configured_chargers,
     )
@@ -218,7 +220,43 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Make a set of the circuit ids from zaptec to check for deprecated Circuit-devices
     circuit_ids = {cid for c in manager.zaptec.chargers if (cid := c.get("CircuitId"))}
 
-    # Clean up unused device entries with no entities
+    # Removal needs both: track-all mode has no deselection to detect, and a partial
+    # API response is indistinguishable from one.
+    manual_select = configured_chargers is not None
+    check_untracked = manual_select and all_selected_present
+
+    if manual_select and not all_selected_present:
+        _LOGGER.warning(
+            "One or more selected chargers were not returned by the Zaptec API "
+            "this session; skipping removal of untracked devices to avoid deleting "
+            "a still-selected charger due to a transient/partial response"
+        )
+
+    _cleanup_devices(
+        hass,
+        entry,
+        manager.tracked_devices,
+        circuit_ids,
+        check_untracked=check_untracked,
+    )
+
+    return True
+
+
+def _cleanup_devices(
+    hass: HomeAssistant,
+    entry: ZaptecConfigEntry,
+    tracked_devices: Container[str],
+    circuit_ids: Container[str],
+    check_untracked: bool,
+) -> None:
+    """Remove device entries that no longer belong to this config entry.
+
+    Handles devices with no entities, deprecated Circuit-devices, and - only when
+    `check_untracked` - devices whose zaptec id is no longer tracked. Passing
+    `check_untracked` while `tracked_devices` may be incomplete would permanently
+    delete a still-selected charger's device.
+    """
     device_registry = dr.async_get(hass)
     entity_registry = er.async_get(hass)
 
@@ -232,20 +270,32 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         if not dev_entities:
             device_registry.async_remove_device(dev.id)
             continue
-        # identifiers is a set with a (single) tuple ('zaptec', '<zaptec_id>')
-        for _, zap_dev_id in dev.identifiers:
+        for domain, zap_dev_id in dev.identifiers:
+            # A foreign id is never in tracked_devices, so without this the
+            # untracked check would delete the device.
+            if domain != DOMAIN:
+                continue
             if zap_dev_id in circuit_ids:
                 _LOGGER.warning(
                     "Detected deprecated Circuit device %s, "
                     "removing device and associated entities",
                     zap_dev_id,
                 )
-                for ent in dev_entities:
-                    _LOGGER.debug("Deleting entity %s", ent.entity_id)
-                    entity_registry.async_remove(ent.entity_id)
-                device_registry.async_remove_device(dev.id)
+            elif check_untracked and zap_dev_id not in tracked_devices:
+                _LOGGER.warning(
+                    "Detected stale device %s no longer selected, "
+                    "removing device and associated entities",
+                    zap_dev_id,
+                )
+            else:
+                continue
 
-    return True
+            for ent in dev_entities:
+                _LOGGER.debug("Deleting entity %s", ent.entity_id)
+                entity_registry.async_remove(ent.entity_id)
+            device_registry.async_remove_device(dev.id)
+            # Removing twice would raise KeyError, so stop at the first matching id.
+            break
 
 
 def remove_deprecated_entities(hass: HomeAssistant, entry: ZaptecConfigEntry) -> None:

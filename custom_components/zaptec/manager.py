@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Iterable
+from collections.abc import Collection, Iterable
 import contextlib
 from copy import copy
 from dataclasses import dataclass
@@ -174,7 +174,7 @@ class ZaptecManager:
 
             elif isinstance(obj, Charger):
                 info = DeviceInfo()
-                if obj.installation:
+                if obj.installation is not None:
                     info["via_device"] = (DOMAIN, obj.installation.id)
 
                 entities.extend(
@@ -229,8 +229,16 @@ class ZaptecManager:
         coordinator.async_update_listeners()
 
     @staticmethod
-    async def first_time_setup(zaptec: Zaptec, configured_chargers: set[str] | None) -> set[str]:
-        """Run the first time setup for the account."""
+    async def first_time_setup(
+        zaptec: Zaptec, configured_chargers: Collection[str] | None
+    ) -> tuple[set[str], bool]:
+        """Run the first time setup for the account.
+
+        Returns the tracked device ids, plus False if a selected charger was missing
+        from the Zaptec API this session. Callers must not treat a device as
+        user-deselected while that is False - a transient partial response would
+        look identical to a deselection.
+        """
         _LOGGER.debug("Running first time setup")
 
         # Build the Zaptec hierarchy
@@ -238,15 +246,18 @@ class ZaptecManager:
 
         all_objects = set(zaptec)
         tracked_devices = all_objects
+        all_selected_present = True
 
         # Selected chargers to add
         if configured_chargers is not None:
             _LOGGER.debug("Configured chargers: %s", configured_chargers)
             want = set(configured_chargers)
 
-            # Log if there are any objects listed not found in Zaptec
-            if not_present := want - all_objects:
+            # Chargers, not every zaptec object: only chargers reach `keep`, so a
+            # non-charger id would count as present but drop out of tracked_devices.
+            if not_present := want - {charger.id for charger in zaptec.chargers}:
                 _LOGGER.error("Charger objects %s not found", not_present)
+                all_selected_present = False
 
             # Calculate the objects to keep. From the list of chargers we
             # want to keep, we also want to keep the installation objects.
@@ -254,7 +265,9 @@ class ZaptecManager:
             for charger in zaptec.chargers:
                 if charger.id in want:
                     keep.add(charger.id)
-                    if charger.installation:
+                    # `is not None`, not truthiness: ZaptecBase is a Mapping, so an
+                    # attribute-less installation is falsy - and untracked means deleted.
+                    if charger.installation is not None:
                         keep.add(charger.installation.id)
 
             if not keep:
@@ -263,4 +276,4 @@ class ZaptecManager:
             # These objects will be updated by the coordinator
             tracked_devices = keep
 
-        return tracked_devices
+        return tracked_devices, all_selected_present

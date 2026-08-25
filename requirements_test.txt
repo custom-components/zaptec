@@ -2,3 +2,5 @@ pytest
 pytest-asyncio
 pytest-mock
 pytest-cov
+pytest-homeassistant-custom-component==0.13.324; python_version >= "3.14"
+pytest-homeassistant-custom-component==0.13.316; python_version < "3.14"
