@@ -55,12 +55,18 @@ Confirmed to work with Zaptec products
   [here](https://www.home-assistant.io/common-tasks/general/#defining-a-custom-polling-interval),
   will have unexpected effects. If the automatic polling is turned off, not all
   the data in the integration will update properly.
-* Using the _Energy Meter_ entity as an input to the Energy Dashboard will give values that are delayed by 1 hour
-  in the graphs (see [issue 162](https://github.com/custom-components/zaptec/issues/162) for details).
-  There is a plan to solve this in [issue 300](https://github.com/custom-components/zaptec/issues/300), but until that is implemented,
-  a workaround is to use the more frequently updated _Session total charge_ entity instead. This reduces the delay-issue,
-  but has a separate drawback where a restart of Home Assistant during a charging session can give a fake spike in the logged
-  consumption that needs to be manually edited using "Adjust sum" in the Statistics tab of the Developer tools dashboard.
+* Using the _Energy Meter_ entity directly as an input to the Energy Dashboard will still give values delayed by up to an hour
+  in the graphs, since that entity reflects live (polling-delayed) state (see [issue 162](https://github.com/custom-components/zaptec/issues/162)).
+  Each tracked charger now also gets a separate, invisible statistics feed (backdated hourly from Zaptec's charge history)
+  that appears in the Energy Dashboard's device picker
+  as "<charger name> Energy" - use that entry instead of _Energy Meter_ or _Session total charge_ for accurate,
+  correctly-timed consumption graphs.
+  Because it is built from completed charge sessions and imported hourly, the most recent hour or two can lag -
+  an active session's energy only appears once that session ends and the next import runs - so it is meant for
+  accurate historical graphs rather than real-time monitoring (the _Energy Meter_ sensor covers the live view).
+  This feed requires Home Assistant's [Recorder](https://www.home-assistant.io/integrations/recorder/)
+  integration (enabled by default). If you have disabled the recorder, the "<charger name> Energy" entry
+  simply isn't created - the rest of the integration continues to work as normal.
 
 ## Features missing from the API
 

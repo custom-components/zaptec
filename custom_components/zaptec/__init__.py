@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 
+from homeassistant.components.recorder import DOMAIN as RECORDER_DOMAIN
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_PASSWORD, CONF_USERNAME, Platform
 from homeassistant.core import HomeAssistant
@@ -25,9 +26,11 @@ from .const import (
 from .coordinator import ZaptecUpdateCoordinator, ZaptecUpdateOptions
 from .manager import ZaptecConfigEntry, ZaptecManager
 from .services import async_setup_services, async_unload_services
+from .statistics import ZaptecStatisticsCoordinator
 from .zaptec import (
     RETRYABLE_HTTP_STATUSES,
     AuthenticationError,
+    Charger,
     Installation,
     RequestConnectionError,
     RequestError,
@@ -185,9 +188,26 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             ),
         )
 
+    # One statistics coordinator per tracked charger, backdating hourly energy
+    # into the Energy Dashboard. Recorder is an after_dependency, so
+    # if it's disabled we skip only this feed, not the whole integration.
+    if RECORDER_DOMAIN in hass.config.components:
+        for deviceid in tracked_devices:
+            zaptec_obj = zaptec[deviceid]
+            if isinstance(zaptec_obj, Charger):
+                manager.statistics_coordinators[deviceid] = ZaptecStatisticsCoordinator(
+                    hass, entry=entry, charger=zaptec_obj
+                )
+    else:
+        _LOGGER.debug("Recorder not enabled; skipping energy-statistics import")
+
     # Initialize the coordinators
     for co in manager.all_coordinators:
         await co.async_config_entry_first_refresh()
+    # async_refresh (not async_config_entry_first_refresh): a failure on this
+    # secondary, Owner-only feed must not abort setup of the whole config entry.
+    for co in manager.statistics_coordinators.values():
+        await co.async_refresh()
 
     # Done setting up, change back to not log all updates. Having this enabled
     # will create a lot of debug log output.
