@@ -55,13 +55,10 @@ def test_user_roles() -> None:
     assert ZCONST.type_user_roles(0) == "None"
     assert ZCONST.type_user_roles(1) == "User"
     assert ZCONST.type_user_roles(2) == "Owner"
-    user_role_3 = ZCONST.type_user_roles(3)
-    assert "Owner" in user_role_3
-    assert "User" in user_role_3
+    assert ZCONST.type_user_roles(3) == "User, Owner"
     assert ZCONST.type_user_roles(4) == "Maintainer"
-    user_role_5 = ZCONST.type_user_roles(5)
-    assert "User" in user_role_5
-    assert "Maintainer" in user_role_5
+    assert ZCONST.type_user_roles(5) == "User, Maintainer"
+    assert ZCONST.type_user_roles(7) == "User, Owner, Maintainer"
 
 
 def test_authentication_types() -> None:

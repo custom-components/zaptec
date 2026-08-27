@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
-from .api import Charger, Installation, Zaptec, ZaptecBase
+from .api import Charger, Installation, Zaptec, ZaptecBase, has_write_role
 from .const import MISSING, RETRYABLE_HTTP_STATUSES, Missing
 from .exceptions import (
     AuthenticationError,
+    InsufficientRoleError,
     RequestConnectionError,
     RequestDataError,
     RequestError,
@@ -24,6 +25,7 @@ __all__ = [
     "AuthenticationError",
     "Charger",
     "Installation",
+    "InsufficientRoleError",
     "Missing",
     "Redactor",
     "RequestConnectionError",
@@ -35,4 +37,5 @@ __all__ = [
     "ZaptecApiError",
     "ZaptecBase",
     "get_ocmf_max_reader_value",
+    "has_write_role",
 ]

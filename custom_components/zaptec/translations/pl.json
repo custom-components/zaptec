@@ -192,5 +192,15 @@
                 "name": "Aktualizacja oprogramowania"
             }
         }
+    },
+    "issues": {
+        "insufficient_charger_role": {
+            "title": "Ograniczony dostęp do ładowarek w {installation_name}",
+            "description": "Konto Zaptec używane przez tę integrację nie ma roli Owner ani Service dla następujących ładowarek w instalacji „{installation_name}”: {chargers}. Zmiana ich ustawień lub wysyłanie do nich poleceń, takich jak ponowne uruchomienie, wymaga roli Owner lub Service.\n\nAby włączyć te funkcje, nadaj temu kontu dostęp Owner lub Service dla tych ładowarek w portalu Zaptec."
+        },
+        "insufficient_role": {
+            "title": "Ograniczony dostęp do {installation_name}",
+            "description": "Konto Zaptec używane przez tę integrację ma tylko następującą rolę (role) w instalacji „{installation_name}”: {role}. Zmiana dostępnego prądu lub progu przełączania 3-fazowego na 1-fazowe wymaga roli Owner lub Service.\n\nAby włączyć te funkcje, nadaj temu kontu dostęp Owner lub Service dla tej instalacji w portalu Zaptec."
+        }
     }
 }

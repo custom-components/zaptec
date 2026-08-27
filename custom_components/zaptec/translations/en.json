@@ -192,5 +192,15 @@
                 "name": "Firmware update"
             }
         }
+    },
+    "issues": {
+        "insufficient_charger_role": {
+            "title": "Limited access to chargers in {installation_name}",
+            "description": "The Zaptec account used by this integration does not have the Owner or Service role on the following charger(s) in installation \"{installation_name}\": {chargers}. Changing their settings or sending them commands, such as restart, requires the Owner or Service role.\n\nTo enable these controls, grant Owner or Service access for those chargers to this account in the Zaptec Portal."
+        },
+        "insufficient_role": {
+            "title": "Limited access to {installation_name}",
+            "description": "The Zaptec account used by this integration only has the following role(s) on installation \"{installation_name}\": {role}. Changing the available current or the 3-to-1 phase switch current requires the Owner or Service role.\n\nTo enable these controls, grant Owner or Service access for this installation to this account in the Zaptec Portal."
+        }
     }
 }

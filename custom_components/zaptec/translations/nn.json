@@ -192,5 +192,15 @@
                 "name": "Fastvareoppdatering"
             }
         }
+    },
+    "issues": {
+        "insufficient_charger_role": {
+            "title": "Avgrensa tilgang til ladarar i {installation_name}",
+            "description": "Zaptec-kontoen som blir brukt av denne integrasjonen har ikkje Owner- eller Service-rolla på følgjande ladar(ar) i installasjonen «{installation_name}»: {chargers}. Å endre innstillingane deira eller sende dei kommandoar, som omstart, krev Owner- eller Service-rolla.\n\nFor å aktivere desse kontrollane, gi Owner- eller Service-tilgang for desse ladarane til denne kontoen i Zaptec Portal."
+        },
+        "insufficient_role": {
+            "title": "Avgrensa tilgang til {installation_name}",
+            "description": "Zaptec-kontoen som blir brukt av denne integrasjonen har berre følgjande rolle(r) på installasjonen «{installation_name}»: {role}. Å endre tilgjengeleg straum eller 3-til-1-fase bytteterskel krev Owner- eller Service-rolla.\n\nFor å aktivere desse kontrollane, gi Owner- eller Service-tilgang for denne installasjonen til denne kontoen i Zaptec Portal."
+        }
     }
 }
