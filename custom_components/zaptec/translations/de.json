@@ -48,6 +48,13 @@
                     "on": "Erforderlich"
                 }
             },
+            "authorized": {
+                "name": "Autorisiert",
+                "state": {
+                    "off": "Nicht autorisiert",
+                    "on": "Autorisiert"
+                }
+            },
             "online": {
                 "name": "Online"
             }
@@ -98,6 +105,9 @@
                     "webhooks": "Web Hooks"
                 }
             },
+            "authorized_by": {
+                "name": "Autorisiert von"
+            },
             "available_current_phase1": {
                 "name": "Verfügbarer Strom Phase 1"
             },
@@ -119,6 +129,9 @@
                     "disconnected": "Getrennt",
                     "unknown": "Unbekannt"
                 }
+            },
+            "completed_session_authorized_by": {
+                "name": "Letzte Ladesitzung autorisiert von"
             },
             "completed_session_energy": {
                 "name": "Energie der abgeschlossenen Ladesitzung"

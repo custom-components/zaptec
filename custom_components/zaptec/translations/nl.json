@@ -48,6 +48,13 @@
                     "on": "Vereist"
                 }
             },
+            "authorized": {
+                "name": "Geautoriseerd",
+                "state": {
+                    "off": "Niet geautoriseerd",
+                    "on": "Geautoriseerd"
+                }
+            },
             "online": {
                 "name": "Online"
             }
@@ -98,6 +105,9 @@
                     "webhooks": "Web hooks"
                 }
             },
+            "authorized_by": {
+                "name": "Geautoriseerd door"
+            },
             "available_current_phase1": {
                 "name": "Beschikbare stroom fase1"
             },
@@ -119,6 +129,9 @@
                     "disconnected": "Losgekoppeld",
                     "unknown": "Onbekend"
                 }
+            },
+            "completed_session_authorized_by": {
+                "name": "Laatste sessie geautoriseerd door"
             },
             "completed_session_energy": {
                 "name": "Laatste laadsessie"

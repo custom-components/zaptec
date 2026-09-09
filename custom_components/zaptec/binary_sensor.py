@@ -14,6 +14,7 @@ from homeassistant.components.binary_sensor import (
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
+from .authorization import is_authorized
 from .entity import ZaptecBaseEntity
 from .manager import ZaptecConfigEntry, ZaptecEntityDescription
 
@@ -40,6 +41,22 @@ class ZaptecBinarySensorWithAttrs(ZaptecBinarySensor):
     def _post_init(self) -> None:
         self._attr_extra_state_attributes = self.zaptec_obj.asdict()
         self._attr_unique_id = self.zaptec_obj.id
+
+
+class ZaptecAuthorizedBinarySensor(ZaptecBinarySensor):
+    """Binary sensor for whether the current session is authorized."""
+
+    @callback
+    def _update_from_zaptec(self) -> None:
+        """Update the entity from Zaptec data."""
+        # Called from ZaptecBaseEntity._handle_coordinator_update()
+        if self._get_zaptec_value(key="authentication_required", default=None) is False:
+            # Nothing ever authorizes, so "Not authorized" would mislead.
+            self._attr_is_on = None
+        else:
+            # A charger that has never had a session lacks the key entirely.
+            self._attr_is_on = is_authorized(self._get_zaptec_value(default=None))
+        self._attr_available = True
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -93,6 +110,14 @@ CHARGER_ENTITIES: list[ZaptecEntityDescription] = [
         entity_category=const.EntityCategory.DIAGNOSTIC,
         icon="mdi:lock",
         cls=ZaptecBinarySensor,
+    ),
+    ZapBinarySensorEntityDescription(
+        # Not diagnostic: with delayed charging the mode stays
+        # Connected_Requesting whether or not it is authorized.
+        key="charger_current_user_uuid",
+        translation_key="authorized",
+        icon="mdi:lock-open-check",
+        cls=ZaptecAuthorizedBinarySensor,
     ),
 ]
 
