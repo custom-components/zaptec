@@ -36,6 +36,13 @@ ZAPTEC_POLL_CHARGER_TRIGGER_DELAYS = [2, 7, 15]
 ZAPTEC_POLL_INSTALLATION_TRIGGER_DELAYS = [2, 7]
 """Delays in seconds for installation state updates after a change."""
 
+STREAM_POLL_TRIGGER_OBSERVATIONS = frozenset({"710", "721"})
+"""Observation ids that trigger a poll when streamed. Use strings.
+
+710 is ChargerOperationMode and 721 is SessionIdentifier. ChargerCurrentUserUuid
+and CompletedSession change with them but are never streamed, so only a poll
+picks them up."""
+
 # This sets the delay after doing actions and the poll of updated values.
 # It was 0.3 and evidently that is a bit too fast for Zaptec cloud to handle.
 REQUEST_REFRESH_DELAY = 1
