@@ -111,14 +111,14 @@ class ZaptecSettingNumber(ZaptecNumber[Charger]):
             raise HomeAssistantError(f"No setting for {self.__class__.__qualname__}.{self.key}")
 
         if setting == "minChargeCurrent":
-            max_current = self.zaptec_obj.get("charger_max_current")
-            if isinstance(max_current, (int, float)) and value > max_current:
+            max_current: float | None = self.zaptec_obj.get("charger_max_current")
+            if max_current is not None and value > max_current:
                 raise HomeAssistantError(
                     f"Min current {value} cannot be higher than max current {max_current}"
                 )
         elif setting == "maxChargeCurrent":
-            min_current = self.zaptec_obj.get("charger_min_current")
-            if isinstance(min_current, (int, float)) and value < min_current:
+            min_current: float | None = self.zaptec_obj.get("charger_min_current")
+            if min_current is not None and value < min_current:
                 raise HomeAssistantError(
                     f"Max current {value} cannot be lower than min current {min_current}"
                 )
