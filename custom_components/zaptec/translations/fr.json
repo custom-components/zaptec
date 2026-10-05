@@ -198,7 +198,7 @@
             "message": "{action} a échoué."
         },
         "api_error_apm": {
-            "message": "{action} a échoué : impossible de modifier le réglage demandé tant que l'installation utilise la Recharge automatique (Zaptec Sense ou une gestion d'énergie similaire)."
+            "message": "{action} a échoué : impossible de modifier le réglage demandé tant que l'installation est en mode « Recharge automatique » (Zaptec Sense ou une gestion d'énergie similaire)."
         },
         "api_error_charger_state": {
             "message": "{action} a échoué : l'état actuel de la borne n'autorise pas cette opération."
@@ -213,7 +213,7 @@
             "message": "{action} a échoué : {details}"
         },
         "api_error_scheduled": {
-            "message": "{action} a échoué : impossible de modifier le réglage demandé tant que l'installation utilise la Recharge programmée."
+            "message": "{action} a échoué : impossible de modifier le réglage demandé tant que l'installation est en mode « Recharge programmée »."
         }
     }
 }

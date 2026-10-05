@@ -198,7 +198,7 @@
             "message": "{action} fehlgeschlagen."
         },
         "api_error_apm": {
-            "message": "{action} fehlgeschlagen: Die angeforderte Einstellung kann nicht geändert werden, solange die Installation Automatisches Laden (Zaptec Sense oder eine ähnliche Laststeuerung) verwendet."
+            "message": "{action} fehlgeschlagen: Die angeforderte Einstellung kann nicht geändert werden, solange sich die Installation im Modus „Automatisches Laden“ befindet (Zaptec Sense oder eine ähnliche Laststeuerung)."
         },
         "api_error_charger_state": {
             "message": "{action} fehlgeschlagen: Der aktuelle Zustand der Ladestation lässt diesen Vorgang nicht zu."
@@ -213,7 +213,7 @@
             "message": "{action} fehlgeschlagen: {details}"
         },
         "api_error_scheduled": {
-            "message": "{action} fehlgeschlagen: Die angeforderte Einstellung kann nicht geändert werden, solange die Installation Geplantes Laden verwendet."
+            "message": "{action} fehlgeschlagen: Die angeforderte Einstellung kann nicht geändert werden, solange sich die Installation im Modus „Geplantes Laden“ befindet."
         }
     }
 }

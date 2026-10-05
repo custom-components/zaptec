@@ -198,7 +198,7 @@
             "message": "{action} misslyckades."
         },
         "api_error_apm": {
-            "message": "{action} misslyckades: den begärda inställningen kan inte ändras medan installationen använder Automatisk laddning (Zaptec Sense eller liknande effektstyrning)."
+            "message": "{action} misslyckades: den begärda inställningen kan inte ändras medan installationen är i läget ”Automatisk laddning” (Zaptec Sense eller liknande effektstyrning)."
         },
         "api_error_charger_state": {
             "message": "{action} misslyckades: laddarens nuvarande tillstånd tillåter inte den här åtgärden."
@@ -213,7 +213,7 @@
             "message": "{action} misslyckades: {details}"
         },
         "api_error_scheduled": {
-            "message": "{action} misslyckades: den begärda inställningen kan inte ändras medan installationen använder Schemalagd laddning."
+            "message": "{action} misslyckades: den begärda inställningen kan inte ändras medan installationen är i läget ”Schemalagd laddning”."
         }
     }
 }

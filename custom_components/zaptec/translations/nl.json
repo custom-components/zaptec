@@ -198,7 +198,7 @@
             "message": "{action} is mislukt."
         },
         "api_error_apm": {
-            "message": "{action} is mislukt: de gevraagde instelling kan niet worden gewijzigd zolang de installatie Automatisch laden (Zaptec Sense of vergelijkbaar energiebeheer) gebruikt."
+            "message": "{action} is mislukt: de gevraagde instelling kan niet worden gewijzigd zolang de installatie in de modus \"Automatisch laden\" staat (Zaptec Sense of vergelijkbaar energiebeheer)."
         },
         "api_error_charger_state": {
             "message": "{action} is mislukt: de huidige status van het laadstation staat deze bewerking niet toe."
@@ -213,7 +213,7 @@
             "message": "{action} is mislukt: {details}"
         },
         "api_error_scheduled": {
-            "message": "{action} is mislukt: de gevraagde instelling kan niet worden gewijzigd zolang de installatie Gepland laden gebruikt."
+            "message": "{action} is mislukt: de gevraagde instelling kan niet worden gewijzigd zolang de installatie in de modus \"Gepland laden\" staat."
         }
     }
 }

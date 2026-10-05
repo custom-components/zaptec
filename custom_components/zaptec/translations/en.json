@@ -198,7 +198,7 @@
             "message": "{action} failed."
         },
         "api_error_apm": {
-            "message": "{action} failed: cannot change the requested setting while the installation is using Automatic charging (Zaptec Sense or similar power management)."
+            "message": "{action} failed: cannot change the requested setting while the installation is in \"Automatic charging\" mode (Zaptec Sense or similar power management)."
         },
         "api_error_charger_state": {
             "message": "{action} failed: the charger's current state does not allow this operation."
@@ -213,7 +213,7 @@
             "message": "{action} failed: {details}"
         },
         "api_error_scheduled": {
-            "message": "{action} failed: cannot change the requested setting while the installation is using Scheduled charging."
+            "message": "{action} failed: cannot change the requested setting while the installation is in \"Scheduled charging\" mode."
         }
     }
 }

@@ -198,7 +198,7 @@
             "message": "{action} mislukkast."
         },
         "api_error_apm": {
-            "message": "{action} mislukkast: den førespurde innstillinga kan ikkje endrast medan installasjonen brukar Automatisk lading (Zaptec Sense eller liknande effektstyring)."
+            "message": "{action} mislukkast: den førespurde innstillinga kan ikkje endrast medan installasjonen er i modusen «Automatisk lading» (Zaptec Sense eller liknande effektstyring)."
         },
         "api_error_charger_state": {
             "message": "{action} mislukkast: den noverande tilstanden til ladaren tillèt ikkje denne handlinga."
@@ -213,7 +213,7 @@
             "message": "{action} mislukkast: {details}"
         },
         "api_error_scheduled": {
-            "message": "{action} mislukkast: den førespurde innstillinga kan ikkje endrast medan installasjonen brukar Planlagd lading."
+            "message": "{action} mislukkast: den førespurde innstillinga kan ikkje endrast medan installasjonen er i modusen «Planlagd lading»."
         }
     }
 }
