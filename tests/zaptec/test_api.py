@@ -381,6 +381,19 @@ def test_state_to_attrs_skips_missing_key_and_missing_value() -> None:
     assert out == {}
 
 
+def test_state_to_attrs_clears_session_observation_without_value() -> None:
+    """A session observation sent without a value clears the attribute.
+
+    Zaptec signals "no session" by sending SessionIdentifier (721) and
+    ChargerCurrentUserUuid (722) with no ValueAsString at all, rather than
+    with an empty value.
+    """
+    data = [{"StateId": 721}, {"StateId": 722}]
+    keydict = {721: "SessionIdentifier", 722: "ChargerCurrentUserUuid"}
+    out = ZaptecBase.state_to_attrs(data, "StateId", keydict)
+    assert out == {"SessionIdentifier": "", "ChargerCurrentUserUuid": ""}
+
+
 def test_state_to_attrs_excludes() -> None:
     """Excluded ids are dropped."""
     data = [
@@ -882,6 +895,30 @@ async def test_poll_state_happy_path(monkeypatch: pytest.MonkeyPatch) -> None:
     _, url, _ = session.calls[-1]
     assert url.endswith("chargers/c1/state")
     charger.set_attributes.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_poll_state_clears_session_attribute_when_value_is_gone(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A session that ends clears the attribute instead of leaving it stale."""
+    monkeypatch.setattr(ZCONST, "observations", {722: "ChargerCurrentUserUuid"}, raising=False)
+    monkeypatch.setattr("custom_components.zaptec.zaptec.api.validate", Mock())
+    charger, _ = _charger_with_session(
+        [
+            FakeResponse(
+                HTTPStatus.OK,
+                json_data=[{"StateId": 722, "ValueAsString": "nfc-abc123"}],
+            ),
+            FakeResponse(HTTPStatus.OK, json_data=[{"StateId": 722}]),
+        ]
+    )
+
+    await charger.poll_state()
+    assert charger.get("charger_current_user_uuid") == "nfc-abc123"
+
+    await charger.poll_state()
+    assert charger.get("charger_current_user_uuid") == ""
 
 
 @pytest.mark.asyncio

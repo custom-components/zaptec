@@ -32,6 +32,7 @@ from .const import (
     API_TIMEOUT,
     API_URL,
     CHARGER_EXCLUDES,
+    CLEARABLE_OBSERVATIONS,
     DEFAULT_MAX_CURRENT,
     MAX_DEBUG_TEXT_LEN_ON_500,
     MISSING,
@@ -220,6 +221,8 @@ class ZaptecBase(Mapping[str, TValue]):
                 _LOGGER.debug("Excluding key %s entry: %s", skey, item)
                 continue
             value = item.get("Value", item.get("ValueAsString", MISSING))
+            if value is MISSING and str(skey) in CLEARABLE_OBSERVATIONS:
+                value = ""
             if value is not MISSING:
                 kv = keydict.get(skey, f"{key} {skey}")
                 if kv in out:
