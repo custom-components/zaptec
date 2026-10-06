@@ -174,7 +174,7 @@
                 "name": "Temperatura (wewnętrzna)"
             },
             "total_charge_power_session": {
-                "name": "Łączna moc ładowania sesji"
+                "name": "Łączna energia ładowania sesji"
             },
             "total_charge_power": {
                 "name": "Moc ładowania"
