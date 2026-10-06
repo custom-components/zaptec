@@ -22,6 +22,7 @@ from .const import (
     DOMAIN,
     KEYS_TO_SKIP_ENTITY_AVAILABILITY_CHECK,
     MANUFACTURER,
+    STREAM_POLL_TRIGGER_OBSERVATIONS,
     STREAM_RECONNECT_FACTOR,
     STREAM_RECONNECT_INIT_DELAY,
     STREAM_RECONNECT_JITTER,
@@ -299,6 +300,9 @@ class ZaptecManager:
             )
             return
         coordinator.async_update_listeners()
+
+        if str(event.get("StateId")) in STREAM_POLL_TRIGGER_OBSERVATIONS:
+            await coordinator.trigger_poll()
 
     @staticmethod
     async def first_time_setup(zaptec: Zaptec, configured_chargers: set[str] | None) -> set[str]:
