@@ -73,7 +73,7 @@ restart_charger:
       description: Charger identifier
       example: 00000000-1111-2222-3333-444444444444
 
-update_firmware:
+upgrade_firmware:
   name: Update firmware
   description: >-
     Send update firmware request to the charger. Select charger

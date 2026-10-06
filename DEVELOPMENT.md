@@ -163,6 +163,24 @@ To run tests and check test coverage:
    report, or enable the "Coverage Gutters" extension to view the coverage
    directly in VSCode.
 
+The suite runs as **two pytest invocations**, and `./scripts/test` runs both:
+
+- **HA-integration tests** (`tests/test_*.py`) run under the
+  `pytest-homeassistant-custom-component` harness, which autoloads on Linux.
+  Run directly with:
+  `pytest tests --ignore=tests/zaptec --cov=./custom_components/zaptec --cov-branch`
+- **API-client tests** (`tests/zaptec/*`) test the vendored `zaptec/` client,
+  which is destined to become a standalone PyPI library (issue #257) and has no
+  Home Assistant dependency. They run as plain pytest with the harness disabled
+  (the harness blocks non-localhost sockets, which would break their live
+  `api.zaptec.com/api/constants` call):
+  `pytest tests/zaptec -p no:homeassistant --cov=./custom_components/zaptec --cov-branch --cov-append`
+
+Because the harness (and its socket block) is process-wide, a bare `pytest`
+is not the entry point — use `./scripts/test` or the two commands above. The
+HA-integration tests require Linux; run them in the Dev Container (native
+Windows is not supported for that half). `tests/zaptec/*` run anywhere.
+
 HA requires [95% coverage](https://developers.home-assistant.io/docs/core/integration-quality-scale/rules/test-coverage/)
 for all core integration modules, and while HACS doesn't have the same
 requirements, reaching this level is still a goal for this integration.
