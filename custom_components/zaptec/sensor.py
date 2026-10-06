@@ -16,6 +16,7 @@ from homeassistant.components.sensor import (
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
+from .authorization import authorization_label
 from .entity import ZaptecBaseEntity
 from .manager import ZaptecConfigEntry, ZaptecEntityDescription
 from .zaptec import ZCONST, get_ocmf_max_reader_value
@@ -126,6 +127,18 @@ class ZaptecEnengySensor(ZaptecSensor):
             session_reading = 0.0
 
         self._attr_native_value = max(reading, session_reading)
+        self._attr_available = True
+
+
+class ZaptecAuthorizedBySensor(ZaptecSensor):
+    """Sensor for who/what authorized a charging session."""
+
+    @callback
+    def _update_from_zaptec(self) -> None:
+        """Update the entity from Zaptec data."""
+        # Called from ZaptecBaseEntity._handle_coordinator_update()
+        # A charger that has never had a session lacks the key entirely.
+        self._attr_native_value = authorization_label(self._get_zaptec_value(default=None))
         self._attr_available = True
 
 
@@ -344,6 +357,19 @@ CHARGER_ENTITIES: list[ZaptecEntityDescription] = [
         icon="mdi:shape-outline",
         cls=ZaptecSensor,
         # No state class as its not a numeric value
+    ),
+    ZapSensorEntityDescription(
+        key="charger_current_user_uuid",
+        translation_key="authorized_by",
+        icon="mdi:card-account-details-outline",
+        cls=ZaptecAuthorizedBySensor,
+        # No state/device class: opaque identifier string, not numeric or enum
+    ),
+    ZapSensorEntityDescription(
+        key="completed_session.AuthenticationCode",
+        translation_key="completed_session_authorized_by",
+        icon="mdi:card-account-details",
+        cls=ZaptecAuthorizedBySensor,
     ),
 ]
 

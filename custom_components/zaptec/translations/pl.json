@@ -48,6 +48,13 @@
                     "on": "Wymagane"
                 }
             },
+            "authorized": {
+                "name": "Autoryzowano",
+                "state": {
+                    "off": "Nie autoryzowano",
+                    "on": "Autoryzowano"
+                }
+            },
             "online": {
                 "name": "Online"
             }
@@ -98,6 +105,9 @@
                     "webhooks": "Web Hooks"
                 }
             },
+            "authorized_by": {
+                "name": "Autoryzowane przez"
+            },
             "available_current_phase1": {
                 "name": "Dostępny prąd fazy 1"
             },
@@ -119,6 +129,9 @@
                     "disconnected": "Odłączony",
                     "unknown": "Nieznany"
                 }
+            },
+            "completed_session_authorized_by": {
+                "name": "Ostatnia sesja autoryzowana przez"
             },
             "completed_session_energy": {
                 "name": "Zużycie energii w zakończonej sesji"

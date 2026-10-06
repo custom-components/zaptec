@@ -48,6 +48,13 @@
                     "on": "Requise"
                 }
             },
+            "authorized": {
+                "name": "Autorisé",
+                "state": {
+                    "off": "Non autorisé",
+                    "on": "Autorisé"
+                }
+            },
             "online": {
                 "name": "En ligne"
             }
@@ -98,6 +105,9 @@
                     "webhooks": "Web Hooks"
                 }
             },
+            "authorized_by": {
+                "name": "Autorisé par"
+            },
             "available_current_phase1": {
                 "name": "Courant disponible phase 1"
             },
@@ -119,6 +129,9 @@
                     "disconnected": "Déconnectée",
                     "unknown": "Inconnu"
                 }
+            },
+            "completed_session_authorized_by": {
+                "name": "Dernière session autorisée par"
             },
             "completed_session_energy": {
                 "name": "Énergie de la session terminée"
