@@ -205,5 +205,28 @@
                 "name": "Fastvareoppdatering"
             }
         }
+    },
+    "exceptions": {
+        "api_error": {
+            "message": "{action} mislyktes."
+        },
+        "api_error_apm": {
+            "message": "{action} mislyktes: den forespurte innstillingen kan ikke endres mens installasjonen er i modusen «Automatisk lading» (Zaptec Sense eller lignende effektstyring)."
+        },
+        "api_error_charger_state": {
+            "message": "{action} mislyktes: laderens nåværende tilstand tillater ikke denne handlingen."
+        },
+        "api_error_code": {
+            "message": "{action} mislyktes: Zaptec rapporterte feilen {reason}."
+        },
+        "api_error_command_rejected": {
+            "message": "{action} mislyktes: laderen avviste kommandoen. Den kan likevel ha blitt utført."
+        },
+        "api_error_details": {
+            "message": "{action} mislyktes: {details}"
+        },
+        "api_error_scheduled": {
+            "message": "{action} mislyktes: den forespurte innstillingen kan ikke endres mens installasjonen er i modusen «Planlagt lading»."
+        }
     }
 }

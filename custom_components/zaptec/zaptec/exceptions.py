@@ -12,10 +12,23 @@ class AuthenticationError(ZaptecApiError):
 class RequestError(ZaptecApiError):
     """Failed to get the results from the API."""
 
-    def __init__(self, message: str, error_code: int) -> None:
-        """Initialize the RequestError."""
+    def __init__(
+        self,
+        message: str,
+        error_code: int,
+        zaptec_code: int | None = None,
+        zaptec_details: str | None = None,
+    ) -> None:
+        """Initialize the RequestError.
+
+        `error_code` is the HTTP status. `zaptec_code` is Zaptec's own error
+        code from the response body, which is only sent on HTTP 500, and
+        `zaptec_details` its optional human-readable explanation.
+        """
         super().__init__(message)
         self.error_code = error_code
+        self.zaptec_code = zaptec_code
+        self.zaptec_details = zaptec_details
 
 
 class RequestConnectionError(ZaptecApiError):

@@ -205,5 +205,28 @@
                 "name": "Uppdatera mjukvara"
             }
         }
+    },
+    "exceptions": {
+        "api_error": {
+            "message": "{action} misslyckades."
+        },
+        "api_error_apm": {
+            "message": "{action} misslyckades: den begärda inställningen kan inte ändras medan installationen är i läget ”Automatisk laddning” (Zaptec Sense eller liknande effektstyrning)."
+        },
+        "api_error_charger_state": {
+            "message": "{action} misslyckades: laddarens nuvarande tillstånd tillåter inte den här åtgärden."
+        },
+        "api_error_code": {
+            "message": "{action} misslyckades: Zaptec rapporterade felet {reason}."
+        },
+        "api_error_command_rejected": {
+            "message": "{action} misslyckades: laddaren avvisade kommandot. Det kan ändå ha utförts."
+        },
+        "api_error_details": {
+            "message": "{action} misslyckades: {details}"
+        },
+        "api_error_scheduled": {
+            "message": "{action} misslyckades: den begärda inställningen kan inte ändras medan installationen är i läget ”Schemalagd laddning”."
+        }
     }
 }

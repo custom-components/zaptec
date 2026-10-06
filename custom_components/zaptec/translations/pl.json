@@ -205,5 +205,28 @@
                 "name": "Aktualizacja oprogramowania"
             }
         }
+    },
+    "exceptions": {
+        "api_error": {
+            "message": "{action} nie powiodło się."
+        },
+        "api_error_apm": {
+            "message": "{action} nie powiodło się: nie można zmienić żądanego ustawienia, gdy instalacja działa w trybie „Ładowanie automatyczne” (Zaptec Sense lub podobnego zarządzania mocą)."
+        },
+        "api_error_charger_state": {
+            "message": "{action} nie powiodło się: bieżący stan ładowarki nie pozwala na tę operację."
+        },
+        "api_error_code": {
+            "message": "{action} nie powiodło się: Zaptec zgłosił błąd {reason}."
+        },
+        "api_error_command_rejected": {
+            "message": "{action} nie powiodło się: ładowarka odrzuciła polecenie. Mogło ono jednak zostać wykonane."
+        },
+        "api_error_details": {
+            "message": "{action} nie powiodło się: {details}"
+        },
+        "api_error_scheduled": {
+            "message": "{action} nie powiodło się: nie można zmienić żądanego ustawienia, gdy instalacja działa w trybie „Ładowanie zaplanowane”."
+        }
     }
 }

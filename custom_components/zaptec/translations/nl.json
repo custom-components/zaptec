@@ -205,5 +205,28 @@
                 "name": "Firmware"
             }
         }
+    },
+    "exceptions": {
+        "api_error": {
+            "message": "{action} is mislukt."
+        },
+        "api_error_apm": {
+            "message": "{action} is mislukt: de gevraagde instelling kan niet worden gewijzigd zolang de installatie in de modus \"Automatisch laden\" staat (Zaptec Sense of vergelijkbaar energiebeheer)."
+        },
+        "api_error_charger_state": {
+            "message": "{action} is mislukt: de huidige status van het laadstation staat deze bewerking niet toe."
+        },
+        "api_error_code": {
+            "message": "{action} is mislukt: Zaptec meldde de fout {reason}."
+        },
+        "api_error_command_rejected": {
+            "message": "{action} is mislukt: het laadstation heeft de opdracht geweigerd. Mogelijk is deze toch uitgevoerd."
+        },
+        "api_error_details": {
+            "message": "{action} is mislukt: {details}"
+        },
+        "api_error_scheduled": {
+            "message": "{action} is mislukt: de gevraagde instelling kan niet worden gewijzigd zolang de installatie in de modus \"Gepland laden\" staat."
+        }
     }
 }

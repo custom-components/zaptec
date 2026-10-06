@@ -205,5 +205,28 @@
                 "name": "Firmware-Update"
             }
         }
+    },
+    "exceptions": {
+        "api_error": {
+            "message": "{action} fehlgeschlagen."
+        },
+        "api_error_apm": {
+            "message": "{action} fehlgeschlagen: Die angeforderte Einstellung kann nicht geändert werden, solange sich die Installation im Modus „Automatisches Laden“ befindet (Zaptec Sense oder eine ähnliche Laststeuerung)."
+        },
+        "api_error_charger_state": {
+            "message": "{action} fehlgeschlagen: Der aktuelle Zustand der Ladestation lässt diesen Vorgang nicht zu."
+        },
+        "api_error_code": {
+            "message": "{action} fehlgeschlagen: Zaptec meldete den Fehler {reason}."
+        },
+        "api_error_command_rejected": {
+            "message": "{action} fehlgeschlagen: Die Ladestation hat den Befehl abgelehnt. Möglicherweise wurde er dennoch ausgeführt."
+        },
+        "api_error_details": {
+            "message": "{action} fehlgeschlagen: {details}"
+        },
+        "api_error_scheduled": {
+            "message": "{action} fehlgeschlagen: Die angeforderte Einstellung kann nicht geändert werden, solange sich die Installation im Modus „Geplantes Laden“ befindet."
+        }
     }
 }

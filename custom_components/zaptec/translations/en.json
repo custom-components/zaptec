@@ -205,5 +205,28 @@
                 "name": "Firmware update"
             }
         }
+    },
+    "exceptions": {
+        "api_error": {
+            "message": "{action} failed."
+        },
+        "api_error_apm": {
+            "message": "{action} failed: cannot change the requested setting while the installation is in \"Automatic charging\" mode (Zaptec Sense or similar power management)."
+        },
+        "api_error_charger_state": {
+            "message": "{action} failed: the charger's current state does not allow this operation."
+        },
+        "api_error_code": {
+            "message": "{action} failed: Zaptec reported the error {reason}."
+        },
+        "api_error_command_rejected": {
+            "message": "{action} failed: the charger rejected the command. It may still have been carried out."
+        },
+        "api_error_details": {
+            "message": "{action} failed: {details}"
+        },
+        "api_error_scheduled": {
+            "message": "{action} failed: cannot change the requested setting while the installation is in \"Scheduled charging\" mode."
+        }
     }
 }

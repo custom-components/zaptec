@@ -75,12 +75,14 @@ class FakeResponse:
         read_data: bytes = b"",
         text_data: str = "",
         headers: dict | None = None,
+        undecodable: bool = False,
     ) -> None:
         """Store the canned response data."""
         self.status = status
         self._json_data = json_data
         self._read_data = read_data
         self._text_data = text_data
+        self._undecodable = undecodable
         self.headers = headers or {}
 
     async def json(self, content_type: str | None = None) -> object:
@@ -93,8 +95,12 @@ class FakeResponse:
         """Return the canned raw body."""
         return self._read_data
 
-    async def text(self) -> str:
-        """Return the canned text body."""
+    async def text(self, errors: str = "strict") -> str:
+        """Return the canned text body, honouring aiohttp's `errors` handling."""
+        if self._undecodable:
+            if errors == "strict":
+                raise UnicodeDecodeError("utf-8", bytes([255]), 0, 1, "invalid start byte")
+            return "�"
         return self._text_data
 
 
@@ -210,6 +216,73 @@ async def test_request_500_on_post_raises_immediately() -> None:
         await zap.request("unregistered/url", method="post")
     assert excinfo.value.error_code == HTTPStatus.INTERNAL_SERVER_ERROR
     assert len(session.calls) == 1
+
+
+@pytest.mark.asyncio
+async def test_request_500_carries_zaptec_error_code_and_details() -> None:
+    """A 500 body with Code/Details exposes both on the raised RequestError."""
+    zap, _ = _make_zaptec(
+        [
+            FakeResponse(
+                HTTPStatus.INTERNAL_SERVER_ERROR,
+                text_data='{"Code":527,"Details":"Cannot update installation when using APM"}',
+            )
+        ]
+    )
+    with pytest.raises(RequestError) as excinfo:
+        await zap.request("unregistered/url", method="post")
+    assert excinfo.value.zaptec_code == 527  # noqa: PLR2004
+    assert excinfo.value.zaptec_details == "Cannot update installation when using APM"
+
+
+@pytest.mark.asyncio
+async def test_request_500_carries_code_when_details_is_null() -> None:
+    """Charger-level 500s send a null Details; the code must still come through."""
+    zap, _ = _make_zaptec(
+        [
+            FakeResponse(
+                HTTPStatus.INTERNAL_SERVER_ERROR,
+                text_data='{"Code":528,"Details":null,"StackTrace":null}',
+            )
+        ]
+    )
+    with pytest.raises(RequestError) as excinfo:
+        await zap.request("unregistered/url", method="post")
+    assert excinfo.value.zaptec_code == 528  # noqa: PLR2004
+    assert excinfo.value.zaptec_details is None
+
+
+@pytest.mark.asyncio
+async def test_request_500_without_json_body_has_no_zaptec_code() -> None:
+    """A non-JSON 500 body leaves the Zaptec code unset instead of raising."""
+    zap, _ = _make_zaptec(
+        [FakeResponse(HTTPStatus.INTERNAL_SERVER_ERROR, text_data="server error")]
+    )
+    with pytest.raises(RequestError) as excinfo:
+        await zap.request("unregistered/url", method="post")
+    assert excinfo.value.zaptec_code is None
+    assert excinfo.value.zaptec_details is None
+
+
+@pytest.mark.asyncio
+async def test_request_500_with_non_object_json_has_no_zaptec_code() -> None:
+    """A JSON 500 body that isn't an object leaves the Zaptec fields unset."""
+    zap, _ = _make_zaptec([FakeResponse(HTTPStatus.INTERNAL_SERVER_ERROR, text_data="[1, 2]")])
+    with pytest.raises(RequestError) as excinfo:
+        await zap.request("unregistered/url", method="post")
+    assert excinfo.value.zaptec_code is None
+    assert excinfo.value.zaptec_details is None
+
+
+@pytest.mark.asyncio
+async def test_request_500_with_undecodable_body_still_retries_on_get() -> None:
+    """An undecodable 500 body must not escape the retry handling on a GET."""
+    zap, session = _make_zaptec(
+        [FakeResponse(HTTPStatus.INTERNAL_SERVER_ERROR, undecodable=True)], max_time=0.001
+    )
+    with pytest.raises(RequestRetryError):
+        await zap.request("unregistered/url")
+    assert len(session.calls) == API_RETRIES
 
 
 @pytest.mark.asyncio
