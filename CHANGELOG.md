@@ -9,7 +9,8 @@ This is a maintenance release fixing a lot of minor issues. Main highlights are:
   * Add sensors on who has authorized a charging session
 
 On the development side we have update the AI policy and improved the CI
-setup. Code quality have been improved by fixing a lot of code errors.
+setup. Code quality have been improved by fixing a lot of code errors and
+increased the test coverage.
 
 Shoutout to @rhammen for taking a great initiative for fixing a lot of the issues
 in the integration, making it more robust.
