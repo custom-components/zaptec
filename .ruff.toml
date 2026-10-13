@@ -18,6 +18,7 @@ ignore = [
     "ANN401", # Dynamically typed expressions (typing.Any) are disallowed
     "BLE001", # Do not catch blind exception: `Exception` (from broad-except in tool.pylint."MESSAGES CONTROL")
     "COM812", # incompatible with formatter
+    "CPY001", # Missing copyright notice (not selected in HA)
     "D202",   # No blank lines allowed after function docstring
     "D203",   # no-blank-line-before-class (incompatible with formatter)
     "D212",   # multi-line-summary-first-line (incompatible with formatter)
@@ -29,6 +30,7 @@ ignore = [
     "PLR0912", # Too many branches ({branches} > {max_branches})
     "PLR0913", # Too many arguments to function call ({c_args} > {max_args})
     "PLR0915", # Too many statements ({statements} > {max_statements})
+    "PLR0917", # Too many positional arguments defined for a function ({p_args} > {max_args})
 
     # Moving imports into type-checking blocks can mess with pytest.patch()
     "TC001", # Move application import {} into a type-checking block
