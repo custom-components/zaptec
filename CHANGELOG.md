@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.8.8
+
+This is a maintenance release fixing a lot of minor issues. Main highlights are:
+
+  * Fixed the warning on database performance warning exceeding 16 KB fixed (#382)
+  * Improve stability of the stream during charging and updates after charge done.
+  * Add sensors on who has authorized a charging session
+
+On the development side we have update the AI policy and improved the CI
+setup. Code quality have been improved by fixing a lot of code errors.
+
+Shoutout to @rhammen for taking a great initiative for fixing a lot of the issues
+in the integration, making it more robust.
+
 ## 0.8.7
 
 This is a minor release that is required to be able to run on HA Core 2026.5+.
