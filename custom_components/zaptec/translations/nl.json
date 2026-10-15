@@ -174,7 +174,7 @@
                 "name": "Temperatuur (intern)"
             },
             "total_charge_power_session": {
-                "name": "Totale laadsessie"
+                "name": "Huidige laadsessie"
             },
             "total_charge_power": {
                 "name": "Laadvermogen"
