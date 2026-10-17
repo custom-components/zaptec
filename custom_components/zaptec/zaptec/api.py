@@ -1255,11 +1255,18 @@ class Zaptec(Mapping[str, ZaptecBase]):
                 # GET request gets logged and then retried, while POST and
                 # PUT requests are not retried.
                 if response.status == HTTPStatus.INTERNAL_SERVER_ERROR:
+                    # Zaptec provides the reason for the failure in the response
+                    # body on 500, as an error code with optional details.
+                    text = await response.text(errors="replace")
+                    try:
+                        payload = json.loads(text)
+                    except json.JSONDecodeError:
+                        payload = None
+                    if isinstance(payload, dict):
+                        error.zaptec_code = payload.get("Code")
+                        error.zaptec_details = payload.get("Details")
                     log_exc(error)  # Log the error
                     if DEBUG_API_CALLS:
-                        # There are additional details in the response that Zaptec
-                        # provides on 500. Let's log it.
-                        text = await response.text()
                         if len(text) > MAX_DEBUG_TEXT_LEN_ON_500:
                             text = text[:MAX_DEBUG_TEXT_LEN_ON_500] + "..."
                         _LOGGER.debug("     PAYLOAD %r", text)

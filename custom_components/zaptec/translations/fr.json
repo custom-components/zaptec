@@ -205,5 +205,28 @@
                 "name": "Mise à jour du micrologiciel"
             }
         }
+    },
+    "exceptions": {
+        "api_error": {
+            "message": "{action} a échoué."
+        },
+        "api_error_apm": {
+            "message": "{action} a échoué : impossible de modifier le réglage demandé tant que l'installation est en mode « Recharge automatique » (Zaptec Sense ou une gestion d'énergie similaire)."
+        },
+        "api_error_charger_state": {
+            "message": "{action} a échoué : l'état actuel de la borne n'autorise pas cette opération."
+        },
+        "api_error_code": {
+            "message": "{action} a échoué : Zaptec a signalé l'erreur {reason}."
+        },
+        "api_error_command_rejected": {
+            "message": "{action} a échoué : la borne a refusé la commande. Il est possible qu'elle ait tout de même été exécutée."
+        },
+        "api_error_details": {
+            "message": "{action} a échoué : {details}"
+        },
+        "api_error_scheduled": {
+            "message": "{action} a échoué : impossible de modifier le réglage demandé tant que l'installation est en mode « Recharge programmée »."
+        }
     }
 }
