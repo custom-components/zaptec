@@ -13,10 +13,10 @@ from homeassistant.components.switch import (
 )
 from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .entity import ZaptecBaseEntity
+from .errors import api_call_error
 from .manager import ZaptecConfigEntry, ZaptecEntityDescription
 from .zaptec import Charger
 
@@ -67,7 +67,7 @@ class ZaptecChargeSwitch(ZaptecSwitch):
         try:
             await self.zaptec_obj.command("resume_charging")
         except Exception as exc:
-            raise HomeAssistantError("Resuming charging failed") from exc
+            raise api_call_error(exc, "Resuming charging") from exc
 
         await self.trigger_poll()
 
@@ -82,7 +82,7 @@ class ZaptecChargeSwitch(ZaptecSwitch):
         try:
             await self.zaptec_obj.command("stop_charging_final")
         except Exception as exc:
-            raise HomeAssistantError("Stop/pausing charging failed") from exc
+            raise api_call_error(exc, "Stop/pausing charging") from exc
 
         await self.trigger_poll()
 
@@ -101,7 +101,7 @@ class ZaptecCableLockSwitch(ZaptecSwitch):
         try:
             await self.zaptec_obj.set_permanent_cable_lock(False)
         except Exception as exc:
-            raise HomeAssistantError("Removing permanent cable lock failed") from exc
+            raise api_call_error(exc, "Removing permanent cable lock") from exc
 
         await self.trigger_poll()
 
@@ -116,7 +116,7 @@ class ZaptecCableLockSwitch(ZaptecSwitch):
         try:
             await self.zaptec_obj.set_permanent_cable_lock(True)
         except Exception as exc:
-            raise HomeAssistantError("Setting permanent cable lock failed") from exc
+            raise api_call_error(exc, "Setting permanent cable lock") from exc
 
         await self.trigger_poll()
 
