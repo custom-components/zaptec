@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 import logging
 from types import SimpleNamespace
 from typing import Any
@@ -351,3 +351,56 @@ async def test_stream_supervisor_does_not_reset_when_the_retry_never_connects(
 
     warnings = [r for r in caplog.records if r.levelno == logging.WARNING]
     assert len(warnings) == 1  # the second failure never connected, so it is the same outage
+
+
+class FakeZaptec:
+    """Stands in for the Zaptec account hierarchy built by first_time_setup."""
+
+    def __init__(self, charger_ids: list[str], installation_id: str | None = None) -> None:
+        """Initialize the hierarchy."""
+        installation = SimpleNamespace(id=installation_id) if installation_id else None
+        self.chargers = [
+            SimpleNamespace(id=cid, installation=installation) for cid in charger_ids
+        ]
+        self.build = AsyncMock()
+        self._ids = set(charger_ids) | ({installation_id} if installation_id else set())
+
+    def __iter__(self) -> Iterator[str]:
+        """Iterate over all object ids."""
+        return iter(self._ids)
+
+
+@pytest.mark.asyncio
+async def test_first_time_setup_without_chargers_tracks_nothing() -> None:
+    """An account that logs in but sees no devices tracks nothing."""
+    assert await ZaptecManager.first_time_setup(FakeZaptec([]), configured_chargers=None) == set()
+
+
+@pytest.mark.asyncio
+async def test_first_time_setup_without_selected_chargers_tracks_nothing() -> None:
+    """Manually selected chargers that are all gone track nothing."""
+    tracked = await ZaptecManager.first_time_setup(
+        FakeZaptec(["other"], installation_id="inst"), configured_chargers={CHARGER_ID}
+    )
+
+    assert tracked == set()
+
+
+@pytest.mark.asyncio
+async def test_first_time_setup_tracks_charger_and_installation() -> None:
+    """A selected charger is tracked together with its installation."""
+    tracked = await ZaptecManager.first_time_setup(
+        FakeZaptec([CHARGER_ID], installation_id="inst"), configured_chargers={CHARGER_ID}
+    )
+
+    assert tracked == {CHARGER_ID, "inst"}
+
+
+@pytest.mark.asyncio
+async def test_first_time_setup_tracks_installation_without_chargers() -> None:
+    """An installation without chargers is still set up."""
+    tracked = await ZaptecManager.first_time_setup(
+        FakeZaptec([], installation_id="inst"), configured_chargers=None
+    )
+
+    assert tracked == {"inst"}
