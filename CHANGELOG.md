@@ -2,18 +2,35 @@
 
 ## 0.8.8
 
-This is a maintenance release fixing a lot of minor issues. Main highlights are:
+This is a maintenance release fixing a lot of minor issues.
 
-  * Fixed the warning on database performance warning exceeding 16 KB fixed (#382)
-  * Improve stability of the stream during charging and updates after charge done.
-  * Add sensors on who has authorized a charging session
+This update is required to run on HA Core 2026.11+.
 
-On the development side we have update the AI policy and improved the CI
-setup. Code quality have been improved by fixing a lot of code errors and
-increased the test coverage.
+Main highlights:
 
-Shoutout to @rhammen for taking a great initiative for fixing a lot of the issues
+  * Fixed the recorder warning about the charger's state attributes exceeding 16 KB (#382, #421, #436).
+    Heads-up: these state attributes are targeted to be removed entirely in 0.9.0 (#388).
+  * More robust against Zaptec API and connection problems (#359, #392, #400, #417, #433).
+  * Session details now update within seconds when a charging session starts or ends (#434).
+  * Added sensors showing who authorized a charging session (#431).
+  * Added German and French translations.
+
+On the development side, we have updated the AI policy and improved the CI
+setup. Code quality has been improved by fixing a lot of code errors and
+increasing the test coverage.
+
+Shoutout to @rhammen for taking the initiative to fix many of the issues
 in the integration, making it more robust.
+
+#### NOTE
+The Zaptec HA integration is moving! As we are not in full control of the repo
+where it is located now, we will migrate to a new location where we are better
+set up to maintain the integration.
+
+  https://github.com/ha-zaptec-community/ha-zaptec
+
+When this will happen is not yet clear, but if you have trouble finding the
+integration in the old location, this is the one to try.
 
 ## 0.8.7
 
