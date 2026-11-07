@@ -205,5 +205,10 @@
                 "name": "Firmware-Update"
             }
         }
+    },
+    "exceptions": {
+        "no_devices_found": {
+            "message": "Keine Zaptec-Installationen oder -Ladegeräte für das Konto {username} gefunden. Prüfe über Neu konfigurieren, ob dies das richtige Zaptec-Konto ist und ob die ausgewählten Ladegeräte noch existieren."
+        }
     }
 }
