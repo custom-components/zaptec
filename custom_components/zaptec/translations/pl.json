@@ -205,5 +205,10 @@
                 "name": "Aktualizacja oprogramowania"
             }
         }
+    },
+    "exceptions": {
+        "no_devices_found": {
+            "message": "Nie znaleziono instalacji ani ładowarek Zaptec dla konta {username}. Sprawdź za pomocą Zmień konfigurację, czy to właściwe konto Zaptec i czy wybrane ładowarki nadal istnieją."
+        }
     }
 }

@@ -205,5 +205,10 @@
                 "name": "Firmware update"
             }
         }
+    },
+    "exceptions": {
+        "no_devices_found": {
+            "message": "No Zaptec installations or chargers found for account {username}. Check that this is the right Zaptec account and that the selected chargers still exist, using Reconfigure."
+        }
     }
 }
