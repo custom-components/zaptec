@@ -69,6 +69,14 @@ DEFAULT_MAX_CURRENT = 32.0
 TRUTHY = ["true", "1", "on", "yes", 1, True]
 FALSY = ["false", "0", "off", "no", 0, False]
 
+CLEARABLE_OBSERVATIONS = {
+    "721",  # SessionIdentifier
+    "722",  # ChargerCurrentUserUuid
+}
+"""Observations that Zaptec clears by sending them without any value, rather
+than with an empty one. Without mapping them to an empty value, the previous
+session's value would persist indefinitely."""
+
 # Charger state attributes that should be excluded from being set as class
 # attributes. Use strings.
 CHARGER_EXCLUDES = {

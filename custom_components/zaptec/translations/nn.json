@@ -48,6 +48,13 @@
                     "on": "Kravd"
                 }
             },
+            "authorized": {
+                "name": "Autorisert",
+                "state": {
+                    "off": "Ikkje autorisert",
+                    "on": "Autorisert"
+                }
+            },
             "online": {
                 "name": "Tilkopla"
             }
@@ -98,6 +105,9 @@
                     "webhooks": "Webhooks"
                 }
             },
+            "authorized_by": {
+                "name": "Autorisert av"
+            },
             "available_current_phase1": {
                 "name": "Tilgjengeleg straum fase 1"
             },
@@ -119,6 +129,9 @@
                     "disconnected": "Fråkopla",
                     "unknown": "Ukjend"
                 }
+            },
+            "completed_session_authorized_by": {
+                "name": "Siste økt autorisert av"
             },
             "completed_session_energy": {
                 "name": "Energiforbruk etter fullført økt"
@@ -191,6 +204,11 @@
             "firmware_update": {
                 "name": "Fastvareoppdatering"
             }
+        }
+    },
+    "exceptions": {
+        "no_devices_found": {
+            "message": "Fann ingen Zaptec-installasjonar eller -ladarar for kontoen {username}. Bruk Rekonfigurer for å sjekke at dette er rett Zaptec-konto og at dei valde ladarane framleis finst."
         }
     }
 }

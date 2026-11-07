@@ -381,6 +381,19 @@ def test_state_to_attrs_skips_missing_key_and_missing_value() -> None:
     assert out == {}
 
 
+def test_state_to_attrs_clears_session_observation_without_value() -> None:
+    """A session observation sent without a value clears the attribute.
+
+    Zaptec signals "no session" by sending SessionIdentifier (721) and
+    ChargerCurrentUserUuid (722) with no ValueAsString at all, rather than
+    with an empty value.
+    """
+    data = [{"StateId": 721}, {"StateId": 722}]
+    keydict = {721: "SessionIdentifier", 722: "ChargerCurrentUserUuid"}
+    out = ZaptecBase.state_to_attrs(data, "StateId", keydict)
+    assert out == {"SessionIdentifier": "", "ChargerCurrentUserUuid": ""}
+
+
 def test_state_to_attrs_excludes() -> None:
     """Excluded ids are dropped."""
     data = [
@@ -544,6 +557,33 @@ def test_stream_update_zero_guid_is_ignored() -> None:
     inst, charger = _installation_with_charger()
     inst.stream_update({"ChargerId": "00000000-0000-0000-0000-000000000000"})
     charger.set_attributes.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+#   Installation.stream_main error propagation
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_stream_main_propagates_non_forbidden_error() -> None:
+    """A non-403 error fetching stream connection details now propagates (issue #417)."""
+    inst = Installation({"Id": "inst-1"}, _fake_owner())
+    inst.live_stream_connection_details = AsyncMock(  # type: ignore[method-assign]
+        side_effect=RequestError("server error", HTTPStatus.BAD_GATEWAY)
+    )
+    with pytest.raises(RequestError):
+        await inst.stream_main()
+
+
+@pytest.mark.asyncio
+async def test_stream_main_forbidden_returns_none() -> None:
+    """A 403 fetching stream connection details still returns cleanly."""
+    inst = Installation({"Id": "inst-1"}, _fake_owner())
+    inst.live_stream_connection_details = AsyncMock(  # type: ignore[method-assign]
+        side_effect=RequestError("no access", HTTPStatus.FORBIDDEN)
+    )
+    result = await inst.stream_main()
+    assert result is None
 
 
 # ---------------------------------------------------------------------------
@@ -855,6 +895,30 @@ async def test_poll_state_happy_path(monkeypatch: pytest.MonkeyPatch) -> None:
     _, url, _ = session.calls[-1]
     assert url.endswith("chargers/c1/state")
     charger.set_attributes.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_poll_state_clears_session_attribute_when_value_is_gone(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A session that ends clears the attribute instead of leaving it stale."""
+    monkeypatch.setattr(ZCONST, "observations", {722: "ChargerCurrentUserUuid"}, raising=False)
+    monkeypatch.setattr("custom_components.zaptec.zaptec.api.validate", Mock())
+    charger, _ = _charger_with_session(
+        [
+            FakeResponse(
+                HTTPStatus.OK,
+                json_data=[{"StateId": 722, "ValueAsString": "nfc-abc123"}],
+            ),
+            FakeResponse(HTTPStatus.OK, json_data=[{"StateId": 722}]),
+        ]
+    )
+
+    await charger.poll_state()
+    assert charger.get("charger_current_user_uuid") == "nfc-abc123"
+
+    await charger.poll_state()
+    assert charger.get("charger_current_user_uuid") == ""
 
 
 @pytest.mark.asyncio

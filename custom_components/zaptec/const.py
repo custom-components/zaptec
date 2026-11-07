@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 NAME = "zaptec"
-VERSION = "0.8.7"
+VERSION = "0.8.8"
 ISSUEURL = "https://github.com/custom-components/zaptec/issues"
 
 DOMAIN = "zaptec"
@@ -35,6 +35,28 @@ ZAPTEC_POLL_CHARGER_TRIGGER_DELAYS = [2, 7, 15]
 
 ZAPTEC_POLL_INSTALLATION_TRIGGER_DELAYS = [2, 7]
 """Delays in seconds for installation state updates after a change."""
+
+STREAM_RECONNECT_INIT_DELAY = 1.0
+"""Initial delay in seconds before the first stream reconnect attempt."""
+
+STREAM_RECONNECT_FACTOR = 2.0
+"""Exponential backoff multiplier applied between stream reconnect attempts."""
+
+STREAM_RECONNECT_JITTER = 0.1
+"""Relative jitter applied to the stream reconnect backoff delay."""
+
+STREAM_RECONNECT_MAX_DELAY = 300.0
+"""Maximum delay in seconds between stream reconnect attempts (5 minutes)."""
+
+STREAM_RECONNECT_STABLE_TIME = 300.0
+"""Uptime in seconds after which a stream connection counts as healthy again."""
+
+STREAM_POLL_TRIGGER_OBSERVATIONS = frozenset({"710", "721"})
+"""Observation ids that trigger a poll when streamed. Use strings.
+
+710 is ChargerOperationMode and 721 is SessionIdentifier. ChargerCurrentUserUuid
+and CompletedSession change with them but are never streamed, so only a poll
+picks them up."""
 
 # This sets the delay after doing actions and the poll of updated values.
 # It was 0.3 and evidently that is a bit too fast for Zaptec cloud to handle.
