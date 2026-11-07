@@ -205,5 +205,10 @@
                 "name": "Fastvareoppdatering"
             }
         }
+    },
+    "exceptions": {
+        "no_devices_found": {
+            "message": "Fann ingen Zaptec-installasjonar eller -ladarar for kontoen {username}. Bruk Rekonfigurer for å sjekke at dette er rett Zaptec-konto og at dei valde ladarane framleis finst."
+        }
     }
 }

@@ -205,5 +205,10 @@
                 "name": "Mise à jour du micrologiciel"
             }
         }
+    },
+    "exceptions": {
+        "no_devices_found": {
+            "message": "Aucune installation ni borne Zaptec trouvée pour le compte {username}. Vérifiez via Reconfigurer qu'il s'agit du bon compte Zaptec et que les bornes sélectionnées existent toujours."
+        }
     }
 }

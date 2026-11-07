@@ -205,5 +205,10 @@
                 "name": "Firmware"
             }
         }
+    },
+    "exceptions": {
+        "no_devices_found": {
+            "message": "Geen Zaptec-installaties of -laders gevonden voor account {username}. Controleer via Opnieuw configureren of dit het juiste Zaptec-account is en of de geselecteerde laders nog bestaan."
+        }
     }
 }

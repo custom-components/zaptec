@@ -333,9 +333,6 @@ class ZaptecManager:
                     if charger.installation:
                         keep.add(charger.installation.id)
 
-            if not keep:
-                _LOGGER.error("No zaptec objects will be added")
-
             # These objects will be updated by the coordinator
             tracked_devices = keep
 

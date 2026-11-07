@@ -205,5 +205,10 @@
                 "name": "Uppdatera mjukvara"
             }
         }
+    },
+    "exceptions": {
+        "no_devices_found": {
+            "message": "Inga Zaptec-installationer eller laddare hittades för kontot {username}. Kontrollera via Konfigurera om att detta är rätt Zaptec-konto och att de valda laddarna fortfarande finns."
+        }
     }
 }
