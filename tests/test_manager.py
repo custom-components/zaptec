@@ -416,6 +416,8 @@ def test_charger_device_without_tracked_installation_has_no_link(
 
     registry.async_get_or_create.assert_not_called()
     assert "via_device_id" not in charger_entity.device_info
+
+
 class FakeZaptec:
     """Stands in for the Zaptec account hierarchy built by first_time_setup."""
 
