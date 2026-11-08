@@ -206,3 +206,13 @@ def test_completed_session_corrupted_or_no_signed_session() -> None:
 def test_update_ids_from_schema() -> None:
     """Test update_ids_from_schema."""
     ZCONST.update_ids_from_schema(set("Apollo"))
+
+
+def test_error_codes() -> None:
+    """Test the error code conversion."""
+    assert ZCONST.type_error_code(527) == "NotSupported"
+    assert ZCONST.type_error_code(528) == "DeviceCommandRejected"
+    assert ZCONST.type_error_code(538) == "OperationFailedDueToChargerState"
+
+    # Unknown codes fall back to the numeric value, like the other type_* lookups.
+    assert ZCONST.type_error_code(999999) == "999999"

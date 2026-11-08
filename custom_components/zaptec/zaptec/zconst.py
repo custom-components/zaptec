@@ -167,6 +167,11 @@ class ZConst(UserDict):
         modes = {str(v): k for k, v in self.get("DeviceTypes", {}).items()}
         return modes.get(str(val), str(val))
 
+    def type_error_code(self, val: int) -> str:
+        """Convert the error code to a string."""
+        codes = {str(v): k for k, v in self.get("ErrorCodes", {}).items()}
+        return codes.get(str(val), str(val))
+
     def type_installation_type(self, val: int) -> str:
         """Convert the installation type to a string."""
         modes = {

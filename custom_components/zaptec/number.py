@@ -17,6 +17,7 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .entity import ZaptecBaseEntity
+from .errors import api_call_error
 from .manager import ZaptecConfigEntry, ZaptecEntityDescription
 from .zaptec import Charger, Installation, ZaptecBase
 
@@ -66,7 +67,7 @@ class ZaptecAvailableCurrentNumber(ZaptecNumber[Installation]):
         try:
             await self.zaptec_obj.set_limit_current(availableCurrent=value)
         except Exception as exc:
-            raise HomeAssistantError(f"Set current limit to {value} failed") from exc
+            raise api_call_error(exc, f"Set current limit to {value}") from exc
 
         await self.trigger_poll()
 
@@ -82,8 +83,8 @@ class ZaptecThreeToOnePhaseSwitchCurrent(ZaptecNumber[Installation]):
         try:
             await self.zaptec_obj.set_three_to_one_phase_switch_current(value)
         except Exception as exc:
-            raise HomeAssistantError(
-                f"Setting three to one phase switch current to {value} failed"
+            raise api_call_error(
+                exc, f"Setting three to one phase switch current to {value}"
             ) from exc
 
         await self.trigger_poll()
@@ -109,8 +110,8 @@ class ZaptecSettingNumber(ZaptecNumber[Charger]):
         try:
             await self.zaptec_obj.set_settings({self.entity_description.setting: value})
         except Exception as exc:
-            raise HomeAssistantError(
-                f"Setting {self.entity_description.setting} to {value} failed"
+            raise api_call_error(
+                exc, f"Setting {self.entity_description.setting} to {value}"
             ) from exc
 
         await self.trigger_poll()
@@ -135,7 +136,7 @@ class ZaptecHmiBrightness(ZaptecNumber[Charger]):
         try:
             await self.zaptec_obj.set_hmi_brightness(value / 100)
         except Exception as exc:
-            raise HomeAssistantError(f"Set HmiBrightness to {value} failed") from exc
+            raise api_call_error(exc, f"Set HmiBrightness to {value}") from exc
 
         await self.trigger_poll()
 

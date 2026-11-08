@@ -8,10 +8,10 @@ import logging
 from homeassistant import const
 from homeassistant.components.button import ButtonEntity, ButtonEntityDescription
 from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .entity import ZaptecBaseEntity
+from .errors import api_call_error
 from .manager import ZaptecConfigEntry, ZaptecEntityDescription
 from .zaptec import Charger
 
@@ -37,7 +37,7 @@ class ZaptecButton(ZaptecBaseEntity[Charger], ButtonEntity):
         try:
             await self.zaptec_obj.command(self.key)
         except Exception as exc:
-            raise HomeAssistantError(f"Running command '{self.key}' failed") from exc
+            raise api_call_error(exc, f"Running command '{self.key}'") from exc
 
         await self.trigger_poll()
 

@@ -13,10 +13,10 @@ from homeassistant.components.update import (
     UpdateEntityDescription,
 )
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .entity import ZaptecBaseEntity
+from .errors import api_call_error
 from .manager import ZaptecConfigEntry, ZaptecEntityDescription
 from .zaptec import Charger
 
@@ -50,7 +50,7 @@ class ZaptecUpdate(ZaptecBaseEntity[Charger], UpdateEntity):
         try:
             await self.zaptec_obj.command("upgrade_firmware")
         except Exception as exc:
-            raise HomeAssistantError("Sending update firmware command failed") from exc
+            raise api_call_error(exc, "Sending update firmware command") from exc
 
         await self.trigger_poll()
 
