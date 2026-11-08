@@ -7,18 +7,21 @@ from collections.abc import Callable, Iterator
 import logging
 from types import SimpleNamespace
 from typing import Any
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
 from custom_components.zaptec import manager as manager_module
+from custom_components.zaptec.const import DOMAIN, MANUFACTURER
 from custom_components.zaptec.manager import (
     STREAM_RECONNECT_INIT_DELAY,
     STREAM_RECONNECT_MAX_DELAY,
     STREAM_RECONNECT_STABLE_TIME,
+    ZaptecEntityDescription,
     ZaptecManager,
     _stream_supervisor,
 )
+from custom_components.zaptec.zaptec import Charger, Installation
 
 CHARGER_ID = "e6f5a1b2-0000-4000-8000-000000000001"
 
@@ -351,6 +354,68 @@ async def test_stream_supervisor_does_not_reset_when_the_retry_never_connects(
 
     warnings = [r for r in caplog.records if r.levelno == logging.WARNING]
     assert len(warnings) == 1  # the second failure never connected, so it is the same outage
+
+
+class FakeEntity:
+    """Records the device info an entity is created with."""
+
+    def __init__(self, *, device_info: dict[str, Any], **kwargs: object) -> None:
+        """Store the device info."""
+        self.device_info = device_info
+
+
+def _device_link_setup(
+    monkeypatch: pytest.MonkeyPatch, tracked: set[str]
+) -> tuple[ZaptecManager, Installation, MagicMock]:
+    """Return a manager with one installation and charger, and a fake device registry."""
+    zaptec = SimpleNamespace(redact=lambda v, **_: v, show_all_updates=False)
+    install = Installation({"Id": "inst-1", "Name": "Home"}, zaptec)  # type: ignore[arg-type]
+    charger = Charger({"Id": CHARGER_ID, "Name": "Garage"}, zaptec, installation=install)  # type: ignore[arg-type]
+    zaptec.objects = lambda: [install, charger]
+
+    registry = MagicMock()
+    registry.async_get_or_create.return_value = SimpleNamespace(id="install-device-id")
+    monkeypatch.setattr(manager_module.dr, "async_get", lambda _hass: registry)
+
+    manager = ZaptecManager(
+        None,  # type: ignore[arg-type]
+        entry=SimpleNamespace(entry_id="entry-1"),  # type: ignore[arg-type]
+        zaptec=zaptec,  # type: ignore[arg-type]
+        tracked_devices=tracked,
+    )
+    manager.device_coordinators = {install.id: None, CHARGER_ID: None}  # type: ignore[dict-item]
+    return manager, install, registry
+
+
+def test_charger_device_links_to_installation_device(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Chargers point at the installation's device registry id, not its identifiers."""
+    manager, install, registry = _device_link_setup(monkeypatch, {"inst-1", CHARGER_ID})
+    description = ZaptecEntityDescription(key="test", cls=FakeEntity)  # type: ignore[arg-type]
+
+    _, charger_entity = manager.create_entities_from_zaptec([description], [description])
+
+    registry.async_get_or_create.assert_called_once_with(
+        config_entry_id="entry-1",
+        manufacturer=MANUFACTURER,
+        identifiers={(DOMAIN, install.id)},
+        model=install.model,
+        name="Home",
+    )
+    assert charger_entity.device_info["via_device_id"] == "install-device-id"
+    assert "via_device" not in charger_entity.device_info
+
+
+def test_charger_device_without_tracked_installation_has_no_link(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """An untracked installation gets no device, so the charger is not linked to one."""
+    manager, _, registry = _device_link_setup(monkeypatch, {CHARGER_ID})
+    description = ZaptecEntityDescription(key="test", cls=FakeEntity)  # type: ignore[arg-type]
+
+    (charger_entity,) = manager.create_entities_from_zaptec([description], [description])
+
+    registry.async_get_or_create.assert_not_called()
+    assert "via_device_id" not in charger_entity.device_info
 
 
 class FakeZaptec:

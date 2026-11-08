@@ -39,7 +39,7 @@ Confirmed to work with Zaptec products
 
 # Requirements
 
-* Home Assistant 2025.7 or newer.
+* Home Assistant 2026.8 or newer.
 * A user with access to [Zaptec Portal](https://portal.zaptec.com/).
 * If you want to use the controls at the [Installation](#zaptec-device-concept) level:
   * A Zaptec Portal user with _Owner_ or _Service_ privileges.

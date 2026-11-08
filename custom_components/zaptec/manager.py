@@ -15,6 +15,7 @@ from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.entity import DeviceInfo, EntityDescription
 from homeassistant.util.ssl import get_default_context
 
@@ -155,6 +156,15 @@ class ZaptecManager:
             *self.device_coordinators.values(),
         ]
 
+    def _common_device_info(self, zaptec_obj: ZaptecBase) -> DeviceInfo:
+        """Return the device info shared by all entities of a Zaptec object."""
+        return DeviceInfo(
+            manufacturer=MANUFACTURER,
+            identifiers={(DOMAIN, zaptec_obj.id)},
+            model=zaptec_obj.model,
+            name=self.name_prefix + zaptec_obj.name,
+        )
+
     def create_entities_from_descriptions(
         self,
         descriptions: Iterable[ZaptecEntityDescription],
@@ -164,12 +174,7 @@ class ZaptecManager:
         """Create entities from EntityDescription objects."""
 
         # Start with the common device info and append the provided device info
-        dev_info = DeviceInfo(
-            manufacturer=MANUFACTURER,
-            identifiers={(DOMAIN, zaptec_obj.id)},
-            model=zaptec_obj.model,
-            name=self.name_prefix + zaptec_obj.name,
-        )
+        dev_info = self._common_device_info(zaptec_obj)
         dev_info.update(device_info)
 
         entities: list[ZaptecBaseEntity] = []
@@ -246,8 +251,18 @@ class ZaptecManager:
 
             elif isinstance(obj, Charger):
                 info = DeviceInfo()
-                if obj.installation:
-                    info["via_device"] = (DOMAIN, obj.installation.id)
+                if (
+                    obj.id in self.tracked_devices
+                    and obj.installation is not None
+                    and obj.installation.id in self.tracked_devices
+                ):
+                    # via_device_id needs the installation device to exist
+                    # before the charger entities are added
+                    device = dr.async_get(self.hass).async_get_or_create(
+                        config_entry_id=self.config_entry.entry_id,
+                        **self._common_device_info(obj.installation),
+                    )
+                    info["via_device_id"] = device.id
 
                 entities.extend(
                     self.create_entities_from_descriptions(
