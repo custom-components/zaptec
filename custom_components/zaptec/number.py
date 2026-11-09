@@ -22,6 +22,8 @@ from .zaptec import Charger, Installation, ZaptecBase
 
 _LOGGER = logging.getLogger(__name__)
 
+MIN_CHARGE_CURRENT = 6  # IEC 61851 minimum charging current (A)
+
 
 class ZaptecNumber[ZaptecObjectT: ZaptecBase](ZaptecBaseEntity[ZaptecObjectT], NumberEntity):
     """Base class for Zaptec number entities."""
@@ -104,14 +106,27 @@ class ZaptecSettingNumber(ZaptecNumber[Charger]):
     async def async_set_native_value(self, value: float) -> None:
         """Update to Zaptec."""
         self._log_number(value)
-        if not self.entity_description.setting:
+        setting = self.entity_description.setting
+        if not setting:
             raise HomeAssistantError(f"No setting for {self.__class__.__qualname__}.{self.key}")
+
+        if setting == "minChargeCurrent":
+            max_current: float | None = self.zaptec_obj.get("charger_max_current")
+            if max_current is not None and value > max_current:
+                raise HomeAssistantError(
+                    f"Min current {value} cannot be higher than max current {max_current}"
+                )
+        elif setting == "maxChargeCurrent":
+            min_current: float | None = self.zaptec_obj.get("charger_min_current")
+            if min_current is not None and value < min_current:
+                raise HomeAssistantError(
+                    f"Max current {value} cannot be lower than min current {min_current}"
+                )
+
         try:
-            await self.zaptec_obj.set_settings({self.entity_description.setting: value})
+            await self.zaptec_obj.set_settings({setting: value})
         except Exception as exc:
-            raise HomeAssistantError(
-                f"Setting {self.entity_description.setting} to {value} failed"
-            ) from exc
+            raise HomeAssistantError(f"Setting {setting} to {value} failed") from exc
 
         await self.trigger_poll()
 
@@ -176,7 +191,7 @@ CHARGER_ENTITIES: list[ZaptecEntityDescription] = [
         translation_key="charger_min_current",
         device_class=NumberDeviceClass.CURRENT,
         entity_category=EntityCategory.CONFIG,
-        native_min_value=0,
+        native_min_value=MIN_CHARGE_CURRENT,
         native_max_value=32,
         icon="mdi:current-ac",
         native_unit_of_measurement=const.UnitOfElectricCurrent.AMPERE,
