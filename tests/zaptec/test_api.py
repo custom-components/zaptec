@@ -933,6 +933,82 @@ async def test_poll_state_forbidden_is_ignored() -> None:
 
 
 # ---------------------------------------------------------------------------
+#   Installation.poll_firmware_info
+# ---------------------------------------------------------------------------
+
+
+def _firmware_setup(*responses: dict) -> Charger:
+    """Build a registered installation and charger with canned firmware responses."""
+    inst_id = "abcdef01-2345-6789-abcd-ef0123456789"
+    zap, _ = _make_zaptec(
+        [
+            FakeResponse(HTTPStatus.OK, json_data=[{"ChargerId": "c1", **response}])
+            for response in responses
+        ]
+    )
+    inst = Installation({"Id": inst_id}, zap)
+    charger = Charger({"Id": "c1"}, zap)
+    zap.register(inst_id, inst)
+    zap.register("c1", charger)
+    return charger
+
+
+FULL_FIRMWARE = {"CurrentVersion": "6.0.6", "AvailableVersion": "6.0.7", "IsUpToDate": False}
+
+
+@pytest.mark.asyncio
+async def test_poll_firmware_info_keeps_current_version_when_others_missing() -> None:
+    """A charger reporting only its current version keeps that version (issue #448)."""
+    charger = _firmware_setup({"CurrentVersion": "6.0.7", "DeviceType": 4})
+
+    await charger.zaptec["abcdef01-2345-6789-abcd-ef0123456789"].poll_firmware_info()
+
+    assert charger.get("firmware_current_version") == "6.0.7"
+    assert charger.get("firmware_available_version") is None
+    assert charger.get("firmware_update_to_date") is None
+
+
+@pytest.mark.asyncio
+async def test_poll_firmware_info_clears_available_version_when_it_disappears() -> None:
+    """A version the API stops reporting doesn't stay stale."""
+    charger = _firmware_setup(FULL_FIRMWARE, {"CurrentVersion": "6.0.7"})
+    inst = charger.zaptec["abcdef01-2345-6789-abcd-ef0123456789"]
+
+    await inst.poll_firmware_info()
+    assert charger.get("firmware_available_version") == "6.0.7"
+
+    await inst.poll_firmware_info()
+    assert charger.get("firmware_current_version") == "6.0.7"
+    assert charger.get("firmware_available_version") is None
+
+
+@pytest.mark.asyncio
+async def test_poll_firmware_info_keeps_available_version_when_current_missing() -> None:
+    """A charger without a current version keeps its available version (issue #400)."""
+    charger = _firmware_setup({"AvailableVersion": "6.0.7"})
+
+    await charger.zaptec["abcdef01-2345-6789-abcd-ef0123456789"].poll_firmware_info()
+
+    assert charger.get("firmware_current_version") is None
+    assert charger.get("firmware_available_version") == "6.0.7"
+
+
+@pytest.mark.asyncio
+async def test_poll_firmware_info_clears_all_versions_when_all_disappear() -> None:
+    """A charger that stops reporting firmware fields doesn't keep stale versions."""
+    charger = _firmware_setup(FULL_FIRMWARE, {})
+    inst = charger.zaptec["abcdef01-2345-6789-abcd-ef0123456789"]
+
+    await inst.poll_firmware_info()
+    assert charger.get("firmware_current_version") == "6.0.6"
+
+    await inst.poll_firmware_info()
+    assert charger.get("firmware_current_version") is None
+    assert charger.get("firmware_available_version") is None
+    assert charger.get("firmware_update_to_date") is None
+
+
+# ---------------------------------------------------------------------------
 #   Zaptec._refresh_token / login
 # ---------------------------------------------------------------------------
 
