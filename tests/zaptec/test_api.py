@@ -504,14 +504,11 @@ def test_is_command_valid_stop_when_charging_is_valid() -> None:
     assert chg.is_command_valid("stop_charging_final") is True
 
 
-def test_is_command_valid_missing_final_stop_raises_type_error() -> None:
-    """KNOWN ISSUE (Phase 3): a missing FinalStopActive makes int(None) raise.
-
-    Characterizes current behavior; the correctness cleanup should guard this.
-    """
+def test_is_command_valid_missing_final_stop_is_not_paused() -> None:
+    """A missing FinalStopActive is treated as not paused instead of raising (#458)."""
     chg = _charger_with_state(operation_mode="Connected_Finished")
-    with pytest.raises(TypeError):
-        chg.is_command_valid("resume_charging")
+    assert chg.is_command_valid("resume_charging") is False
+    assert chg.is_command_valid("stop_charging_final") is True
 
 
 # ---------------------------------------------------------------------------

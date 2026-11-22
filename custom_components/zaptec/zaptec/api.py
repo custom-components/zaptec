@@ -754,7 +754,11 @@ class Charger(ZaptecBase):
             # commands 506+507 in https://api.zaptec.com/help/index.html#/Charger/Charger_SendCommand_POST
             operation_mode = self.get("ChargerOperationMode")
             final_stop_active = self.get("FinalStopActive")
-            paused = operation_mode == "Connected_Finished" and int(final_stop_active) == 1
+            paused = (
+                operation_mode == "Connected_Finished"
+                and final_stop_active is not None
+                and int(final_stop_active) == 1
+            )
             if command == "stop_charging_final" and (paused or operation_mode == "Disconnected"):
                 msg = "Pause/stop charging is not allowed if charging is already paused or disconnected"
                 valid_command = False
